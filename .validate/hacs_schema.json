@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HACS Manifest",
+  "description": "Manifest file for HACS (Home Assistant Community Store) repositories.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The display name that will be used in the HACS UI."
+    },
+    "content_in_root": {
+      "type": "boolean",
+      "description": "Indicates whether the content is in the root of the repository."
+    },
+    "zip_release": {
+      "type": "boolean",
+      "description": "Indicates whether the content is in a zipped archive when releases are published on GitHub."
+    },
+    "filename": {
+      "type": "string",
+      "description": "Name of the file HACS should look for. Applies to single-item types like themes."
+    },
+    "hide_default_branch": {
+      "type": "boolean",
+      "description": "Tells HACS to not offer downloading the default branch."
+    },
+    "country": {
+      "type": "string",
+      "description": "Two-character country code in ISO 3166-1 alpha-2 format.",
+      "pattern": "^[A-Z]{2}$"
+    },
+    "homeassistant": {
+      "type": "string",
+      "description": "The minimum required Home Assistant version (e.g., '2024.1.0')."
+    },
+    "hacs": {
+      "type": "string",
+      "description": "The minimum required HACS version."
+    },
+    "render_readme": {
+      "type": "boolean",
+      "description": "Tells HACS to render the README.md file instead of info.md in the UI."
+    },
+    "persistent_directory": {
+      "type": "string",
+      "description": "A relative path within the integration directory that will be kept safe during upgrades."
+    },
+    "domains": {
+      "type": "array",
+      "description": "A list of domains that the integration provides.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "iot_class": {
+      "type": "string",
+      "description": "The IoT class of the integration.",
+      "enum": [
+        "assumed_state",
+        "cloud_polling",
+        "cloud_push",
+        "local_polling",
+        "local_push"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,49 @@
+from unittest.mock import patch
+
+import pytest
+from homeassistant.core import HomeAssistant
+
+from custom_components.wifi_scan_ssid.const import DOMAIN
+
+
+@pytest.mark.asyncio
+async def test_setup_unload_entry(hass: HomeAssistant, mock_config_entry):
+    """Test setting up and unloading the integration."""
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.wifi_scan_ssid.coordinator.WifiScanCoordinator.async_config_entry_first_refresh",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.wifi_scan_ssid.api.WifiScanAPI.get_access_points",
+            return_value=[],
+        ),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert DOMAIN in hass.data
+    assert mock_config_entry.entry_id in hass.data[DOMAIN]
+
+    # Unload
+    assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert mock_config_entry.entry_id not in hass.data.get(DOMAIN, {})
+
+
+@pytest.mark.asyncio
+async def test_setup_entry_failure(hass: HomeAssistant, mock_config_entry):
+    """Test setup entry failure."""
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_scan_ssid.coordinator.WifiScanCoordinator.async_config_entry_first_refresh",
+        side_effect=Exception("Failed to refresh"),
+    ):
+        assert not await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.entry_id not in hass.data.get(DOMAIN, {})

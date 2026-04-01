@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Home Assistant Integration Manifest",
+  "description": "Validation for Home Assistant integration manifest.json files.",
+  "type": "object",
+  "required": ["domain", "name", "codeowners", "documentation", "issue_tracker", "version"],
+  "properties": {
+    "domain": {
+      "type": "string",
+      "description": "Unique identifier for the integration (lowercase, no spaces).",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the integration."
+    },
+    "version": {
+      "type": "string",
+      "description": "Version of the integration (must follow Semantic Versioning)."
+    },
+    "documentation": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the integration's documentation."
+    },
+    "issue_tracker": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL where users can report issues."
+    },
+    "codeowners": {
+      "type": "array",
+      "description": "GitHub usernames of the maintainers.",
+      "items": {
+        "type": "string",
+        "pattern": "^@.+$"
+      }
+    },
+    "iot_class": {
+      "type": "string",
+      "description": "Communication type.",
+      "enum": [
+        "local_push",
+        "local_polling",
+        "cloud_push",
+        "cloud_polling",
+        "calculated",
+        "assumed_state"
+      ]
+    },
+    "integration_type": {
+      "type": "string",
+      "description": "Purpose of the integration.",
+      "enum": [
+        "entity",
+        "device",
+        "hardware",
+        "helper",
+        "hub",
+        "service",
+        "system",
+        "virtual"
+      ]
+    },
+    "config_flow": {
+      "type": "boolean",
+      "description": "Whether the integration uses a UI-based configuration flow."
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "Other integrations that must be loaded first.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "after_dependencies": {
+      "type": "array",
+      "description": "Soft dependencies that should load first if present.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "description": "Python PyPI dependencies.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": true
+}

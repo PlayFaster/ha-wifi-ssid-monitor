@@ -1,0 +1,12 @@
+{
+  "domain": "wifi_scan_ssid",
+  "name": "Wifi Scan SSID",
+  "codeowners": ["@PlayFaster"],
+  "config_flow": true,
+  "documentation": "https://github.com/PlayFaster/ha-wifi-scan-ssid",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/PlayFaster/ha-wifi-scan-ssid/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
