@@ -4,7 +4,14 @@
   "service": "homeassistant",
   "workspaceFolder": "/workspaces/ha-wifi-ssid-monitor",
   "_comment": "Added -U to ensure it upgrades if a cached version is old",
-  "postCreateCommand": "pip install -r .validate/requirements_test.txt",
+  "postCreateCommand": "apk update && apk add nodejs npm bash libc6-compat ncurses coreutils && pip install -r .validate/requirements_test.txt && npm install -g @google/gemini-cli && sed -i '1s|.*|#!/usr/bin/node|' /usr/local/lib/node_modules/@google/gemini-cli/bin/gemini.js && ln -sf /usr/local/lib/node_modules/@google/gemini-cli/bin/gemini.js /usr/local/bin/gemini",
+  "mounts": [
+    {
+      "source": "${localEnv:USERPROFILE}/.gemini",
+      "target": "/root/.gemini",
+      "type": "bind"
+    }
+  ],
   "customizations": {
     "vscode": {
       "extensions": [

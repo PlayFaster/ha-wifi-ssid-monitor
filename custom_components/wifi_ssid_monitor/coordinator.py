@@ -21,6 +21,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         self.api = api
         self.entry = entry
+        self.last_known_ssids = entry.options.get(CONF_KNOWN_SSIDS, "")
 
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, 600)
 
@@ -53,6 +54,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 }
 
                 known_networks_str = self.entry.options.get(CONF_KNOWN_SSIDS, "")
+                self.last_known_ssids = known_networks_str
                 known_networks = [
                     x.strip() for x in known_networks_str.split(",") if x.strip()
                 ]

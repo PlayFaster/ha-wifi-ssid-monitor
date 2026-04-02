@@ -30,6 +30,7 @@ def mock_config_entry():
             CONF_INTERFACE: "wlan0",
         },
         options={
+            CONF_INTERFACE: "wlan0",
             CONF_KNOWN_SSIDS: "MyNetwork1,MyNetwork2",
             CONF_SCAN_INTERVAL: 60,
         },

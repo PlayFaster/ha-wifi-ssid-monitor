@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from datetime import timedelta
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.const import UnitOfTime
@@ -83,18 +82,12 @@ class WifiScanIntervalNumber(NumberEntity):
 
             _LOGGER.debug("Applying new scan interval: %s minutes", val_minutes)
 
-            # Update coordinator
-            self._coordinator.update_interval = timedelta(seconds=val_seconds)
-
-            # Persist to options
+            # Persist to options. This will trigger the update listener in __init__.py
             new_options = dict(self._entry.options)
             new_options[CONF_SCAN_INTERVAL] = val_seconds
             self.hass.config_entries.async_update_entry(
                 self._entry, options=new_options
             )
-
-            # Trigger refresh
-            await self._coordinator.async_request_refresh()
 
         except asyncio.CancelledError:
             pass

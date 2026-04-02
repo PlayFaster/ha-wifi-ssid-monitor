@@ -55,9 +55,13 @@ async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-        from custom_components.wifi_ssid_monitor import async_reload_entry
+        from custom_components.wifi_ssid_monitor.const import CONF_INTERFACE
 
-        await async_reload_entry(hass, mock_config_entry)
+        # Update options to change interface and trigger reload branch
+        new_options = {**mock_config_entry.options, CONF_INTERFACE: "wlan1"}
+        hass.config_entries.async_update_entry(mock_config_entry, options=new_options)
+        await hass.async_block_till_done()
+
         mock_reload.assert_called_once_with(mock_config_entry.entry_id)
 
 
