@@ -45,7 +45,7 @@ async def test_sensors(hass: HomeAssistant, mock_config_entry, mock_coordinator)
     assert state.attributes["icon"] == "mdi:lan"
 
     # Test Device Info
-    sensor = WifiScanSensor(mock_coordinator, mock_config_entry, SENSOR_TYPES[0])
+    sensor = WifiScanSensor(mock_coordinator, SENSOR_TYPES[0])
     device_info = sensor.device_info
     assert device_info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
     assert device_info["name"] == mock_config_entry.title

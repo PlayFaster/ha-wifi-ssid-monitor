@@ -2,11 +2,11 @@
 
 import asyncio
 import logging
-from datetime import timedelta
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.const import UnitOfTime
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_SCAN_INTERVAL, DOMAIN
 from .coordinator import WifiScanCoordinator
@@ -29,21 +29,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the number platform."""
     coordinator: WifiScanCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    # Read initial value from entry options (in minutes)
-    # Default to 10 if not set (600 seconds).
-    raw_val = entry.options.get(CONF_SCAN_INTERVAL, 600)
-    initial_value = max(1, raw_val // 60)
-
-    async_add_entities(
-        [
-            WifiScanIntervalNumber(
-                coordinator, entry, SCAN_INTERVAL_DESCRIPTION, initial_value
-            )
-        ]
-    )
+    async_add_entities([WifiScanIntervalNumber(coordinator, SCAN_INTERVAL_DESCRIPTION)])
 
 
-class WifiScanIntervalNumber(NumberEntity):
+class WifiScanIntervalNumber(CoordinatorEntity, NumberEntity):
     """Number entity to control the scan interval in minutes."""
 
     _attr_has_entity_name = True
@@ -52,23 +41,22 @@ class WifiScanIntervalNumber(NumberEntity):
     def __init__(
         self,
         coordinator: WifiScanCoordinator,
-        entry,
         description: NumberEntityDescription,
-        initial_value,
     ):
         """Initialize the number entity."""
-        self._coordinator = coordinator
-        self._entry = entry
+        super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"{entry.unique_id}_{description.key}"
-        self._attr_native_value = initial_value
+        self._attr_unique_id = f"{coordinator.config_entry.unique_id}_{description.key}"
         self._refresh_task = None
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the entity."""
+        raw_val = self.coordinator.config_entry.options.get(CONF_SCAN_INTERVAL, 600)
+        return max(1, raw_val // 60)
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the scan interval."""
-        self._attr_native_value = value
-        self.async_write_ha_state()
-
         if self._refresh_task:
             self._refresh_task.cancel()
 
@@ -81,20 +69,15 @@ class WifiScanIntervalNumber(NumberEntity):
             val_minutes = int(value)
             val_seconds = val_minutes * 60
 
-            _LOGGER.debug("Applying new scan interval: %s minutes", val_minutes)
+            _LOGGER.debug("Persisting new scan interval: %s minutes", val_minutes)
 
-            # Update coordinator
-            self._coordinator.update_interval = timedelta(seconds=val_seconds)
-
-            # Persist to options
-            new_options = dict(self._entry.options)
+            # Persist to options. This triggers the update listener in __init__.py
+            # which will update the coordinator interval and trigger a refresh.
+            new_options = dict(self.coordinator.config_entry.options)
             new_options[CONF_SCAN_INTERVAL] = val_seconds
             self.hass.config_entries.async_update_entry(
-                self._entry, options=new_options
+                self.coordinator.config_entry, options=new_options
             )
-
-            # Trigger refresh
-            await self._coordinator.async_request_refresh()
 
         except asyncio.CancelledError:
             pass
@@ -105,7 +88,7 @@ class WifiScanIntervalNumber(NumberEntity):
     def device_info(self):
         """Return device information."""
         return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
+            "identifiers": {(DOMAIN, self.coordinator.config_entry.entry_id)},
+            "name": self.coordinator.config_entry.title,
             "manufacturer": "PlayFaster",
         }

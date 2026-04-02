@@ -1,6 +1,5 @@
 """Tests for WiFi SSID Monitor number platform."""
 
-from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -20,38 +19,53 @@ async def test_number_setup_and_update(hass, mock_config_entry, mock_coordinator
     mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
 
     # CONF_SCAN_INTERVAL is 60 in conftest, so initial_value should be 1
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 1
-    )
+    number = WifiScanIntervalNumber(mock_coordinator, SCAN_INTERVAL_DESCRIPTION)
     number.hass = hass
     number.async_write_ha_state = MagicMock()
-    mock_coordinator.async_request_refresh = AsyncMock()
 
-    # Test setting a new value via direct call to simulate service
-    with patch("asyncio.sleep", AsyncMock()):
+    # Mock async_update_entry to update the mock_config_entry directly
+    # since it's a mock object and not a real config entry.
+    def mock_update_entry(entry, **kwargs):
+        if "options" in kwargs:
+            # Bypass AttributeError: options cannot be changed directly
+            object.__setattr__(entry, "options", kwargs["options"])
+        return True
+
+    with (
+        patch.object(
+            hass.config_entries, "async_update_entry", side_effect=mock_update_entry
+        ),
+        patch("asyncio.sleep", AsyncMock()),
+    ):
+        # Test setting a new value via direct call to simulate service
         await number.async_set_native_value(15)
         # We MUST await the background task created by the entity
         if number._refresh_task:
             await number._refresh_task
 
-    # Verify coordinator update
-    assert mock_coordinator.update_interval == timedelta(minutes=15)
-    mock_coordinator.async_request_refresh.assert_called_once()
-
-    # Verify persistence in options
+    # Verify persistence in options.
     assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 900  # 15 * 60
 
 
 @pytest.mark.asyncio
 async def test_number_debounce_cancellation(hass, mock_config_entry, mock_coordinator):
     """Test that rapid changes cancel previous update tasks."""
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
-    )
+    number = WifiScanIntervalNumber(mock_coordinator, SCAN_INTERVAL_DESCRIPTION)
     number.hass = hass
     number.async_write_ha_state = MagicMock()
 
-    with patch("asyncio.sleep", AsyncMock()):
+    def mock_update_entry(entry, **kwargs):
+        if "options" in kwargs:
+            # Bypass AttributeError: options cannot be changed directly
+            object.__setattr__(entry, "options", kwargs["options"])
+        return True
+
+    with (
+        patch.object(
+            hass.config_entries, "async_update_entry", side_effect=mock_update_entry
+        ),
+        patch("asyncio.sleep", AsyncMock()),
+    ):
         # First update
         await number.async_set_native_value(20)
         task1 = number._refresh_task
@@ -67,15 +81,14 @@ async def test_number_debounce_cancellation(hass, mock_config_entry, mock_coordi
         # Let task2 finish
         await task2
 
-    assert mock_coordinator.update_interval == timedelta(minutes=30)
+    # Verify that only the final value was persisted
+    assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 1800  # 30 * 60
 
 
 @pytest.mark.asyncio
 async def test_number_apply_error(hass, mock_config_entry, mock_coordinator):
     """Test error handling during interval application."""
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
-    )
+    number = WifiScanIntervalNumber(mock_coordinator, SCAN_INTERVAL_DESCRIPTION)
     number.hass = hass
     number.async_write_ha_state = MagicMock()
 
@@ -100,9 +113,7 @@ async def test_number_apply_error(hass, mock_config_entry, mock_coordinator):
 
 def test_number_device_info(mock_config_entry, mock_coordinator):
     """Test device information for number entity."""
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
-    )
+    number = WifiScanIntervalNumber(mock_coordinator, SCAN_INTERVAL_DESCRIPTION)
     info = number.device_info
     assert info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
     assert info["manufacturer"] == "PlayFaster"

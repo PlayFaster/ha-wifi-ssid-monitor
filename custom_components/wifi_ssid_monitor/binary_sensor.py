@@ -18,9 +18,7 @@ NEW_NETWORK_DESCRIPTION = BinarySensorEntityDescription(
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the binary sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [WifiScanBinarySensor(coordinator, entry, NEW_NETWORK_DESCRIPTION)]
-    )
+    async_add_entities([WifiScanBinarySensor(coordinator, NEW_NETWORK_DESCRIPTION)])
 
 
 class WifiScanBinarySensor(CoordinatorEntity, BinarySensorEntity):
@@ -28,12 +26,11 @@ class WifiScanBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, entry, description):
+    def __init__(self, coordinator, description):
         """Initialize the binary sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._entry = entry
-        self._attr_unique_id = f"{entry.unique_id}_{description.key}"
+        self._attr_unique_id = f"{coordinator.config_entry.unique_id}_{description.key}"
 
     @property
     def is_on(self) -> bool:
@@ -46,7 +43,7 @@ class WifiScanBinarySensor(CoordinatorEntity, BinarySensorEntity):
     def device_info(self):
         """Return device information."""
         return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
+            "identifiers": {(DOMAIN, self.coordinator.config_entry.entry_id)},
+            "name": self.coordinator.config_entry.title,
             "manufacturer": "PlayFaster",
         }

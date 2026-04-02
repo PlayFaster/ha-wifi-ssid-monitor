@@ -42,7 +42,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = [
-        WifiScanSensor(coordinator, entry, description) for description in SENSOR_TYPES
+        WifiScanSensor(coordinator, description) for description in SENSOR_TYPES
     ]
     async_add_entities(entities)
 
@@ -52,12 +52,11 @@ class WifiScanSensor(CoordinatorEntity, SensorEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, entry, description):
+    def __init__(self, coordinator, description):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._entry = entry
-        self._attr_unique_id = f"{entry.unique_id}_{description.key}"
+        self._attr_unique_id = f"{coordinator.config_entry.unique_id}_{description.key}"
 
     @property
     def native_value(self):
@@ -81,7 +80,7 @@ class WifiScanSensor(CoordinatorEntity, SensorEntity):
     def device_info(self):
         """Return device information."""
         return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
+            "identifiers": {(DOMAIN, self.coordinator.config_entry.entry_id)},
+            "name": self.coordinator.config_entry.title,
             "manufacturer": "PlayFaster",
         }

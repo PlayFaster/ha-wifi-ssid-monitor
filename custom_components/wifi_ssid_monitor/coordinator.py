@@ -20,7 +20,6 @@ class WifiScanCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: WifiScanAPI):
         """Initialize the coordinator."""
         self.api = api
-        self.entry = entry
 
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, 600)
 
@@ -30,6 +29,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             name=f"{entry.title} Data",
             update_interval=timedelta(seconds=scan_interval),
         )
+        self.config_entry = entry
 
     async def _async_update_data(self):
         """Fetch data from API."""
@@ -52,7 +52,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     if "ssid" in ap
                 }
 
-                known_networks_str = self.entry.options.get(CONF_KNOWN_SSIDS, "")
+                known_networks_str = self.config_entry.options.get(CONF_KNOWN_SSIDS, "")
                 known_networks = [
                     x.strip() for x in known_networks_str.split(",") if x.strip()
                 ]
