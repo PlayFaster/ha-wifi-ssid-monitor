@@ -1,20 +1,25 @@
+"""Tests for Wifi Scan SSID sensors."""
+
 from unittest.mock import patch
 
 import pytest
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 from custom_components.wifi_scan_ssid.const import DOMAIN
+from custom_components.wifi_scan_ssid.sensor import SENSOR_TYPES, WifiScanSensor
 
 
 @pytest.mark.asyncio
 async def test_sensors(hass: HomeAssistant, mock_config_entry, mock_coordinator):
     """Test sensor states and attributes."""
     mock_config_entry.add_to_hass(hass)
+    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
 
     with patch.dict(
         hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
     ):
-        assert await hass.config_entries.async_forward_entry_setups(
+        await hass.config_entries.async_forward_entry_setups(
             mock_config_entry, ["sensor"]
         )
         await hass.async_block_till_done()
@@ -33,6 +38,13 @@ async def test_sensors(hass: HomeAssistant, mock_config_entry, mock_coordinator)
     assert state.attributes["ssids"] == ["UnknownNet"]
     assert state.attributes["icon"] == "mdi:wifi-off"
 
+    # Test Device Info
+    sensor = WifiScanSensor(mock_coordinator, mock_config_entry, SENSOR_TYPES[0])
+    device_info = sensor.device_info
+    assert device_info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
+    assert device_info["name"] == mock_config_entry.title
+    assert device_info["manufacturer"] == "PlayFaster"
+
 
 @pytest.mark.asyncio
 async def test_sensors_no_data(
@@ -40,12 +52,13 @@ async def test_sensors_no_data(
 ):
     """Test sensors when coordinator has no data."""
     mock_config_entry.add_to_hass(hass)
+    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
     mock_coordinator.data = None
 
     with patch.dict(
         hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
     ):
-        assert await hass.config_entries.async_forward_entry_setups(
+        await hass.config_entries.async_forward_entry_setups(
             mock_config_entry, ["sensor"]
         )
         await hass.async_block_till_done()

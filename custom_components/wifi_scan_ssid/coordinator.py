@@ -1,3 +1,5 @@
+"""DataUpdateCoordinator for Wifi Scan SSID integration."""
+
 import asyncio
 import logging
 from datetime import timedelta
@@ -52,6 +54,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     "ssids": all_ssids,
                     "unknown_ssids": unknown_ssids,
                     "unknown_count": len(unknown_ssids),
+                    "interface": self.api.interface,
                 }
 
             except WifiScanError as err:

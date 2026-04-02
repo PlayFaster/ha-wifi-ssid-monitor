@@ -1,0 +1,92 @@
+{
+  "title": "ZTE Router 5G Monitor",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Setup ZTE Router 5G Monitor",
+        "data": {
+          "host": "IP Address",
+          "username": "Username (Optional)",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to router. Check IP address.",
+      "invalid_auth": "Invalid password. Please try again.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Reconfigure ZTE Router 5G Monitor",
+        "data": {
+          "host": "IP Address",
+          "username": "Username (Optional)",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to router. Check IP address.",
+      "invalid_auth": "Invalid password. Please try again.",
+      "unknown": "Unexpected error occurred."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "lte_rsrp": { "name": "LTE RSRP" },
+      "lte_rsrq": { "name": "LTE RSRQ" },
+      "lte_rssi": { "name": "LTE RSSi" },
+      "lte_snr": { "name": "LTE SNR" },
+      "z5g_rsrp": { "name": "Z5G RSRP" },
+      "z5g_sinr": { "name": "Z5G SiNr" },
+      "signalbar": { "name": "SignalBar" },
+      "network_type": { "name": "Network Type" },
+      "monthly_rx_bytes": { "name": "Download GB" },
+      "monthly_tx_bytes": { "name": "Upload GB" },
+      "monthly_total_bytes": { "name": "Data UpDown GB" },
+      "last_updated": { "name": "Last Updated" },
+      "device_uptime": { "name": "Device Uptime" },
+      "cell_id": { "name": "Cell ID" },
+      "lan_ipaddr": { "name": "LAN IPAddr" },
+      "wan_ipaddr": { "name": "WAN IPAddr" },
+      "wan_apn": { "name": "WAN APN" },
+      "wan_connect_status": { "name": "WAN Connect Status" },
+      "lte_ca_pcell_band": { "name": "LTE CA PCell Band" },
+      "lte_ca_pcell_bandwidth": { "name": "LTE CA PCell Bandwidth" },
+      "lte_pci": { "name": "LTE Pci" },
+      "mdm_mcc": { "name": "MDM MCC" },
+      "mdm_mnc": { "name": "MDM MNC" },
+      "network_provider": { "name": "Network Provider" },
+      "nr5g_action_band": { "name": "NR5G Action Band" },
+      "nr5g_action_channel": { "name": "NR5G Action Channel" },
+      "nr5g_pci": { "name": "NR5G Pci" },
+      "rmcc": { "name": "RMCC" },
+      "rmnc": { "name": "RMNC" },
+      "wan_active_band": { "name": "WAN Active Band" },
+      "wan_active_channel": { "name": "WAN Active Channel" },
+      "wan_lte_ca": { "name": "WAN LTE CA" },
+      "wa_inner_version": { "name": "Wa Inner Version" },
+      "msg_total": { "name": "Msg Total" },
+      "msg_recent": { "name": "Msg Recent" }
+    },
+    "button": {
+      "reboot": { "name": "Reboot" },
+      "delete_all": { "name": "Delete All" }
+    },
+    "binary_sensor": {
+      "best_connection": { "name": "Best Connection" }
+    },
+    "switch": {
+      "pause_polling": { "name": "Pause Polling" }
+    },
+    "number": {
+      "polling_interval": { "name": "Polling Interval" }
+    }
+  }
+}

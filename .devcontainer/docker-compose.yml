@@ -17,3 +17,14 @@ services:
     restart: unless-stopped
     environment:
       - TZ=Europe/London
+      - SUPERVISOR_TOKEN=mock_dev_token
+    depends_on:
+      - supervisor
+
+  # Mock service to simulate Supervisor API as host will not pass thru WiFi
+  supervisor:
+    image: python:3.11-slim
+    container_name: supervisor_mock
+    volumes:
+      - ./mock_supervisor.py:/mock_supervisor.py:ro
+    command: python /mock_supervisor.py

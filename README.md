@@ -39,6 +39,5 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 
 ## Contributors & Acknowledgements
 
-🙏 Special Thanks
-
 - This project was developed with the assistance of Gemini AI to ensure code quality and best practices.
+  

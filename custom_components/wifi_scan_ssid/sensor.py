@@ -1,3 +1,5 @@
+"""Sensor platform for Wifi Scan SSID integration."""
+
 import logging
 from typing import Final
 
@@ -6,6 +8,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -25,6 +28,12 @@ SENSOR_TYPES: Final[tuple[SensorEntityDescription, ...]] = (
         translation_key="unknown_count",
         icon="mdi:wifi-off",
         state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="interface",
+        translation_key="interface",
+        icon="mdi:lan",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
 

@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Test and coverage reports
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+coverage.xml
+.coverage
+.reports/
+
+# Home Assistant
+.storage/
+testing_config/
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+# .vscode/
+*.code-workspace
+.idea/
+
+# Sync
+sync.ffs_*
+sync.ffs_db
+sync.ffs_lock
+
+# Test Dev
+.devconfig/
+uv.lock
+
+# Note Scratch Compare Area
+/loc_only/
+/loc_only
+loc_only
+
+# AI
+*.gptcache
+.geminignore
+.aiexclude

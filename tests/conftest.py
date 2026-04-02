@@ -1,3 +1,5 @@
+"""Fixtures for Wifi Scan SSID tests."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -67,20 +69,25 @@ class MockResponse:
     """Helper to mock aiohttp responses."""
 
     def __init__(self, json_data=None, status=200, text_data=""):
+        """Initialize the mock response."""
         self._json_data = json_data
         self.status = status
         self._text_data = text_data
 
     async def json(self, **kwargs):
+        """Return the JSON data."""
         return self._json_data
 
     async def text(self):
+        """Return the text data."""
         return self._text_data
 
     async def __aenter__(self):
+        """Enter the context manager."""
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit the context manager."""
         pass
 
 

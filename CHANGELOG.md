@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-04-02
+
+### Added
+
+- **New Network Alert**: Added a binary sensor that triggers when unknown SSIDs are detected, making it easier to set up automations.
+- **Interface Sensor**: Added a diagnostic sensor to show the active WiFi adapter being scanned.
+- **Setup Validation**: Enhanced the configuration flow to validate connectivity and the presence of the Supervisor token before setup completes.
+
+## [1.0.2] - 2026-04-02
+
+### Added
+
+- **Branding**: Created new, generic WiFi scanning icons and logos.
+- **Mock Supervisor**: Implemented service in the DevContainer to allow for integration testing on systems where physical WiFi access is restricted within containers.
+
+## [1.0.1] - 2026-04-02
+
+### Changed
+
+- **Tests and Coverage**: Significantly expanded test suite to achieve 99% coverage, including new coordinator tests and improved error path validation.
+
+### Fixed
+
+- **Code Quality**: Fixed file formatting and line length issues to comply with Ruff standards.
+- **Documentation**: Added missing docstrings across modules and tests.
+
 ## [1.0.0] - 2026-04-01
 
 ### Added

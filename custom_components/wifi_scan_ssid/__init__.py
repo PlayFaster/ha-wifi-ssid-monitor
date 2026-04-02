@@ -1,3 +1,5 @@
+"""The Wifi Scan SSID integration."""
+
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -10,7 +12,7 @@ from .coordinator import WifiScanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[str] = ["sensor"]
+PLATFORMS: list[str] = ["sensor", "binary_sensor", "number"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

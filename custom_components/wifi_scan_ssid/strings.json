@@ -36,7 +36,14 @@
   "entity": {
     "sensor": {
       "total_count": { "name": "Total Count" },
-      "unknown_count": { "name": "Unknown Count" }
+      "unknown_count": { "name": "Unknown Count" },
+      "interface": { "name": "Interface" }
+    },
+    "binary_sensor": {
+      "new_network": { "name": "New Network Alert" }
+    },
+    "number": {
+      "scan_interval": { "name": "Scan Interval" }
     }
   }
 }

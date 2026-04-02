@@ -1,3 +1,5 @@
+"""Tests for Wifi Scan SSID config flow."""
+
 from unittest.mock import patch
 
 import pytest
@@ -21,9 +23,15 @@ async def test_user_flow(hass: HomeAssistant):
     assert result["type"] == data_entry_flow.FlowResultType.FORM
     assert result["step_id"] == "user"
 
-    with patch(
-        "custom_components.wifi_scan_ssid.async_setup_entry", return_value=True
-    ) as mock_setup_entry:
+    with (
+        patch(
+            "custom_components.wifi_scan_ssid.async_setup_entry", return_value=True
+        ) as mock_setup_entry,
+        patch(
+            "custom_components.wifi_scan_ssid.config_flow._validate_input",
+            return_value=None,
+        ),
+    ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
@@ -42,9 +50,34 @@ async def test_user_flow(hass: HomeAssistant):
     assert result["options"] == {
         CONF_INTERFACE: "wlan0",
         CONF_KNOWN_SSIDS: "MyNet1,MyNet2",
-        CONF_SCAN_INTERVAL: 180,
+        CONF_SCAN_INTERVAL: 600,
     }
     assert len(mock_setup_entry.mock_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_user_flow_already_configured(hass: HomeAssistant, mock_config_entry):
+    """Test user setup flow when interface is already configured."""
+    mock_config_entry.add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}
+    )
+
+    with patch(
+        "custom_components.wifi_scan_ssid.config_flow._validate_input",
+        return_value=None,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                CONF_INTERFACE: "wlan0",
+                CONF_KNOWN_SSIDS: "MyNet1,MyNet2",
+            },
+        )
+
+    assert result["type"] == data_entry_flow.FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
 
 
 @pytest.mark.asyncio

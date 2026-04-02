@@ -1,3 +1,5 @@
+"""API for Wifi Scan SSID."""
+
 import logging
 import os
 
@@ -18,6 +20,13 @@ class WifiScanAPI:
         self.session = session
         self.interface = interface
         self.token = os.environ.get("SUPERVISOR_TOKEN")
+
+    async def validate(self):
+        """Validate the API connection."""
+        if not self.token:
+            raise WifiScanError("SUPERVISOR_TOKEN not found")
+        await self.get_access_points()
+        return True
 
     async def get_access_points(self):
         """Fetch access points from the Supervisor API."""

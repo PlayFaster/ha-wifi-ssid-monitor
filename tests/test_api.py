@@ -1,3 +1,5 @@
+"""Tests for Wifi Scan SSID API."""
+
 import os
 from unittest.mock import patch
 
@@ -75,4 +77,15 @@ async def test_get_access_points_connection_error(mock_aiohttp_client):
         mock_aiohttp_client.get.side_effect = aiohttp.ClientError("Connection failed")
 
         with pytest.raises(WifiScanError, match="Connection error"):
+            await api.get_access_points()
+
+
+@pytest.mark.asyncio
+async def test_get_access_points_generic_error(mock_aiohttp_client):
+    """Test error when a generic exception occurs."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        mock_aiohttp_client.get.side_effect = Exception("Generic error")
+
+        with pytest.raises(WifiScanError, match="Unexpected error"):
             await api.get_access_points()

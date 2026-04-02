@@ -27,12 +27,15 @@ select = [
     "I",   # isort
     "UP",  # pyupgrade
     "W",   # pycodestyle warning
+    "N",   # pep8-naming
+    "D",   # pydocstyle
     "ASYNC", # flake8-async
     "RUF", # Ruff-specific rules
     "SIM", # flake8-simplify
+    "T20", # flake8-print (forbids print statements)
 ]
 
-# N D and T20 omitted
+# N D and T20 were omitted added back for full compliance.
 
 ignore = [
     "D203", # Conflict with D211 (HA prefers no blank line before class)

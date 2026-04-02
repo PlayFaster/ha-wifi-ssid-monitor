@@ -18,7 +18,7 @@
       "settings": {
         "_comment": "This helps VS Code find your imports correctly",
         "python.analysis.extraPaths": [
-          "/workspaces/ha-zte-router-5g-monitor/custom_components"
+          "/workspaces/ha-wifi-scan-ssid/custom_components"
         ],
         "yaml.schemas": {
           "https://raw.githubusercontent.com/hacs/default/master/hacs.json": "hacs.json",

@@ -1,0 +1,138 @@
+---
+# Workflow runs a suite of validations for the Home Assistant integration.
+# It contains multiple independent jobs (Hassfest, HACS, Ruff, etc.),
+# it generates a SINGLE workflow badge for the README.
+
+name: Validate
+
+'on':
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 0 * * *"  # Daily at midnight
+
+permissions:
+  contents: write  # Required for updating the coverage badge in README
+
+jobs:
+  # Job 1: Official Home Assistant HASSfest validation.
+  hassfest:
+    name: "HA Hassfest"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Hassfest Validation
+        uses: home-assistant/actions/hassfest@master
+
+  # Job 2: Official HACS metadata validation.
+  hacs_val:
+    name: "HACS Check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: HACS Validation
+        uses: hacs/action@main
+        continue-on-error: true
+        with:
+          category: integration
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}@${{ github.ref_name }}
+
+  # Job 3: Python quality check via Ruff.
+  py_val:
+    name: "Python Lint (Ruff)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Check
+        run: ruff check .
+
+      - name: Run Ruff Format
+        run: ruff format --check .
+
+  # Job 4: Pytest and Dynamic Coverage Badge.
+  # Runs all unit tests and updates the README badge automatically.
+  test_val:
+    name: "Tests & Coverage"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r .validate/requirements_test.txt
+          pip install .
+
+      - name: Run tests
+        run: |
+          pytest --cov=custom_components/zte_router_5g --cov-report=xml tests/
+
+      - name: Pytest coverage comment
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          pytest-xml-coverage-path: ./coverage.xml
+          title: Coverage Report
+          badge-title: Coverage
+          hide-badge: false
+          hide-comment: false
+          create-new-comment: false
+          junitxml-path: ./pytest.xml
+
+  # Job 5: File-level integrity (JSON, YAML, and Markdown).
+  file_val:
+    name: "File Integrity"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: JSON Schema Check
+        run: |
+          pip install check-jsonschema
+          check-jsonschema --schemafile .validate/hacs_schema.json hacs.json
+
+      - name: YAML Check
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: .
+          config_data: "{extends: relaxed, rules: {line-length: {max: 120}}}"
+
+      - name: Check README Links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        continue-on-error: true
+        with:
+          base-branch: main
+          file-path: README.md

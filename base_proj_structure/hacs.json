@@ -1,0 +1,8 @@
+{
+  "name": "ZTE Router 5G Monitor",
+  "render_readme": true,
+  "homeassistant": "2025.1.0",
+  "domains": ["zte_router_5g"],
+  "iot_class": "local_polling",
+  "hide_default_branch": true
+}

@@ -1,3 +1,5 @@
+"""Tests for Wifi Scan SSID setup and unload."""
+
 from unittest.mock import patch
 
 import pytest
@@ -32,6 +34,31 @@ async def test_setup_unload_entry(hass: HomeAssistant, mock_config_entry):
     await hass.async_block_till_done()
 
     assert mock_config_entry.entry_id not in hass.data.get(DOMAIN, {})
+
+
+@pytest.mark.asyncio
+async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
+    """Test reloading the entry."""
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.wifi_scan_ssid.coordinator.WifiScanCoordinator.async_config_entry_first_refresh",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.wifi_scan_ssid.api.WifiScanAPI.get_access_points",
+            return_value=[],
+        ),
+        patch("homeassistant.config_entries.ConfigEntries.async_reload") as mock_reload,
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        from custom_components.wifi_scan_ssid import async_reload_entry
+
+        await async_reload_entry(hass, mock_config_entry)
+        mock_reload.assert_called_once_with(mock_config_entry.entry_id)
 
 
 @pytest.mark.asyncio
