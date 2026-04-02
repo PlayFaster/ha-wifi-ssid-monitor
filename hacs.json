@@ -1,8 +1,5 @@
 {
   "name": "WiFi SSID Monitor",
   "render_readme": true,
-  "homeassistant": "2025.1.0",
-  "domains": ["wifi_ssid_monitor"],
-  "iot_class": "local_polling",
   "hide_default_branch": true
 }
