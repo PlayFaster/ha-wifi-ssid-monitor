@@ -18,6 +18,7 @@ name: Validate
 
 permissions:
   contents: write  # Required for updating the coverage badge in README
+  pull-requests: write  # For creating/updating PR comments
 
 jobs:
   # Job 1: Official Home Assistant HASSfest validation.
@@ -41,7 +42,6 @@ jobs:
 
       - name: HACS Validation
         uses: hacs/action@main
-        continue-on-error: true
         with:
           category: integration
 
@@ -131,7 +131,6 @@ jobs:
 
       - name: Check README Links
         uses: gaurav-nelson/github-action-markdown-link-check@v1
-        continue-on-error: true
         with:
           base-branch: main
           file-path: README.md
