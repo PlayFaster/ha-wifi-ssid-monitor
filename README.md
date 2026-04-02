@@ -1,6 +1,6 @@
-# Wifi Scan SSID for Home Assistant
+# WiFi SSID Monitor for Home Assistant
 
-![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg) ![Latest Release](https://img.shields.io/github/v/release/PlayFaster/ha-wifi-scan-ssid?label=Release&logo=github) [![Validate](https://github.com/PlayFaster/ha-wifi-scan-ssid/actions/workflows/validate.yaml/badge.svg)](https://github.com/PlayFaster/ha-wifi-scan-ssid/actions/workflows/validate.yaml) ![Last Commit](https://img.shields.io/github/last-commit/PlayFaster/ha-wifi-scan-ssid?label=Last%20commit)
+![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg) ![Latest Release](https://img.shields.io/github/v/release/PlayFaster/ha-wifi-ssid-monitor?label=Release&logo=github) [![Validate](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml/badge.svg)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml) ![Last Commit](https://img.shields.io/github/last-commit/PlayFaster/ha-wifi-ssid-monitor?label=Last%20commit)
 
 Home Assistant integration that uses the system's WiFi (via Supervisor API) to scan for SSIDs, count them, and identify unknown networks.
 
@@ -22,9 +22,9 @@ Home Assistant integration that uses the system's WiFi (via Supervisor API) to s
 
 ### Manual
 
-1. Copy the `custom_components/wifi_scan_ssid` folder to your Home Assistant `custom_components` directory.
+1. Copy the `custom_components/wifi_ssid_monitor` folder to your Home Assistant `custom_components` directory.
 2. Restart Home Assistant.
-3. Go to **Settings > Devices & Services > Add Integration** and search for "Wifi Scan SSID".
+3. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor".
 
 ## Configuration
 
@@ -43,5 +43,4 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 
 ## Contributors & Acknowledgements
 
-This project was developed with the assistance of Gemini AI to ensure code quality and best practices.
-  
+- This project was developed with the assistance of Gemini AI to ensure code quality and best practices.

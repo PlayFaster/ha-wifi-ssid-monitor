@@ -1,7 +1,7 @@
 ---
 services:
   homeassistant:
-    container_name: wifi-scan-dev
+    container_name: wifi-ssid-monitor-dev
     image: ghcr.io/home-assistant/home-assistant:stable
     volumes:
       # Mount the whole project so the DevContainer workspace works
@@ -11,7 +11,7 @@ services:
       # IMPORTANT: Use a relative path from the
       #  project root inside the container
       # This ensures HA sees your code as an integration
-      - ../custom_components/wifi_scan_ssid:/config/custom_components/wifi_scan_ssid:ro
+      - ../custom_components/wifi_ssid_monitor:/config/custom_components/wifi_ssid_monitor:ro
     ports:
       - "8123:8123"
     restart: unless-stopped

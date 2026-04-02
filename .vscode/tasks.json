@@ -112,7 +112,7 @@
         {
             "label": "Pytest: Check Test Coverage",
             "type": "shell",
-            "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov=custom_components/wifi_scan_ssid/ --cov-report=term-missing --cov-report=html:.reports/coverage tests/",
+            "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=term-missing --cov-report=html:.reports/coverage tests/",
             "presentation": {
                 "reveal": "always",
                 "panel": "dedicated"

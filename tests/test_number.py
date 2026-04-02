@@ -1,4 +1,4 @@
-"""Tests for Wifi Scan SSID number platform."""
+"""Tests for WiFi SSID Monitor number platform."""
 
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 
-from custom_components.wifi_scan_ssid.const import CONF_SCAN_INTERVAL, DOMAIN
-from custom_components.wifi_scan_ssid.number import (
+from custom_components.wifi_ssid_monitor.const import CONF_SCAN_INTERVAL, DOMAIN
+from custom_components.wifi_ssid_monitor.number import (
     SCAN_INTERVAL_DESCRIPTION,
     WifiScanIntervalNumber,
 )
@@ -88,7 +88,7 @@ async def test_number_apply_error(hass, mock_config_entry, mock_coordinator):
             side_effect=Exception("Save error"),
         ),
         patch(
-            "custom_components.wifi_scan_ssid.number._LOGGER.error"
+            "custom_components.wifi_ssid_monitor.number._LOGGER.error"
         ) as mock_log_error,
     ):
         await number.async_set_native_value(15)

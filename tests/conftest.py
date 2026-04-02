@@ -1,11 +1,11 @@
-"""Fixtures for Wifi Scan SSID tests."""
+"""Fixtures for WiFi SSID Monitor tests."""
 
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.wifi_scan_ssid.const import (
+from custom_components.wifi_ssid_monitor.const import (
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
     CONF_SCAN_INTERVAL,
@@ -24,8 +24,8 @@ def mock_config_entry():
     """Mock a config entry."""
     return MockConfigEntry(
         domain=DOMAIN,
-        unique_id="wifi_scan_wlan0",
-        title="Wifi Scan wlan0",
+        unique_id="wifi_ssid_monitor_wlan0",
+        title="WiFi SSID Monitor wlan0",
         data={
             CONF_INTERFACE: "wlan0",
         },
@@ -47,13 +47,14 @@ def mock_wifi_api():
             {"ssid": "UnknownNet", "signal": -70},
         ]
     )
+    api.interface = "wlan0"
     return api
 
 
 @pytest.fixture
 def mock_coordinator(hass, mock_config_entry, mock_wifi_api):
-    """Mock WifiScanCoordinator."""
-    from custom_components.wifi_scan_ssid.coordinator import WifiScanCoordinator
+    """Mock WiFi SSID Monitor coordinator."""
+    from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
 
     coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api)
     coordinator.data = {
@@ -61,6 +62,7 @@ def mock_coordinator(hass, mock_config_entry, mock_wifi_api):
         "ssids": ["MyNetwork1", "UnknownNet"],
         "unknown_ssids": ["UnknownNet"],
         "unknown_count": 1,
+        "interface": "wlan0",
     }
     return coordinator
 

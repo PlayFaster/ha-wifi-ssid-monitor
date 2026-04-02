@@ -1,12 +1,12 @@
-"""Tests for Wifi Scan SSID coordinator."""
+"""Tests for WiFi SSID Monitor coordinator."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from custom_components.wifi_scan_ssid.api import WifiScanError
-from custom_components.wifi_scan_ssid.coordinator import WifiScanCoordinator
+from custom_components.wifi_ssid_monitor.api import WifiScanError
+from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
 
 
 @pytest.mark.asyncio
@@ -27,6 +27,7 @@ async def test_coordinator_update_data_success(hass, mock_config_entry, mock_wif
     assert data["ssids"] == ["MyNetwork1", "Net1", "Net2"]
     assert data["unknown_ssids"] == ["Net1", "Net2"]
     assert data["unknown_count"] == 2
+    assert data["interface"] == "wlan0"
 
 
 @pytest.mark.asyncio

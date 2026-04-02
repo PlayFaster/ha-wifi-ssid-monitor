@@ -1,5 +1,0 @@
-ruff
-pytest-homeassistant-custom-component
-pytest-cov
-yamllint
-check-jsonschema

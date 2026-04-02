@@ -1,11 +1,11 @@
-"""Tests for Wifi Scan SSID API."""
+"""Tests for WiFi SSID Monitor API."""
 
 import os
 from unittest.mock import patch
 
 import pytest
 
-from custom_components.wifi_scan_ssid.api import WifiScanAPI, WifiScanError
+from custom_components.wifi_ssid_monitor.api import WifiScanAPI, WifiScanError
 
 from .conftest import MockResponse
 

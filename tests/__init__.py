@@ -1,1 +1,1 @@
-"""Tests for the Wifi Scan SSID integration."""
+"""Tests for the WiFi SSID Monitor integration."""

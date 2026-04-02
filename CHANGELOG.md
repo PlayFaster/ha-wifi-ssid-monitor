@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-04-02
+
+### Changed
+
+- **Architecture**: Refactored the internal data model to use a structured mapping for networks. This change is non-breaking but provides the necessary foundation for future features like per-network signal strength (RSSI) and channel tracking without requiring further structural rewrites.
+
+## [1.3.0] - 2026-04-02
+
+### Changed
+
+- **Project Rename**: Formally renamed the integration from "WiFi Scan SSID" to **WiFi SSID Monitor** to better distinguish it from device tracking integrations and highlight its monitoring purpose.
+- **Domain Update**: Changed the internal domain from `wifi_scan_ssid` to `wifi_ssid_monitor` for full architectural consistency.
+- **Folder Structure**: Migrated all components to the `wifi_ssid_monitor` directory.
+
 ## [1.2.0] - 2026-04-02
 
 ### Added

@@ -1,4 +1,4 @@
-"""Tests for Wifi Scan SSID config flow."""
+"""Tests for WiFi SSID Monitor config flow."""
 
 from unittest.mock import patch
 
@@ -6,7 +6,7 @@ import pytest
 from homeassistant import data_entry_flow
 from homeassistant.core import HomeAssistant
 
-from custom_components.wifi_scan_ssid.const import (
+from custom_components.wifi_ssid_monitor.const import (
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
     CONF_SCAN_INTERVAL,
@@ -25,10 +25,10 @@ async def test_user_flow(hass: HomeAssistant):
 
     with (
         patch(
-            "custom_components.wifi_scan_ssid.async_setup_entry", return_value=True
+            "custom_components.wifi_ssid_monitor.async_setup_entry", return_value=True
         ) as mock_setup_entry,
         patch(
-            "custom_components.wifi_scan_ssid.config_flow._validate_input",
+            "custom_components.wifi_ssid_monitor.config_flow._validate_input",
             return_value=None,
         ),
     ):
@@ -42,7 +42,7 @@ async def test_user_flow(hass: HomeAssistant):
         await hass.async_block_till_done()
 
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Wifi Scan (wlan0)"
+    assert result["title"] == "WiFi SSID Monitor (wlan0)"
     assert result["data"] == {
         CONF_INTERFACE: "wlan0",
         CONF_KNOWN_SSIDS: "MyNet1,MyNet2",
@@ -65,7 +65,7 @@ async def test_user_flow_already_configured(hass: HomeAssistant, mock_config_ent
     )
 
     with patch(
-        "custom_components.wifi_scan_ssid.config_flow._validate_input",
+        "custom_components.wifi_ssid_monitor.config_flow._validate_input",
         return_value=None,
     ):
         result = await hass.config_entries.flow.async_configure(

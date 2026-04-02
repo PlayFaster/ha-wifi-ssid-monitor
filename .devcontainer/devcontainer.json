@@ -1,5 +1,5 @@
 {
-  "name": "WiFi Scan Dev",
+  "name": "WiFi SSID Monitor",
   "dockerComposeFile": "docker-compose.yml",
   "service": "homeassistant",
   "workspaceFolder": "/workspaces/ha-wifi-scan-ssid",
