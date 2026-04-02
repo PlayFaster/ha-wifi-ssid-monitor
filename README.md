@@ -33,11 +33,15 @@ Setup is handled entirely via the UI. You can configure:
 - **Wifi Interface**: The system interface to use (default: `wlan0`).
 - **Known SSIDs**: A comma-separated list of WiFi network names you consider "known".
 
+> [!TIP]
+> 1. The name of the wifi interface can generally be found in **Settings > System > Network > Configure network interfaces**.
+> 2. Known SSIDs can be changed at any time via the **Configure** (gear icon) button on the integration entry.
+
 ## 🛠 Maintenance Status
 
 This is a **personal project**. Support and updates are provided on a **"best-effort"** basis only.
 
 ## Contributors & Acknowledgements
 
-- This project was developed with the assistance of Gemini AI to ensure code quality and best practices.
+This project was developed with the assistance of Gemini AI to ensure code quality and best practices.
   

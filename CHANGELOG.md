@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-04-02
+
+### Added
+
+- **Scan Interval Slider**: Implemented a new `number` entity allowing users to adjust the scan frequency (1-180 minutes) directly from the Home Assistant GUI.
+- **Enhanced Diagnostics**: Updated the interface sensor with a standard `mdi:lan` icon for better visibility and added internal tracking for the active scanning interface.
+
+### Changed
+
+- **Tests**: Expanded the test suite to include full coverage for the new number platform and debouncing logic.
+
 ## [1.1.0] - 2026-04-02
 
 ### Added
