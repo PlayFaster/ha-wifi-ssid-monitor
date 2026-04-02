@@ -41,14 +41,15 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 all_ssids = sorted(
                     list({ap["ssid"] for ap in access_points if "ssid" in ap})
                 )
-                
+
                 # Build a structured map for future-proofing (RSSI, Channel, etc.)
                 network_map = {
                     ap["ssid"]: {
                         "rssi": ap.get("signal"),
                         "channel": ap.get("channel"),
                     }
-                    for ap in access_points if "ssid" in ap
+                    for ap in access_points
+                    if "ssid" in ap
                 }
 
                 known_networks_str = self.entry.options.get(CONF_KNOWN_SSIDS, "")
