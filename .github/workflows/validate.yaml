@@ -38,16 +38,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: HACS Validation
         uses: hacs/action@main
         continue-on-error: true
         with:
           category: integration
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}@${{ github.ref_name }}
 
   # Job 3: Python quality check via Ruff.
   py_val:
@@ -95,6 +91,7 @@ jobs:
         run: |
           pytest --cov=custom_components/wifi_ssid_monitor \
             --cov-report=xml \
+            --junitxml=pytest.xml \
             tests/
 
       - name: Pytest coverage comment
