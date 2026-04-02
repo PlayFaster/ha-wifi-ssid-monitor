@@ -41,7 +41,6 @@ jobs:
 
       - name: HACS Validation
         uses: hacs/action@main
-        continue-on-error: true
         with:
           category: integration
 
@@ -131,7 +130,6 @@ jobs:
 
       - name: Check README Links
         uses: gaurav-nelson/github-action-markdown-link-check@v1
-        continue-on-error: true
         with:
           base-branch: main
           file-path: README.md
