@@ -87,12 +87,21 @@
             "label": "Ruff: Check Fix (Auto-Repair Lint)",
             "type": "shell",
             "command": "ruff check --fix .",
-            "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
                 "panel": "dedicated",
                 "close": false
             }
+        },
+        {
+            "label": "Markdown: Check Links",
+            "type": "shell",
+            "command": "mkdir -p .reports && markdown-link-check README.md | tee .reports/markdown_link_check.txt",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
         },
         {
             "label": "Pytest: Run All Tests",
@@ -122,7 +131,7 @@
         {
             "label": "Validate All",
             "type": "shell",
-            "command": "mkdir -p .reports && (git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint | tee .reports/yaml_lint.txt) && (git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt) && (git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .validate/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt) && (check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt) && (hass --script check_config --config /config | tee .reports/ha_check_config.txt) && (ruff check . | tee .reports/ruff_lint.txt) && (ruff format --check . | tee .reports/ruff_format_status.txt) && (PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --junitxml=.reports/pytest_results.xml)",
+            "command": "mkdir -p .reports && (git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint | tee .reports/yaml_lint.txt) && (git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt) && (git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .validate/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt) && (check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt) && (hass --script check_config --config /config | tee .reports/ha_check_config.txt) && (ruff check . | tee .reports/ruff_lint.txt) && (ruff format --check . | tee .reports/ruff_format_status.txt) && (markdown-link-check README.md | tee .reports/markdown_link_check.txt) && (PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=xml:.reports/coverage.xml --junitxml=.reports/pytest_results.xml tests/ -W ignore::DeprecationWarning)",
             "group": {
                 "kind": "test",
                 "isDefault": true
