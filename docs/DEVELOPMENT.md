@@ -19,12 +19,12 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **`config_flow.py`**: Manages initial setup and reconfiguration via `OptionsFlow`.
 
 ## 3. Success Patterns
+
 - **High Test Coverage**: The project maintains 99% test coverage across all core modules and the test suite itself.
 - **Coordinator Logic**: Centralizing SSID deduplication and filtering in the `DataUpdateCoordinator` ensures that all entities share a consistent and optimized data set.
 - **Retry Resilience**: Implemented a two-stage fetch attempt with a 10-second delay to handle transient Supervisor API unavailability.
 - **DevContainer Mocking**: Integrated a `mock_supervisor.py` service within the `docker-compose.yml` to simulate the Supervisor API. This allows developers on Windows to test the integration's logic despite virtualization limits on physical WiFi access.
 - **Structured Data Model (v1.3.1)**: Refactored the coordinator's internal data model to use a dictionary mapping instead of simple lists. This architectural update allows for adding metadata like RSSI or channel info in the future without breaking changes.
-
 
 ## 4. Technical Pitfalls & Fixes
 

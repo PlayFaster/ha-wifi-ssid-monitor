@@ -1,157 +1,199 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "YAML: Lint Project",
-            "type": "shell",
-            "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint | tee .reports/yaml_lint.txt",
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "clear": true
-            }
-        },
-        {
-            "label": "JSON: Verify All Files",
-            "type": "shell",
-            "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt",
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "HA: Verify Manifest",
-            "type": "shell",
-            "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .validate/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt",
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "HACS: Verify Manifest",
-            "type": "shell",
-            "command": "mkdir -p .reports && check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt",
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "HA: Check Config",
-            "type": "shell",
-            "command": "mkdir -p .reports && hass --script check_config --config /config | tee .reports/ha_check_config.txt",
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Ruff: Check (Lint Only)",
-            "type": "shell",
-            "command": "mkdir -p .reports && ruff check . | tee .reports/ruff_lint.txt",
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
-            }
-        },
-        {
-            "label": "Ruff: Format Check (View Only)",
-            "type": "shell",
-            "command": "mkdir -p .reports && ruff format --check . | tee .reports/ruff_format_status.txt",      
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
-            }
-        },
-        {
-            "label": "Ruff: Format Fix (Auto-Repair)",
-            "type": "shell",
-            "command": "ruff format .",
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "close": false
-            }
-        },
-        {
-            "label": "Ruff: Check Fix (Auto-Repair Lint)",
-            "type": "shell",
-            "command": "ruff check --fix .",
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "close": false
-            }
-        },
-        {
-            "label": "Markdown: Check Links",
-            "type": "shell",
-            "command": "mkdir -p .reports && markdown-link-check README.md | tee .reports/markdown_link_check.txt",
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Pytest: Run All Tests",
-            "type": "shell",
-            "command": "mkdir -p .reports && PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --junitxml=.reports/pytest_results.xml",
-            "problemMatcher": [],
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "clear": true
-            }
-        },
-        {
-            "label": "Pytest: Check Test Coverage",
-            "type": "shell",
-            "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=term-missing --cov-report=html:.reports/coverage tests/",
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Validate All",
-            "type": "shell",
-            "command": "mkdir -p .reports && (git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint | tee .reports/yaml_lint.txt) && (git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt) && (git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .validate/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt) && (check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt) && (hass --script check_config --config /config | tee .reports/ha_check_config.txt) && (ruff check . | tee .reports/ruff_lint.txt) && (ruff format --check . | tee .reports/ruff_format_status.txt) && (markdown-link-check README.md | tee .reports/markdown_link_check.txt) && (PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=xml:.reports/coverage.xml --junitxml=.reports/pytest_results.xml tests/ -W ignore::DeprecationWarning)",
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "clear": true
-            }
-        },
-        {
-            "label": "Fix All",
-            "type": "shell",
-            "command": "ruff check --fix . && ruff format .",
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "close": false
-            }
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "YAML: Lint Project",
+      "type": "shell",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint -c .validate/.yamllint | tee .reports/yaml_lint.txt",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "JSON: Verify All Files",
+      "type": "shell",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "HA: Verify Manifest",
+      "type": "shell",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .validate/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "HACS: Verify Manifest",
+      "type": "shell",
+      "command": "mkdir -p .reports && check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "HA: Check Config",
+      "type": "shell",
+      "command": "mkdir -p .reports && hass --script check_config --config /config | tee .reports/ha_check_config.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Ruff: Check (Lint Only)",
+      "type": "shell",
+      "command": "mkdir -p .reports && ruff check . | tee .reports/ruff_lint.txt",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Ruff: Format Check (View Only)",
+      "type": "shell",
+      "command": "mkdir -p .reports && ruff format --check . | tee .reports/ruff_format_status.txt",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Ruff: Format Fix (Auto-Repair)",
+      "type": "shell",
+      "command": "ruff format .",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      }
+    },
+    {
+      "label": "Ruff: Check Fix (Auto-Repair Lint)",
+      "type": "shell",
+      "command": "ruff check --fix .",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      }
+    },
+    {
+      "label": "Markdown: Check Links",
+      "type": "shell",
+      "command": "mkdir -p .reports && markdown-link-check README.md | tee .reports/markdown_link_check.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Markdown: Lint (View Only)",
+      "type": "shell",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json | tee .reports/markdown_lint.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Markdown: Lint (Auto-Fix)",
+      "type": "shell",
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json --fix",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prettier: Check (View Only)",
+      "type": "shell",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --check | tee .reports/prettier_check.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prettier: Format (Auto-Fix)",
+      "type": "shell",
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --write",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Pytest: Run All Tests",
+
+      "type": "shell",
+      "command": "mkdir -p .reports && PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --junitxml=.reports/pytest_results.xml",
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Pytest: Check Test Coverage",
+      "type": "shell",
+      "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=term-missing --cov-report=html:.reports/coverage tests/",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Validate All",
+      "type": "shell",
+      "command": "mkdir -p .reports && (git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint -c .validate/.yamllint | tee .reports/yaml_lint.txt) && (git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt) && (git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .validate/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt) && (check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt) && (hass --script check_config --config /config | tee .reports/ha_check_config.txt) && (ruff check . | tee .reports/ruff_lint.txt) && (ruff format --check . | tee .reports/ruff_format_status.txt) && (markdown-link-check README.md | tee .reports/markdown_link_check.txt) && (git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json | tee .reports/markdown_lint.txt) && (git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --check | tee .reports/prettier_check.txt) && (PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=xml:.reports/coverage.xml --junitxml=.reports/pytest_results.xml tests/ -W ignore::DeprecationWarning)",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Fix All",
+      "type": "shell",
+      "command": "ruff check --fix . && ruff format . && (git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json --fix) && (git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --write)",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      }
+    }
+  ]
 }

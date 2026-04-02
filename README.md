@@ -34,6 +34,7 @@ Setup is handled entirely via the UI. You can configure:
 - **Known SSIDs**: A comma-separated list of WiFi network names you consider "known".
 
 > [!TIP]
+>
 > 1. The name of the wifi interface can generally be found in **Settings > System > Network > Configure network interfaces**.
 > 2. Known SSIDs can be changed at any time via the **Configure** (gear icon) button on the integration entry.
 
