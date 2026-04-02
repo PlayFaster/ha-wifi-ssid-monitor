@@ -93,7 +93,9 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --cov=custom_components/wifi_scan_ssid --cov-report=xml tests/
+          pytest --cov=custom_components/wifi_ssid_monitor \
+            --cov-report=xml \
+            tests/
 
       - name: Pytest coverage comment
         uses: MishaKav/pytest-coverage-comment@main

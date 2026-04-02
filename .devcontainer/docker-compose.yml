@@ -5,7 +5,7 @@ services:
     image: ghcr.io/home-assistant/home-assistant:stable
     volumes:
       # Mount the whole project so the DevContainer workspace works
-      - ..:/workspaces/ha-wifi-scan-ssid
+      - ..:/workspaces/ha-wifi-ssid-monitor
       # Mount your local dev config
       - ./.devconfig:/config
       # IMPORTANT: Use a relative path from the

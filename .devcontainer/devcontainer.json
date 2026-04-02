@@ -2,7 +2,7 @@
   "name": "WiFi SSID Monitor",
   "dockerComposeFile": "docker-compose.yml",
   "service": "homeassistant",
-  "workspaceFolder": "/workspaces/ha-wifi-scan-ssid",
+  "workspaceFolder": "/workspaces/ha-wifi-ssid-monitor",
   "_comment": "Added -U to ensure it upgrades if a cached version is old",
   "postCreateCommand": "pip install -r .validate/requirements_test.txt",
   "customizations": {
@@ -18,7 +18,7 @@
       "settings": {
         "_comment": "This helps VS Code find your imports correctly",
         "python.analysis.extraPaths": [
-          "/workspaces/ha-wifi-scan-ssid/custom_components"
+          "/workspaces/ha-wifi-ssid-monitor/custom_components"
         ],
         "yaml.schemas": {
           "https://raw.githubusercontent.com/hacs/default/master/hacs.json": "hacs.json",
