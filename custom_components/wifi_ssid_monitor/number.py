@@ -90,15 +90,23 @@ class WifiScanIntervalNumber(NumberEntity):
             )
 
         except asyncio.CancelledError:
-            pass
+            _LOGGER.debug("Scan interval change cancelled (debounced)")
         except Exception as err:
             _LOGGER.error("Failed to apply scan interval change: %s", err)
+            # Revert the UI value on failure
+            self._attr_native_value = (
+                self._entry.options.get(CONF_SCAN_INTERVAL, 600) // 60
+            )
+            self.async_write_ha_state()
 
     @property
     def device_info(self):
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
+            "name": "WiFi SSID Monitor",
             "manufacturer": "PlayFaster",
+            "model": f"v{self._coordinator.version} ({self._coordinator.api.interface})",
+            "sw_version": None,
+            "hw_version": None,
         }

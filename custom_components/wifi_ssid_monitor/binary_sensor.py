@@ -37,7 +37,7 @@ class WifiScanBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        """Return true if unknown networks are detected."""
+        """Return true if any unknown networks are currently detected."""
         if not self.coordinator.data:
             return False
         return self.coordinator.data.get("unknown_count", 0) > 0
@@ -47,6 +47,9 @@ class WifiScanBinarySensor(CoordinatorEntity, BinarySensorEntity):
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
+            "name": "WiFi SSID Monitor",
             "manufacturer": "PlayFaster",
+            "model": f"v{self.coordinator.version} ({self.coordinator.api.interface})",
+            "sw_version": None,
+            "hw_version": None,
         }

@@ -49,7 +49,12 @@ class WifiScanAPI:
                     )
                     raise WifiScanError(f"API returned status {response.status}")
 
-                res_data = await response.json()
+                try:
+                    res_data = await response.json()
+                except (aiohttp.ContentTypeError, ValueError) as e:
+                    _LOGGER.error("Invalid JSON response from API: %s", e)
+                    raise WifiScanError(f"Invalid API response: {e}") from e
+
                 data_block = res_data.get("data") or {}
                 return data_block.get("accesspoints", [])
         except aiohttp.ClientError as e:

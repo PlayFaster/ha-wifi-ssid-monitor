@@ -17,10 +17,13 @@ _LOGGER = logging.getLogger(__name__)
 class WifiScanCoordinator(DataUpdateCoordinator):
     """Class to manage fetching WiFi SSID Monitor data."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: WifiScanAPI):
+    def __init__(
+        self, hass: HomeAssistant, entry: ConfigEntry, api: WifiScanAPI, version: str
+    ):
         """Initialize the coordinator."""
         self.api = api
         self.entry = entry
+        self.version = version
         self.last_known_ssids = entry.options.get(CONF_KNOWN_SSIDS, "")
 
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, 600)
@@ -34,23 +37,27 @@ class WifiScanCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from API."""
-        last_error = None
+        last_error = WifiScanError("Unknown error occurred during update")
         for attempt in range(2):
             try:
                 access_points = await self.api.get_access_points()
 
+                # Handle hidden networks (missing SSID)
+                hidden_count = sum(1 for ap in access_points if "ssid" not in ap)
+                if hidden_count > 0:
+                    _LOGGER.debug("Found %d hidden WiFi networks", hidden_count)
+
                 all_ssids = sorted(
-                    list({ap["ssid"] for ap in access_points if "ssid" in ap})
+                    list({ap.get("ssid", "[hidden]") for ap in access_points})
                 )
 
                 # Build a structured map for future-proofing (RSSI, Channel, etc.)
                 network_map = {
-                    ap["ssid"]: {
+                    ap.get("ssid", "[hidden]"): {
                         "rssi": ap.get("signal"),
                         "channel": ap.get("channel"),
                     }
                     for ap in access_points
-                    if "ssid" in ap
                 }
 
                 known_networks_str = self.entry.options.get(CONF_KNOWN_SSIDS, "")
@@ -74,7 +81,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             except WifiScanError as err:
                 last_error = err
                 if attempt == 0:
-                    _LOGGER.warning(
+                    _LOGGER.debug(
                         "Fetch failed: %s. Retrying in 10 seconds...",
                         err,
                     )
@@ -82,4 +89,6 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 else:
                     _LOGGER.error("Second fetch attempt failed: %s", err)
 
-        raise UpdateFailed(f"Communication error: {last_error}")
+        raise UpdateFailed(
+            f"Failed to fetch WiFi networks on {self.api.interface}: {last_error}"
+        ) from last_error

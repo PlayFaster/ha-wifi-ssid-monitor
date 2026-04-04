@@ -82,8 +82,21 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
+        errors = {}
+
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            try:
+                # Only validate if interface changed
+                if user_input[CONF_INTERFACE] != self._config_entry.options.get(
+                    CONF_INTERFACE
+                ):
+                    await _validate_input(self.hass, user_input)
+                return self.async_create_entry(title="", data=user_input)
+            except WifiScanError:
+                errors["base"] = "cannot_connect"
+            except Exception:
+                _LOGGER.exception("Unexpected error validating options")
+                errors["base"] = "unknown"
 
         return self.async_show_form(
             step_id="init",
@@ -109,4 +122,5 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
                     ): vol.All(vol.Coerce(int), vol.Range(min=30)),
                 }
             ),
+            errors=errors,
         )

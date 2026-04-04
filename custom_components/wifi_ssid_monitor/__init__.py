@@ -6,6 +6,8 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.loader import async_get_integration
+from awesomeversion import AwesomeVersion
 
 from .api import WifiScanAPI
 from .const import CONF_INTERFACE, CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL, DOMAIN
@@ -20,13 +22,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up WiFi SSID Monitor from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    interface = entry.options.get(
-        CONF_INTERFACE, entry.data.get(CONF_INTERFACE, "wlan0")
-    )
+    # Migrate from entry.data to entry.options if needed
+    if entry.data and not entry.options:
+        _LOGGER.debug("Migrating configuration from data to options")
+        hass.config_entries.async_update_entry(
+            entry,
+            data={},
+            options={
+                CONF_INTERFACE: entry.data.get(CONF_INTERFACE, "wlan0"),
+                CONF_KNOWN_SSIDS: entry.data.get(CONF_KNOWN_SSIDS, ""),
+                CONF_SCAN_INTERVAL: 600,
+            },
+        )
+
+    interface = entry.options.get(CONF_INTERFACE, "wlan0")
     session = async_get_clientsession(hass)
     api = WifiScanAPI(session, interface)
 
-    coordinator = WifiScanCoordinator(hass, entry, api)
+    integration = await async_get_integration(hass, DOMAIN)
+    
+    # Validate version format (Best Practice)
+    version = AwesomeVersion(integration.version)
+    if version.strategy == "unknown":
+         _LOGGER.warning(
+             "Integration version '%s' is not in a recognized format. Device Registry may ignore it.",
+             integration.version
+         )
+
+    coordinator = WifiScanCoordinator(hass, entry, api, integration.version)
 
     await coordinator.async_config_entry_first_refresh()
 
