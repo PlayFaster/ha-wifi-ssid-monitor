@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-04-05
+
+### Added
+
+- **WiFi Interface Auto-Discovery**: The setup and options flows now automatically detect and list available WiFi interfaces from the Supervisor, providing a user-friendly dropdown selection.
+- **Enhanced Device Info**: Standardized the Device Info card to show the configuration entry title, manufacturer, version, and active interface.
+
+### Fixed
+
+- **Stability**: Resolved a critical race condition in the scan interval debounce logic that could lead to data loss or UI inconsistency.
+- **API Error Handling**: Resolved exception double-wrapping in the API and ensured interface discovery raises proper errors instead of failing silently.
+- **Config Flow Robustness**: Eliminated sentinel values during setup and improved validation of user-selected interfaces in the options flow.
+- **Coordinator Stability**: Added defensive null checks and improved accuracy of hidden network reporting and signal tracking.
+- **Hidden Networks**: Improved detection and logging of hidden WiFi networks (APs without a broadcasted SSID).
+- **Migration**: Added automated migration of configuration settings for users upgrading from older versions.
+- **Test Suite**: Fixed critical `TypeError` across the test suite and resolved schema validation failures in config flow tests.
+- **Code Quality**: Resolved multiple Ruff linting errors including line length violations and missing docstrings.
+
+### Changed
+
+- **Dependency Reduction**: Removed `AwesomeVersion` to simplify version handling and reduce external dependencies.
+- **Scan Interval Precision**: Improved the accuracy of scan interval updates by using rounded division when converting between units.
+- **UX**: Improved the reconfiguration experience by adding immediate validation for the selected network interface.
+- **Logging**: Refined log levels to reduce noise during expected recovery paths (e.g., retries).
+- **Tests**: Expanded the test suite to achieve 92% coverage, including new paths for API validation and hidden network logic.
+
 ## [1.3.1] - 2026-04-02
 
 ### Changed

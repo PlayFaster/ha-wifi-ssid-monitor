@@ -30,8 +30,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     # Read initial value from entry options (in minutes)
     # Default to 10 if not set (600 seconds).
+    # Use round() to handle any non-minute-aligned intervals gracefully
     raw_val = entry.options.get(CONF_SCAN_INTERVAL, 600)
-    initial_value = max(1, raw_val // 60)
+    initial_value = max(1, round(raw_val / 60))
 
     async_add_entities(
         [
@@ -93,20 +94,19 @@ class WifiScanIntervalNumber(NumberEntity):
             _LOGGER.debug("Scan interval change cancelled (debounced)")
         except Exception as err:
             _LOGGER.error("Failed to apply scan interval change: %s", err)
-            # Revert the UI value on failure
-            self._attr_native_value = (
-                self._entry.options.get(CONF_SCAN_INTERVAL, 600) // 60
+            # Revert the UI value on failure (use round to match initial value logic)
+            self._attr_native_value = max(
+                1, round(self._entry.options.get(CONF_SCAN_INTERVAL, 600) / 60)
             )
             self.async_write_ha_state()
 
     @property
     def device_info(self):
         """Return device information."""
+        model = f"v{self._coordinator.version} ({self._coordinator.api.interface})"
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": "WiFi SSID Monitor",
+            "name": self._entry.title,
             "manufacturer": "PlayFaster",
-            "model": f"v{self._coordinator.version} ({self._coordinator.api.interface})",
-            "sw_version": None,
-            "hw_version": None,
+            "model": model,
         }

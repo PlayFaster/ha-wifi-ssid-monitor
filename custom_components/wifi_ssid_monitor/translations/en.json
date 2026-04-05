@@ -5,7 +5,7 @@
       "user": {
         "title": "Setup WiFi SSID Monitor",
         "data": {
-          "wifi_interface": "Wifi Interface (e.g., wlan0, wlp2s0)",
+          "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)"
         }
       }
@@ -23,7 +23,7 @@
       "init": {
         "title": "Reconfigure WiFi SSID Monitor",
         "data": {
-          "wifi_interface": "Wifi Interface (e.g., wlan0, wlp2s0)",
+          "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)"
         }
       }

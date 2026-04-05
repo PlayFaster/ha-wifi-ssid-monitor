@@ -22,6 +22,21 @@ async def _validate_input(hass, user_input):
     await api.validate()
 
 
+async def _get_wifi_interfaces(hass):
+    """Fetch available WiFi interfaces.
+
+    Returns a list of interface names, or empty list if fetch fails.
+    """
+    try:
+        session = async_get_clientsession(hass)
+        # Use a dummy interface name since get_interfaces doesn't depend on it
+        api = WifiScanAPI(session, "")
+        return await api.get_interfaces()
+    except WifiScanError as e:
+        _LOGGER.debug("Could not fetch available WiFi interfaces: %s", e)
+        return []
+
+
 class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for WiFi SSID Monitor."""
 
@@ -30,6 +45,7 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         errors = {}
+        interfaces = await _get_wifi_interfaces(self.hass)
 
         if user_input is not None:
             try:
@@ -55,14 +71,20 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected error")
                 errors["base"] = "unknown"
 
+        data_schema = {
+            vol.Optional(CONF_KNOWN_SSIDS, default=""): cv.string,
+        }
+
+        if interfaces:
+            data_schema[vol.Required(CONF_INTERFACE, default=interfaces[0])] = vol.In(
+                interfaces
+            )
+        else:
+            data_schema[vol.Required(CONF_INTERFACE, default="wlan0")] = cv.string
+
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_INTERFACE, default="wlan0"): cv.string,
-                    vol.Optional(CONF_KNOWN_SSIDS, default=""): cv.string,
-                }
-            ),
+            data_schema=vol.Schema(data_schema),
             errors=errors,
         )
 
@@ -83,6 +105,7 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         errors = {}
+        interfaces = await _get_wifi_interfaces(self.hass)
 
         if user_input is not None:
             try:
@@ -98,29 +121,40 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
                 _LOGGER.exception("Unexpected error validating options")
                 errors["base"] = "unknown"
 
+        current_interface = self._config_entry.options.get(
+            CONF_INTERFACE, self._config_entry.data.get(CONF_INTERFACE, "wlan0")
+        )
+
+        # Ensure current interface is in the list even if it's not detected as wifi
+        available_interfaces = list(interfaces) if interfaces else []
+        if current_interface not in available_interfaces:
+            available_interfaces.append(current_interface)
+
+        data_schema = {
+            vol.Optional(
+                CONF_KNOWN_SSIDS,
+                default=self._config_entry.options.get(
+                    CONF_KNOWN_SSIDS,
+                    self._config_entry.data.get(CONF_KNOWN_SSIDS, ""),
+                ),
+            ): cv.string,
+            vol.Required(
+                CONF_SCAN_INTERVAL,
+                default=self._config_entry.options.get(CONF_SCAN_INTERVAL, 600),
+            ): vol.All(vol.Coerce(int), vol.Range(min=30)),
+        }
+
+        if available_interfaces:
+            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
+                vol.In(available_interfaces)
+            )
+        else:
+            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
+                cv.string
+            )
+
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_INTERFACE,
-                        default=self._config_entry.options.get(
-                            CONF_INTERFACE,
-                            self._config_entry.data.get(CONF_INTERFACE, "wlan0"),
-                        ),
-                    ): cv.string,
-                    vol.Optional(
-                        CONF_KNOWN_SSIDS,
-                        default=self._config_entry.options.get(
-                            CONF_KNOWN_SSIDS,
-                            self._config_entry.data.get(CONF_KNOWN_SSIDS, ""),
-                        ),
-                    ): cv.string,
-                    vol.Required(
-                        CONF_SCAN_INTERVAL,
-                        default=self._config_entry.options.get(CONF_SCAN_INTERVAL, 600),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=30)),
-                }
-            ),
+            data_schema=vol.Schema(data_schema),
             errors=errors,
         )

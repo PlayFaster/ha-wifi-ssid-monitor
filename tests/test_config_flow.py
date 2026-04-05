@@ -85,19 +85,35 @@ async def test_options_flow(hass: HomeAssistant, mock_config_entry):
     """Test the options flow."""
     mock_config_entry.add_to_hass(hass)
 
-    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    with patch(
+        "custom_components.wifi_ssid_monitor.config_flow._get_wifi_interfaces",
+        return_value=["wlan0", "wlan1"],
+    ):
+        result = await hass.config_entries.options.async_init(
+            mock_config_entry.entry_id
+        )
 
     assert result["type"] == data_entry_flow.FlowResultType.FORM
     assert result["step_id"] == "init"
 
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        user_input={
-            CONF_INTERFACE: "wlan1",
-            CONF_KNOWN_SSIDS: "NewNet1",
-            CONF_SCAN_INTERVAL: 60,
-        },
-    )
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.config_flow._get_wifi_interfaces",
+            return_value=["wlan0", "wlan1"],
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.config_flow._validate_input",
+            return_value=None,
+        ),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={
+                CONF_INTERFACE: "wlan1",
+                CONF_KNOWN_SSIDS: "NewNet1",
+                CONF_SCAN_INTERVAL: 60,
+            },
+        )
 
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["data"] == {

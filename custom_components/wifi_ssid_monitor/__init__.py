@@ -7,7 +7,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_integration
-from awesomeversion import AwesomeVersion
 
 from .api import WifiScanAPI
 from .const import CONF_INTERFACE, CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL, DOMAIN
@@ -40,14 +39,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api = WifiScanAPI(session, interface)
 
     integration = await async_get_integration(hass, DOMAIN)
-    
-    # Validate version format (Best Practice)
-    version = AwesomeVersion(integration.version)
-    if version.strategy == "unknown":
-         _LOGGER.warning(
-             "Integration version '%s' is not in a recognized format. Device Registry may ignore it.",
-             integration.version
-         )
 
     coordinator = WifiScanCoordinator(hass, entry, api, integration.version)
 

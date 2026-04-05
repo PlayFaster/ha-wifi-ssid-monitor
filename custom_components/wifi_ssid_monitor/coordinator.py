@@ -42,6 +42,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             try:
                 access_points = await self.api.get_access_points()
 
+                # Defensive: ensure access_points is iterable
+                if access_points is None:
+                    access_points = []
+
                 # Handle hidden networks (missing SSID)
                 hidden_count = sum(1 for ap in access_points if "ssid" not in ap)
                 if hidden_count > 0:

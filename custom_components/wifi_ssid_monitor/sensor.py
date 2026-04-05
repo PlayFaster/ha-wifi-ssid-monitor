@@ -82,9 +82,7 @@ class WifiScanSensor(CoordinatorEntity, SensorEntity):
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": "WiFi SSID Monitor",
+            "name": self._entry.title,
             "manufacturer": "PlayFaster",
             "model": f"v{self.coordinator.version} ({self.coordinator.api.interface})",
-            "sw_version": None,
-            "hw_version": None,
         }
