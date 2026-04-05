@@ -98,8 +98,8 @@ jobs:
         id: coverageComment # Added ID to access the badge output
         uses: MishaKav/pytest-coverage-comment@main
         with:
-          pytest-coverage-path: ./coverage.xml
-#          pytest-xml-coverage-path: ./coverage.xml
+#          pytest-coverage-path: ./coverage.xml
+          pytest-xml-coverage-path: ./coverage.xml
           title: Coverage Report
           badge-title: Coverage
           hide-badge: false
