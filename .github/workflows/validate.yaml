@@ -98,20 +98,20 @@ jobs:
         id: coverageComment # Added ID to access the badge output
         uses: MishaKav/pytest-coverage-comment@main
         with:
-          pytest-xml-coverage-path: ./coverage.xml
+          pytest-coverage-path: ./coverage.xml
+#          pytest-xml-coverage-path: ./coverage.xml
           title: Coverage Report
           badge-title: Coverage
           hide-badge: false
           hide-comment: false
           create-new-comment: false
           junitxml-path: ./pytest.xml
-          create-badge: true # create-badge and badge-filename are not strictly needed for this method
-          badge-filename: coverage-badge.json
 
       - name: Update Readme with Coverage Html
-        if: github.ref == 'refs/heads/main' # Ensures this only runs on your main branch
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
         run: |
-          sed -i 's|<!-- coverage-badge-placeholder -->|${{ steps.coverageComment.outputs.coverageHtml }}|g' ./README.md
+          sed -i 's|<!-- coverage-badge-placeholder -->|${{ steps.coverageComment.outputs.coverageBadge  }}|g' ./README.md
+#          sed -i 's|<!-- coverage-badge-placeholder -->|${{ steps.coverageComment.outputs.coverageHtml }}|g' ./README.md
 
       - name: Commit changes
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
