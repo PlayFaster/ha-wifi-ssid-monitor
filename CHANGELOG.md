@@ -2,29 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.4.1-dev1] - Now
+## [1.4.1-dev2] - Now
 
 ### Added
 
 - **Added**: Added.
-  
+
 ### Changed
 
-- **Changed**: Added HACS Integration Badge.
+- **Readme**: Improved the Readme file.
+  - Added HACS Integration and Test Coverage badges.
+  - Improved layout of example automations.
+- **GitHub Validate**: Changed to save the coverage for use in a badge.
 - **Changed**: Changed.
-  
+
 ### Fixed
 
+- **Formatting**: Correcting formatting issues.
 - **Fixed**: Fixed.
-  
+
 ### Removed
 
 - **Removed**: Removed.
-  
+
 ### Deprecated
 
 - **Deprecated**: Deprecated.
-  
+
 ### Security
 
 - **Security**: Security

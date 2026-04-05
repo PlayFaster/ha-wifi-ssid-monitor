@@ -104,6 +104,8 @@ jobs:
           hide-comment: false
           create-new-comment: false
           junitxml-path: ./pytest.xml
+          create-badge: true
+          badge-filename: coverage-badge.json
 
   # Job 5: File-level integrity (JSON, YAML, and Markdown).
   file_val:
