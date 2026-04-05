@@ -9,7 +9,13 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_integration
 
 from .api import WifiScanAPI
-from .const import CONF_INTERFACE, CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_INTERFACE,
+    CONF_KNOWN_SSIDS,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_NAME,
+    DOMAIN,
+)
 from .coordinator import WifiScanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,7 +40,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             },
         )
 
+    # Migrate title if it's the only entry and has the old format
+    entries = hass.config_entries.async_entries(DOMAIN)
     interface = entry.options.get(CONF_INTERFACE, "wlan0")
+    if len(entries) == 1 and entry.title == f"{DEFAULT_NAME} ({interface})":
+        _LOGGER.debug("Migrating config entry title to %s", DEFAULT_NAME)
+        hass.config_entries.async_update_entry(entry, title=DEFAULT_NAME)
+
     session = async_get_clientsession(hass)
     api = WifiScanAPI(session, interface)
 

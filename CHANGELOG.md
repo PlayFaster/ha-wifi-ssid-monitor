@@ -16,7 +16,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Logging**: Improved exception logging so that if there is a problem it should appear in the Home Assistant log.
+- **Entity Naming**: Changed the default entity names to not have the WiFi interface name embedded, resulting in slightly shorter, more predictable names (good for example automations, etc.). If a second instance was to be added, it would include the WiFi interface in the entity names.
+- **Logging**: Improved exception logging so that if there is a problem, it should appear in the Home Assistant log.
 - **Tests & Coverage**: Added tests and improved coverage for the most recent code changes.
 
 ## [1.3.1] - 2026-04-02

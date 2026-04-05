@@ -37,6 +37,36 @@ async def test_setup_unload_entry(hass: HomeAssistant, mock_config_entry):
 
 
 @pytest.mark.asyncio
+async def test_async_setup_entry_title_migration(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test that the config entry title is migrated if it's the only one."""
+    from custom_components.wifi_ssid_monitor.const import DEFAULT_NAME
+
+    # Set the old title format
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry, title=f"{DEFAULT_NAME} (wlan0)"
+    )
+
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_config_entry_first_refresh",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+            return_value=[],
+        ),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Title should have been migrated
+    assert mock_config_entry.title == DEFAULT_NAME
+
+
+@pytest.mark.asyncio
 async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
     """Test reloading the entry."""
     mock_config_entry.add_to_hass(hass)

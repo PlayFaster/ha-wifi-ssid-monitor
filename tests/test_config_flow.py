@@ -43,7 +43,7 @@ async def test_user_flow(hass: HomeAssistant):
         await hass.async_block_till_done()
 
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
-    assert result["title"] == "WiFi SSID Monitor (wlan0)"
+    assert result["title"] == "WiFi SSID Monitor"
     assert result["data"] == {
         CONF_INTERFACE: "wlan0",
         CONF_KNOWN_SSIDS: "MyNet1,MyNet2",
@@ -54,6 +54,38 @@ async def test_user_flow(hass: HomeAssistant):
         CONF_SCAN_INTERVAL: 600,
     }
     assert len(mock_setup_entry.mock_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_user_flow_multiple_instances(hass: HomeAssistant, mock_config_entry):
+    """Test user setup flow when an instance is already configured."""
+    mock_config_entry.add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}
+    )
+
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.async_setup_entry", return_value=True
+        ) as mock_setup_entry,
+        patch(
+            "custom_components.wifi_ssid_monitor.config_flow._validate_input",
+            return_value=None,
+        ),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                CONF_INTERFACE: "wlan1",
+                CONF_KNOWN_SSIDS: "OtherNet",
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["title"] == "WiFi SSID Monitor (wlan1)"
+    assert len(mock_setup_entry.mock_calls) >= 1
 
 
 @pytest.mark.asyncio

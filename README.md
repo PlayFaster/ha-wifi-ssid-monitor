@@ -16,7 +16,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 **Important:** This integration requires your Home Assistant system to have **WiFi capabilities**.
 
-> [!NOTE] Many Home Assistant installations (particularly supervised or container-based deployments on headless systems) may not have WiFi hardware or drivers available. This integration will not function on systems without WiFi networking support. If you see errors during setup, verify that your system has WiFi enabled under Settings > System > Network.
+> [!NOTE] Many Home Assistant installations (particularly supervised or container-based deployments on headless systems) may not have WiFi hardware or drivers available. This integration will not function on systems without WiFi networking support. If you see errors during setup, verify that your system has WiFi enabled under **Settings > System > Network**.
 
 ## 🎯 Use Cases
 
@@ -93,7 +93,7 @@ condition:
 action:
   service: notify.mobile_app_phone
   data:
-    message: "WiFi network count has dropped—a home network may be offline"
+    message: "WiFi network count has dropped — a home network may be offline"
 ```
 
 ## ✨ Installation
@@ -132,7 +132,7 @@ After installation, you can modify settings via the integration's **Configure** 
 
 - **Known SSIDs**: Update the list of known networks
 - **Scan Interval**: Adjust polling frequency (1–180 minutes) (default 10 minutes).
-  - Note this is also available directly from the UI as a number slider, which can be dynamicially changed via automation schedule etc (example below).
+  - Note this is also available directly from the UI as a number slider, which can be dynamically changed via automation schedule, etc. (example below).
 - **WiFi Interface**: Change which interface is monitored
 
 > [!TIP]
@@ -154,9 +154,9 @@ After installation, you can modify settings via the integration's **Configure** 
 | `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
 | `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
 
-**Attributes:** The total and unknown count sensors include an ssid attribute:
+**Attributes:** The total and unknown count sensors include SSID attributes:
 
-- `ssids`: List of all detected ( `total` ) or unknown ( `unknown` ) network names
+- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names
 
 ### Binary Sensors
 
@@ -245,9 +245,9 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 
 - This project was developed with the assistance of AI to ensure code quality and adherence to best practices.
 
-## 📄 License
+## 📄 License [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) This project uses the MIT License, for more details see the [license](LICENSE) document.
+This project uses the Apache License, Version 2.0, for more details see the [license](LICENSE) document.
 
 ---
 

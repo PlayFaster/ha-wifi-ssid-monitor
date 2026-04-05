@@ -25,6 +25,10 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Retry Resilience**: Implemented a two-stage fetch attempt with a 10-second delay to handle transient Supervisor API unavailability.
 - **DevContainer Mocking**: Integrated a `mock_supervisor.py` service within the `docker-compose.yml` to simulate the Supervisor API. This allows developers on Windows to test the integration's logic despite virtualization limits on physical WiFi access.
 - **Structured Data Model (v1.3.1)**: Refactored the coordinator's internal data model to use a dictionary mapping instead of simple lists. This architectural update allows for adding metadata like RSSI or channel info in the future without breaking changes.
+- **Clean Entity Naming (v1.4.0)**: Implemented logic to omit the interface ID from entity names and the integration title for single-instance installations, while automatically appending it for multi-interface setups. This provides a cleaner UI experience for the majority of users.
+- **Automated Migrations**: Added robust migration logic in `__init__.py` to seamlessly move configuration from legacy `entry.data` to `entry.options` and to update the integration title for existing single-instance users during upgrades.
+- **Robust Debouncing**: Refined the scan interval adjustment in `number.py` to use a task-canceling debounce pattern, preventing race conditions and ensuring only the final user input is persisted to the configuration.
+- **Enhanced API Resilience**: Improved error handling in `api.py` and `coordinator.py` by explicitly catching JSON decode errors and utilizing `from err` to preserve exception chains, providing much clearer diagnostic logs.
 
 ## 4. Technical Pitfalls & Fixes
 
@@ -32,6 +36,8 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **ConfigEntry State**: Forwarding setups in unit tests requires the `ConfigEntry` to be in the `LOADED` state. Using `mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)` is essential.
 - **Return Values**: `async_forward_entry_setups` returns `None`. Asserting its result in tests will cause failures.
 - **Options Management**: Configuration options must be updated via `hass.config_entries.async_update_entry()` rather than direct assignment to the `options` attribute.
+- **Title Updates**: Similar to options, `ConfigEntry.title` is protected and cannot be assigned to directly. It must be updated using `async_update_entry(entry, title="New Title")`.
+- **Options Flow Validation**: Initial versions lacked validation in the reconfiguration step. The `OptionsFlow` now verifies interface changes against the Supervisor API before saving to prevent invalid runtime states.
 - **Windows WiFi Access**: Containers on Windows (via Docker Desktop/WSL2) cannot directly access physical WiFi hardware for scanning. The `mock_supervisor` service provides a reliable alternative for UI and logic validation.
 
 ## 5. Environment Constraints

@@ -10,7 +10,13 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import WifiScanAPI, WifiScanError
-from .const import CONF_INTERFACE, CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_INTERFACE,
+    CONF_KNOWN_SSIDS,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_NAME,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,8 +60,13 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     f"wifi_ssid_monitor_{user_input[CONF_INTERFACE]}"
                 )
                 self._abort_if_unique_id_configured()
+
+                title = DEFAULT_NAME
+                if self._async_current_entries():
+                    title = f"{DEFAULT_NAME} ({user_input[CONF_INTERFACE]})"
+
                 return self.async_create_entry(
-                    title=f"WiFi SSID Monitor ({user_input[CONF_INTERFACE]})",
+                    title=title,
                     data=user_input,
                     options={
                         CONF_INTERFACE: user_input[CONF_INTERFACE],
