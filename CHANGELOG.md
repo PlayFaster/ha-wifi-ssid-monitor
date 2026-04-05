@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1-dev1] - Now
+
+### Added
+
+- **Added**: Added.
+  
+### Changed
+
+- **Changed**: Added HACS Integration Badge.
+- **Changed**: Changed.
+  
+### Fixed
+
+- **Fixed**: Fixed.
+  
+### Removed
+
+- **Removed**: Removed.
+  
+### Deprecated
+
+- **Deprecated**: Deprecated.
+  
+### Security
+
+- **Security**: Security
+
 ## [1.4.0] - 2026-04-05
 
 ### Added
