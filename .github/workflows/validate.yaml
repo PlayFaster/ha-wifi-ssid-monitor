@@ -5,7 +5,7 @@
 
 name: Validate
 
-'on':
+"on":
   push:
     branches:
       - main
@@ -14,11 +14,11 @@ name: Validate
     branches:
       - main
   schedule:
-    - cron: "0 0 * * *"  # Daily at midnight
+    - cron: "0 0 * * *" # Daily at midnight
 
 permissions:
-  contents: write  # Required for updating the coverage badge in README
-  pull-requests: write  # For creating/updating PR comments
+  contents: write # Required for updating the coverage badge in README
+  pull-requests: write # For creating/updating PR comments
 
 jobs:
   # Job 1: Official Home Assistant HASSfest validation.

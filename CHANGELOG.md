@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-04-05
+
+### Added
+
+- **WiFi Interface Auto-Discovery**: The setup and options flows now automatically detect and list available WiFi interfaces from the Supervisor, providing a user-friendly dropdown selection.
+
+### Fixed
+
+- **Unavailable after Scan Change**: Fixed an issue where the sensors could become unavailable after a scan interval change (until the next scan).
+- **Code Quality**: Multiple improvements to address potential errors and problems identified in a code review.
+- **Hidden Networks**: Improved detection and logging of hidden WiFi networks (APs without a broadcasted SSID).
+
+### Changed
+
+- **Entity Naming**: Changed the default entity names to not have the WiFi interface name embedded, resulting in slightly shorter, more predictable names (good for example automations, etc.). If a second instance was to be added, it would include the WiFi interface in the entity names.
+- **Logging**: Improved exception logging so that if there is a problem, it should appear in the Home Assistant log.
+- **Tests & Coverage**: Added tests and improved coverage for the most recent code changes.
+
 ## [1.3.1] - 2026-04-02
 
 ### Changed
@@ -63,9 +81,8 @@ All notable changes to this project will be documented in this file.
 - **Known SSID List**: Manage known networks via the UI.
 - **Sensors**: Total SSID count and Unknown SSID count sensors with attributes.
 
-***
+---
 
 ### Format
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

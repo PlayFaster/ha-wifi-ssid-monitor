@@ -89,3 +89,61 @@ async def test_get_access_points_generic_error(mock_aiohttp_client):
 
         with pytest.raises(WifiScanError, match="Unexpected error"):
             await api.get_access_points()
+
+
+@pytest.mark.asyncio
+async def test_get_interfaces_success(mock_aiohttp_client):
+    """Test successful interface retrieval."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+
+        mock_response_data = {
+            "result": "ok",
+            "data": {
+                "interfaces": [
+                    {"interface": "eth0", "type": "ethernet"},
+                    {"interface": "wlan0", "type": "wifi"},
+                    {"interface": "wlan1", "type": "wifi"},
+                ]
+            },
+        }
+        mock_aiohttp_client.get.return_value = MockResponse(
+            json_data=mock_response_data
+        )
+
+        ifaces = await api.get_interfaces()
+
+        assert len(ifaces) == 2
+        assert "wlan0" in ifaces
+        assert "wlan1" in ifaces
+
+        mock_aiohttp_client.get.assert_called_once_with(
+            "http://supervisor/network/info",
+            headers={
+                "Authorization": "Bearer test_token",
+                "Content-Type": "application/json",
+            },
+            timeout=30,
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_interfaces_api_error(mock_aiohttp_client):
+    """Test error when get_interfaces API returns non-200 status."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        mock_aiohttp_client.get.return_value = MockResponse(
+            status=500, text_data="Internal Server Error"
+        )
+
+        with pytest.raises(WifiScanError, match="API returned status 500"):
+            await api.get_interfaces()
+
+
+@pytest.mark.asyncio
+async def test_validate_success(mock_aiohttp_client):
+    """Test successful API validation."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        with patch.object(api, "get_access_points", return_value=[]):
+            assert await api.validate() is True

@@ -43,9 +43,9 @@ sync.ffs_lock
 uv.lock
 
 # Note Scratch Compare Area
-/loc_only/
-/loc_only
-loc_only
+.comp/
+.notes/
+loc_only/
 
 # AI
 *.gptcache

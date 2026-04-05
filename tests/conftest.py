@@ -30,6 +30,7 @@ def mock_config_entry():
             CONF_INTERFACE: "wlan0",
         },
         options={
+            CONF_INTERFACE: "wlan0",
             CONF_KNOWN_SSIDS: "MyNetwork1,MyNetwork2",
             CONF_SCAN_INTERVAL: 60,
         },
@@ -56,7 +57,7 @@ def mock_coordinator(hass, mock_config_entry, mock_wifi_api):
     """Mock WiFi SSID Monitor coordinator."""
     from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
 
-    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api)
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
     coordinator.data = {
         "count": 2,
         "ssids": ["MyNetwork1", "UnknownNet"],
