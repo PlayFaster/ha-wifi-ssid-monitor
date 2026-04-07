@@ -29,6 +29,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Automated Migrations**: Added robust migration logic in `__init__.py` to seamlessly move configuration from legacy `entry.data` to `entry.options` and to update the integration title for existing single-instance users during upgrades.
 - **Robust Debouncing**: Refined the scan interval adjustment in `number.py` to use a task-canceling debounce pattern, preventing race conditions and ensuring only the final user input is persisted to the configuration.
 - **Enhanced API Resilience**: Improved error handling in `api.py` and `coordinator.py` by explicitly catching JSON decode errors and utilizing `from err` to preserve exception chains, providing much clearer diagnostic logs.
+- **Non-Blocking Startup**: Removed the initial blocking data fetch during `async_setup_entry`. The integration now forwards platforms immediately and performs the first WiFi scan in a background task. This ensures 0ms impact on Home Assistant boot times, even if the Supervisor API is slow or temporarily unavailable.
 
 ## 4. Technical Pitfalls & Fixes
 

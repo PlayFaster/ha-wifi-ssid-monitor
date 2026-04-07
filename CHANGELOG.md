@@ -1,4 +1,4 @@
-# Changelog
+# Changelog: WiFi SSID Monitor
 
 All notable changes to this project will be documented in this file.
 
@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Non-Blocking Startup**: Removed the initial blocking data fetch during integration setup. Home Assistant now starts instantly, and the first WiFi scan occurs in the background.
 - **Readme**: Improved the Readme file.
   - Added HACS Integration and Test Coverage badges.
   - Improved layout of example automations.

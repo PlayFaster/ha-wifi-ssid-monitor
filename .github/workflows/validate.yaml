@@ -110,8 +110,7 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
         run: |
           sed -i 's|<!-- coverage-badge-placeholder -->|${{ steps.coverageComment.outputs.coverageHtml }}|g' ./README.md
-#          sed -i 's|<!-- coverage-badge-placeholder -->|${{ steps.coverageComment.outputs.coverageBadge  }}|g' ./README.md
-
+      #          sed -i 's|<!-- coverage-badge-placeholder -->|${{ steps.coverageComment.outputs.coverageBadge  }}|g' ./README.md
       - name: Commit changes
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
         uses: stefanzweifel/git-auto-commit-action@v5

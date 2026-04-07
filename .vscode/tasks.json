@@ -75,7 +75,7 @@
     {
       "label": "Ruff: Format Fix (Auto-Repair)",
       "type": "shell",
-      "command": "ruff format .",
+      "command": "ruff format . || true",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -86,12 +86,13 @@
     {
       "label": "Ruff: Check Fix (Auto-Repair Lint)",
       "type": "shell",
-      "command": "ruff check --fix .",
+      "command": "ruff check --fix . || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
         "close": false
-      }
+      },
+      "problemMatcher": []
     },
     {
       "label": "Markdown: Check Links",
@@ -116,7 +117,7 @@
     {
       "label": "Markdown: Lint (Auto-Fix)",
       "type": "shell",
-      "command": "git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json --fix",
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json --fix || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -136,14 +137,13 @@
     {
       "label": "Prettier: Format (Auto-Fix)",
       "type": "shell",
-      "command": "git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --write",
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --write || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
       },
       "problemMatcher": []
     },
-
     {
       "label": "HA: Verify Version (AwesomeVersion)",
       "type": "shell",
@@ -156,7 +156,6 @@
     },
     {
       "label": "Pytest: Run All Tests",
-
       "type": "shell",
       "command": "mkdir -p .reports && PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --junitxml=.reports/pytest_results.xml",
       "problemMatcher": [],
@@ -181,9 +180,35 @@
       "problemMatcher": []
     },
     {
-      "label": "Validate All",
+      "label": "Initialize Reports",
       "type": "shell",
-      "command": "mkdir -p .reports && (uv run --with awesomeversion python3 -c \"import json; from awesomeversion import AwesomeVersion; v = json.load(open('custom_components/wifi_ssid_monitor/manifest.json'))['version']; av = AwesomeVersion(v); print(f'Version {v} detected strategy: {av.strategy}'); exit(1 if av.strategy == 'unknown' else 0)\" | tee .reports/version_validation.txt) && (git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint -c .validate/.yamllint | tee .reports/yaml_lint.txt) && (git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt) && (git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .validate/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt) && (check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt) && (hass --script check_config --config /config | tee .reports/ha_check_config.txt) && (ruff check . | tee .reports/ruff_lint.txt) && (ruff format --check . | tee .reports/ruff_format_status.txt) && (markdown-link-check README.md | tee .reports/markdown_link_check.txt) && (git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json | tee .reports/markdown_lint.txt) && (git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --check | tee .reports/prettier_check.txt) && (PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=xml:.reports/coverage.xml --junitxml=.reports/pytest_results.xml tests/ -W ignore::DeprecationWarning) && (PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=term-missing --cov-report=html:.reports/coverage tests/)",
+      "command": "mkdir -p .reports",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Validate All",
+      "dependsOn": [
+        "Initialize Reports",
+        "HA: Verify Version (AwesomeVersion)",
+        "YAML: Lint Project",
+        "JSON: Verify All Files",
+        "HA: Verify Manifest",
+        "HACS: Verify Manifest",
+        "HA: Check Config",
+        "Ruff: Check (Lint Only)",
+        "Ruff: Format Check (View Only)",
+        "Markdown: Check Links",
+        "Markdown: Lint (View Only)",
+        "Prettier: Check (View Only)",
+        "Pytest: Run All Tests",
+        "Pytest: Check Test Coverage"
+      ],
+      "dependsOrder": "sequence",
       "group": {
         "kind": "test",
         "isDefault": true
@@ -196,8 +221,13 @@
     },
     {
       "label": "Fix All",
-      "type": "shell",
-      "command": "(git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json --fix) && ruff format . && ruff check --fix . && (git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --write)",
+      "dependsOn": [
+        "Ruff: Check Fix (Auto-Repair Lint)",
+        "Ruff: Format Fix (Auto-Repair)",
+        "Markdown: Lint (Auto-Fix)",
+        "Prettier: Format (Auto-Fix)"
+      ],
+      "dependsOrder": "sequence",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
