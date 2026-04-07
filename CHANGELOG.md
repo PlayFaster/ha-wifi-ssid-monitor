@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1-dev8] - 2026-04-07
+
+### Changed
+
+- **Standardized Resilience**: Aligned the Data Update Coordinator with the "PlayFaster" architectural standards. Removed manual retry loops and implemented `asyncio.timeout(30)` with structured `UpdateFailed` reporting to utilize Home Assistant's native backoff mechanism.
+- **Modern Background Tasks**: Formally migrated the non-blocking startup sequence to the `entry.async_create_background_task` API for better lifecycle tracking.
+
+### Fixed
+
+- **Domain Cleanup**: Implemented standardized unloading logic to ensure the `DOMAIN` key is scrubbed from Home Assistant's internal memory when no integration instances remain.
+- **Test Suite Alignment**: Updated unit tests to verify the new background task and resilience patterns.
+
 ## [1.4.1-dev2] - Now
 
 ### Added

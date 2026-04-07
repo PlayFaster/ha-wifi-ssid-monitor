@@ -69,9 +69,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
+    """Unload a config entry and release resources."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
+        # Standardized Cleanup: Remove the domain key if no entries remain
+        if not hass.data[DOMAIN]:
+            hass.data.pop(DOMAIN)
 
     return unload_ok
 

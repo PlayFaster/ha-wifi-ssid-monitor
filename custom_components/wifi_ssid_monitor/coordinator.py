@@ -36,10 +36,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self):
-        """Fetch data from API."""
-        last_error = WifiScanError("Unknown error occurred during update")
-        for attempt in range(2):
-            try:
+        """Fetch data from API with resilience and timeout."""
+        try:
+            # Use standard timeout wrapper (HA Best Practice)
+            async with asyncio.timeout(30):
                 access_points = await self.api.get_access_points()
 
                 # Defensive: ensure access_points is iterable
@@ -82,17 +82,16 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     "networks": network_map,
                 }
 
-            except WifiScanError as err:
-                last_error = err
-                if attempt == 0:
-                    _LOGGER.debug(
-                        "Fetch failed: %s. Retrying in 10 seconds...",
-                        err,
-                    )
-                    await asyncio.sleep(10)
-                else:
-                    _LOGGER.error("Second fetch attempt failed: %s", err)
+        except TimeoutError as err:
+            _LOGGER.error("%s: API request timed out", self.entry.title)
+            raise UpdateFailed("API request timed out") from err
 
-        raise UpdateFailed(
-            f"Failed to fetch WiFi networks on {self.api.interface}: {last_error}"
-        ) from last_error
+        except WifiScanError as err:
+            _LOGGER.error(
+                "Failed to fetch WiFi networks on %s: %s", self.api.interface, err
+            )
+            raise UpdateFailed(f"Communication error: {err}") from err
+
+        except Exception as err:
+            _LOGGER.error("Unexpected error during WiFi scan: %s", err)
+            raise UpdateFailed(f"Unexpected error: {err}") from err
