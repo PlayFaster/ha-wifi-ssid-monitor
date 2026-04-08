@@ -89,7 +89,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --cov=custom_components/tplink_router_5g \
+          pytest --cov=custom_components/wifi_ssid_monitor \
             --cov-report=xml \
             --cov-report=term-missing \
             --junitxml=pytest.xml \
@@ -127,18 +127,6 @@ jobs:
           valColorRange: ${{ steps.extract_cov.outputs.PERCENTAGE }}
           maxColorRange: 100
           minColorRange: 0
-
-      - name: Update Readme with Coverage Html
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
-        run: |
-          sed -i 's|<!-- coverage-badge-placeholder -->|${{ steps.coverageComment.outputs.coverageHtml }}|g' ./README.md
-      #          sed -i 's|<!-- coverage-badge-placeholder -->|${{ steps.coverageComment.outputs.coverageBadge  }}|g' ./README.md
-      - name: Commit changes
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "docs: update coverage badge"
-          file_pattern: README.md
 
   # Job 5: File-level integrity (JSON, YAML, and Markdown).
   file_val:
