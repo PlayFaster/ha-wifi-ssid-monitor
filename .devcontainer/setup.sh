@@ -34,4 +34,9 @@ else
     echo "Warning: gemini.js not found. Manual check required."
 fi
 
+# 5. Git Configuration
+echo "Configuring Git..."
+git config --global core.fileMode false
+git config --global core.autocrlf input
+
 echo "--- Setup Complete ---"

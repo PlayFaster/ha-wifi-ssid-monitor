@@ -89,8 +89,9 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --cov=custom_components/wifi_ssid_monitor \
+          pytest --cov=custom_components/tplink_router_5g \
             --cov-report=xml \
+            --cov-report=term-missing \
             --junitxml=pytest.xml \
             tests/
 
@@ -105,6 +106,27 @@ jobs:
           hide-comment: false
           create-new-comment: false
           junitxml-path: ./pytest.xml
+
+      - name: Extract Coverage Percentage
+        id: extract_cov
+        shell: bash
+        run: |
+          # This pulls the TOTAL percentage from the coverage report
+          # and saves it as an environment variable
+          COVERAGE=$(coverage report | grep TOTAL | awk '{print $NF}' | tr -d '%')
+          echo "PERCENTAGE=$COVERAGE" >> $GITHUB_OUTPUT
+
+      - name: Update Coverage Badge Gist
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 6d1d30e996dd53f04d2c2fc6b6cddece
+          filename: coverage.json
+          label: Coverage
+          message: ${{ steps.extract_cov.outputs.PERCENTAGE }}%
+          valColorRange: ${{ steps.extract_cov.outputs.PERCENTAGE }}
+          maxColorRange: 100
+          minColorRange: 0
 
       - name: Update Readme with Coverage Html
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
