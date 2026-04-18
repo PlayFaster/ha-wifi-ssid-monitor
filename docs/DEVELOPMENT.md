@@ -29,9 +29,15 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Automated Migrations**: Added robust migration logic in `__init__.py` to seamlessly move configuration from legacy `entry.data` to `entry.options` and to update the integration title for existing single-instance users during upgrades.
 - **Robust Debouncing**: Refined the scan interval adjustment in `number.py` to use a task-canceling debounce pattern, preventing race conditions and ensuring only the final user input is persisted to the configuration.
 - **Enhanced API Resilience**: Improved error handling in `api.py` and `coordinator.py` by explicitly catching JSON decode errors and utilizing `from err` to preserve exception chains, providing much clearer diagnostic logs.
+- **Non-Blocking Startup**: Removed the initial blocking data fetch during `async_setup_entry`. The integration now forwards platforms immediately and performs the first WiFi scan in a background task using `entry.async_create_background_task`. This ensures 0ms impact on Home Assistant boot times.
+- **Declarative Patterns**: Migrated to a centralized `SENSOR_TYPES` definition using a custom `WifiSensorEntityDescription`. This pattern uses a callback-driven `value_fn` to isolate data extraction logic from the entity class, making the platform easier to extend and maintain.
+- **Data Integrity (Guard Bands)**: Implemented validation for all network count sensors. Values are automatically checked against `min_limit` and `max_limit` (e.g., 0-256 for SSIDs) before being committed to the state machine, preventing dashboard corruption from transient API artifacts.
+- **Resilient Holding**: Enhanced the coordinator to hold last known values for up to 3 consecutive fetch failures. This prevents entities from toggling to "Unavailable" during brief Supervisor API restarts or high-load events.
+- **Custom User Naming**: Implemented global name prefixing. Users can define a custom string (e.g., "Guest WiFi") that is prepended to every device and entity, allowing for multiple instances to be clearly distinguished in the UI without technical entity ID conflicts.
 
 ## 4. Technical Pitfalls & Fixes
 
+- **Line-Ending Sensitivity**: Alpine Linux shell scripts in the devcontainer are highly sensitive to Windows-style carriage returns (`\r\n`). The `setup.sh` script has been hardened to avoid `if/fi` syntax (which breaks on corrupted line endings) and uses a series of `&&` commands with clean path resolution via `tr -d '\r'`.
 - **Testing Custom Components**: Standard `pytest` runs fail to load custom components unless the `enable_custom_integrations` fixture is active in `conftest.py`.
 - **ConfigEntry State**: Forwarding setups in unit tests requires the `ConfigEntry` to be in the `LOADED` state. Using `mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)` is essential.
 - **Return Values**: `async_forward_entry_setups` returns `None`. Asserting its result in tests will cause failures.

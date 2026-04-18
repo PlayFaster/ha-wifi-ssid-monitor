@@ -7,13 +7,25 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Last Updated Sensor**: New diagnostic sensor showing the timestamp of the last successful WiFi scan.
+- **Diagnostic Monitoring**: Added a "Last Updated" timestamp sensor to track the most recent successful data fetch from the Supervisor API.
 - **Guard Bands**: Added validation for network count sensors, to ensure reasonable numbers.
+- **Guard Bands**: Implemented data integrity validation (Standard 4) for network count sensors, limiting reported values to a realistic range (0-256) to filter out transient hardware spikes.
 
 ### Changed
 
 - **Custom User Naming**: Users can now define a custom prefix (e.g., "GuestScanner") for all devices and entities during setup or via the Options flow.
-- **Startup Safe**: Changed to try to ensure that integration startup will not block Home Assisstant, e.g. if WiFi is unavailable etc.
+- **Custom User Naming**: Added support for `CONF_NAME`, allowing users to define a custom prefix for all devices and entities during initial setup or reconfiguration via the Options flow.
+- **Improved Setup**: Rewrote the devcontainer configuration to ensure faster and more reliable environment setup on Windows and Linux hosts.
 - **Enhanced Resilience**: The integration now holds last known values for up to 3 failures, preventing sensors from showing as "Unavailable" during brief network or Supervisor API hiccups.
+- **Standardized Resilience**: Aligned the Data Update Coordinator with the architectural standards. Implemented `asyncio.timeout(30)` and enhanced the coordinator to hold last known values for up to 3 consecutive failures before reporting "Unavailable".
+- **Declarative Entities**: Refactored the sensor platform to use the standardized `TPLinkSensorEntityDescription` pattern with callback-driven `value_fn` logic.
+- **DevContainer Hardening**: Synchronized and "hardened" the `setup.sh` script to be resilient against Windows-style carriage returns. Removed sensitive shell syntax (`if/fi`) in favor of robust `&&` chaining and added detailed logging to `.reports/devcontainer/post_setup.log`.
+- **Startup Safe**: Changed to try to ensure that integration startup will not block Home Assisstant, e.g. if WiFi is unavailable etc.
+- **Modern Background Tasks**: Formally migrated the non-blocking startup sequence to the `entry.async_create_background_task` API for better lifecycle tracking.
+
+### Fixed
+
+- **Domain Cleanup**: Implemented standardized unloading logic to ensure the `DOMAIN` key is scrubbed from Home Assistant's internal memory when no integration instances remain.
 
 ## [1.4.0] - 2026-04-05
 
@@ -31,6 +43,7 @@ All notable changes to this project will be documented in this file.
 
 - **Entity Naming**: Changed the default entity names to not have the WiFi interface name embedded, resulting in slightly shorter, more predictable names (good for example automations, etc.). If a second instance was to be added, it would include the WiFi interface in the entity names.
 - **Logging**: Improved exception logging so that if there is a problem, it should appear in the Home Assistant log.
+- **Tests & Coverage**: Added tests and improved coverage for the most recent code changes.
 
 ## [1.3.1] - 2026-04-02
 
@@ -43,13 +56,15 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Project Rename**: Formally renamed the integration from "WiFi Scan SSID" to **WiFi SSID Monitor** to better distinguish it from device tracking integrations and highlight its monitoring purpose.
-- **Domain Update**: Changed the internal domain from `wifi_scan_ssid` to `wifi_ssid_monitor` for consistency.
+- **Domain Update**: Changed the internal domain from `wifi_scan_ssid` to `wifi_ssid_monitor` for full architectural consistency.
+- **Folder Structure**: Migrated all components to the `wifi_ssid_monitor` directory.
 
 ## [1.2.0] - 2026-04-02
 
 ### Added
 
 - **Scan Interval Slider**: Implemented a new `number` entity allowing users to adjust the scan frequency (1-180 minutes) directly from the Home Assistant GUI.
+- **Enhanced Diagnostics**: Updated the interface sensor with a standard `mdi:lan` icon for better visibility and added internal tracking for the active scanning interface.
 
 ### Changed
 
@@ -68,6 +83,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Branding**: Created new, generic WiFi scanning icons and logos.
+- **Mock Supervisor**: Implemented service in the DevContainer to allow for integration testing on systems where physical WiFi access is restricted within containers.
 
 ## [1.0.1] - 2026-04-02
 

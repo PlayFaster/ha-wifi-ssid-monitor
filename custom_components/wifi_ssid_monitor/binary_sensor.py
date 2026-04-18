@@ -6,7 +6,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import CONF_NAME, DOMAIN
 
 NEW_NETWORK_DESCRIPTION = BinarySensorEntityDescription(
     key="new_network",
@@ -45,9 +45,10 @@ class WifiScanBinarySensor(CoordinatorEntity, BinarySensorEntity):
     @property
     def device_info(self):
         """Return device information."""
+        name = self._entry.options.get(CONF_NAME, self._entry.title)
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
+            "name": name,
             "manufacturer": "PlayFaster",
             "model": f"v{self.coordinator.version} ({self.coordinator.api.interface})",
         }

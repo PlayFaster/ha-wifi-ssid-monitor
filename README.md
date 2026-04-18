@@ -1,6 +1,6 @@
 # WiFi SSID Monitor for Home Assistant
 
-![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg) ![Latest Release](https://img.shields.io/github/v/release/PlayFaster/ha-wifi-ssid-monitor?label=Release&logo=github) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Validate](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml/badge.svg)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml) ![Last Commit](https://img.shields.io/github/last-commit/PlayFaster/ha-wifi-ssid-monitor?label=Last%20commit)
+![HACS Integration](https://img.shields.io/badge/HACS-Integration-orange.svg) ![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistant&logoColor=white) ![Latest Release](https://img.shields.io/github/v/release/PlayFaster/ha-wifi-ssid-monitor?label=Release&logo=github) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Validate](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml/badge.svg)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml) ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/PlayFaster/6d1d30e996dd53f04d2c2fc6b6cddece/raw/coverage.json) ![Last Commit](https://img.shields.io/github/last-commit/PlayFaster/ha-wifi-ssid-monitor?label=Last%20commit)
 
 A Home Assistant integration that monitors and reports on WiFi networks in your environment. Using the Home Assistant Supervisor API, this integration scans for SSIDs, counts detectable networks, and identifies unknown networks based on a configurable allowlist.
 
@@ -10,7 +10,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 - **Unknown Network Detection**: Identify networks not in your pre-configured known list
 - **Detailed Attributes**: View complete lists of detected and unknown SSIDs
 - **Dynamic Polling Control**: Adjust the scan frequency directly from the Home Assistant UI or via automation.
-- **Auto-detected Interface**: Interface names (e.g., `wlan0`) are automatically populated during setup where available. This can be entered manually if auto-detection is not successful.
+- **Auto-detected Interface**: Interface names (e.g., `wlan0`) are automatically populated during setup where available. This can be entered manually if auto-detection is not successful
 
 ## 📋 System Requirements
 
@@ -33,7 +33,7 @@ trigger:
   entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
   to: "on"
 action:
-  service: notify.mobile_app_phone
+  action: notify.mobile_app_phone
   data:
     message: "Unknown WiFi network detected: {{ states('sensor.wifi_ssid_monitor_unknown_count') }} unknown network(s) found"
 ```
@@ -53,23 +53,18 @@ Identify when smart home devices are broadcasting setup or recovery access point
 ```yaml
 alias: Alert if Device in AP Mode
 triggers:
-  - entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
+  - trigger: state
+    entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
     to: "on"
-    trigger: state
 conditions:
   - condition: template
-    value_template: >
-      {% set ssids = state_attr('sensor.wifi_ssid_monitor_unknown_count', 'ssids') | string | lower %} {% set device_aps = ['mfg1_new', 'mfg2_resets', 'mfg3'] %} {{ device_aps | select('in', ssids) | list | length > 0 }}
-
-
-    alias: Check If Unknown SSID Is Known Smart Device
+    alias: Check If Unknown SSID Is a Known Smart Device
+    value_template: "{% set ssids = state_attr('sensor.wifi_ssid_monitor_unknown_count', 'ssids') | string | lower %} {% set device_aps = ['mfg1_new', 'mfg2_resets', 'mfg3'] | lower %} {{ device_aps | select('in', ssids) | list | length > 0 }}"
 actions:
-  - data:
+  - action: notify.mobile_app_phone
+    data:
       message: >-
         Smart Device in AP Mode Detected: {{ states('sensor.wifi_ssid_monitor_unknown_count') }} APs found.
-
-
-    action: notify.mobile_app_phone
 ```
 
 ### Network Reliability: Known Network Monitoring
@@ -86,14 +81,14 @@ trigger:
   below: 2
   for:
     minutes: 5
-condition:
+conditions:
   - condition: state
     entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
     state: "off"
-action:
-  service: notify.mobile_app_phone
-  data:
-    message: "WiFi network count has dropped — a home network may be offline"
+actions:
+  - action: notify.mobile_app_phone
+    data:
+      message: "WiFi network count has dropped — a home network may be offline"
 ```
 
 ## ✨ Installation
@@ -110,16 +105,18 @@ action:
 
 ### Manual Installation
 
-1. Download the repository
+1. Download the [latest release](https://github.com/PlayFaster/ha-wifi-ssid-monitor/releases).
 2. Copy the `custom_components/wifi_ssid_monitor` folder to your Home Assistant `custom_components` directory
 3. Restart Home Assistant
 4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
 
 ## ⚙️ Configuration
 
-All configuration is handled through the Home Assistant UI. During setup, you will configure:
+All configuration is handled through the Home Assistant UI.
 
 ### Initial Setup
+
+Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**. You will need:
 
 - **WiFi Interface**: The network interface to monitor (e.g., `wlan0`)
   - Detected interfaces will be automatically populated where available
@@ -131,8 +128,8 @@ All configuration is handled through the Home Assistant UI. During setup, you wi
 After installation, you can modify settings via the integration's **Configure** (gear icon) options menu:
 
 - **Known SSIDs**: Update the list of known networks
-- **Scan Interval**: Adjust polling frequency (1–180 minutes) (default 10 minutes).
-  - Note this is also available directly from the UI as a number slider, which can be dynamically changed via automation schedule, etc. (example below).
+- **Scan Interval**: Adjust polling frequency (1–180 minutes) (default 10 minutes)
+  - Note this is also available directly from the UI as a number slider, which can be dynamically changed via automation (see example in **Number Entities** below)
 - **WiFi Interface**: Change which interface is monitored
 
 > [!TIP]
@@ -144,7 +141,9 @@ After installation, you can modify settings via the integration's **Configure** 
 > 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar
 > 4. During setup, the integration will attempt to auto-detect available WiFi interfaces
 
-## 📊 Entities
+## 📊 What You Get
+
+This integration provides **5 entities**, as follows:
 
 ### Sensors
 
@@ -173,7 +172,7 @@ After installation, you can modify settings via the integration's **Configure** 
 **Example automation:**
 
 ```yaml
-alias: "WIFI: Set Scan Interval Based on Time"
+alias: "WiFi: Set Scan Interval Based on Time"
 description: "Adjusts SSID scan interval for day and evening cycles"
 mode: single
 trigger:
@@ -183,13 +182,13 @@ trigger:
   - platform: time
     at: "18:00:00"
     id: "evening"
-action:
+actions:
   - choose:
       - conditions:
           - condition: trigger
             id: "day"
         sequence:
-          - service: number.set_value
+          - action: number.set_value
             target:
               entity_id: number.wifi_ssid_monitor_scan_interval
             data:
@@ -198,7 +197,7 @@ action:
           - condition: trigger
             id: "evening"
         sequence:
-          - service: number.set_value
+          - action: number.set_value
             target:
               entity_id: number.wifi_ssid_monitor_scan_interval
             data:
@@ -245,10 +244,10 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 
 - This project was developed with the assistance of AI to ensure code quality and adherence to best practices.
 
-## 📄 License [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+## 📄 License [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-This project uses the Apache License, Version 2.0, for more details see the [license](LICENSE) document.
+This project is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
 ---
 
-**For issues, feature requests, or contributions, please visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).**
+**Questions or Issues?** Visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).\*\*

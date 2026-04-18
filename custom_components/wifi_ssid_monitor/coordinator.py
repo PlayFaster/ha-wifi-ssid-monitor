@@ -7,6 +7,7 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import WifiScanAPI, WifiScanError
 from .const import CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL
@@ -25,6 +26,8 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         self.entry = entry
         self.version = version
         self.last_known_ssids = entry.options.get(CONF_KNOWN_SSIDS, "")
+        self.last_update_success_time = None
+        self._failure_count = 0
 
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, 600)
 
@@ -36,11 +39,15 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self):
-        """Fetch data from API."""
-        last_error = WifiScanError("Unknown error occurred during update")
-        for attempt in range(2):
-            try:
+        """Fetch data from API with resilience and timeout."""
+        try:
+            # Use standard timeout wrapper (HA Best Practice)
+            async with asyncio.timeout(30):
                 access_points = await self.api.get_access_points()
+
+                # Success: reset failure count
+                self._failure_count = 0
+                self.last_update_success_time = dt_util.now()
 
                 # Defensive: ensure access_points is iterable
                 if access_points is None:
@@ -82,17 +89,17 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     "networks": network_map,
                 }
 
-            except WifiScanError as err:
-                last_error = err
-                if attempt == 0:
-                    _LOGGER.debug(
-                        "Fetch failed: %s. Retrying in 10 seconds...",
-                        err,
-                    )
-                    await asyncio.sleep(10)
-                else:
-                    _LOGGER.error("Second fetch attempt failed: %s", err)
+        except (TimeoutError, WifiScanError, Exception) as err:
+            self._failure_count += 1
+            # Option D: Hold last known values for up to 3 failures
+            if self.data and self._failure_count <= 3:
+                _LOGGER.warning(
+                    "Error fetching WiFi data (failure %d/3), "
+                    "holding last known values: %s",
+                    self._failure_count,
+                    err,
+                )
+                return self.data
 
-        raise UpdateFailed(
-            f"Failed to fetch WiFi networks on {self.api.interface}: {last_error}"
-        ) from last_error
+            _LOGGER.error("Failed to fetch WiFi networks: %s", err)
+            raise UpdateFailed(f"Error communicating with API: {err}") from err

@@ -54,11 +54,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     coordinator = WifiScanCoordinator(hass, entry, api, integration.version)
 
-    await coordinator.async_config_entry_first_refresh()
-
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Trigger the first refresh in the background to avoid blocking HA startup
+    entry.async_create_background_task(
+        hass, coordinator.async_refresh(), "wifi-ssid-monitor-setup"
+    )
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
@@ -66,9 +69,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
+    """Unload a config entry and release resources."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
+        # Standardized Cleanup: Remove the domain key if no entries remain
+        if not hass.data[DOMAIN]:
+            hass.data.pop(DOMAIN)
 
     return unload_ok
 

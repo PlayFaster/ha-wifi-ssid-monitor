@@ -1,7 +1,5 @@
 """Tests for WiFi SSID Monitor coordinator."""
 
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
@@ -59,43 +57,30 @@ async def test_coordinator_update_data_known_networks_parsing(
 
 
 @pytest.mark.asyncio
-async def test_coordinator_update_data_retry_success(
-    hass, mock_config_entry, mock_wifi_api
-):
-    """Test data update with a retry success."""
+async def test_coordinator_update_data_timeout(hass, mock_config_entry, mock_wifi_api):
+    """Test data update with a timeout."""
     coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
 
-    mock_wifi_api.get_access_points.side_effect = [
-        WifiScanError("Temporary failure"),
-        [{"ssid": "Net1", "signal": -50}],
-    ]
+    mock_wifi_api.get_access_points.side_effect = TimeoutError
 
-    with patch("asyncio.sleep", AsyncMock()) as mock_sleep:
-        data = await coordinator._async_update_data()
-
-    assert data["count"] == 1
-    assert data["ssids"] == ["Net1"]
-    mock_sleep.assert_called_once_with(10)
-    assert mock_wifi_api.get_access_points.call_count == 2
+    with pytest.raises(UpdateFailed, match="Error communicating with API: "):
+        await coordinator._async_update_data()
 
 
 @pytest.mark.asyncio
 async def test_coordinator_update_data_failure(hass, mock_config_entry, mock_wifi_api):
-    """Test data update failure after retries."""
+    """Test data update failure."""
     coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
 
     mock_wifi_api.get_access_points.side_effect = WifiScanError("Persistent failure")
 
-    with (
-        patch("asyncio.sleep", AsyncMock()),
-        pytest.raises(
-            UpdateFailed,
-            match="Failed to fetch WiFi networks on wlan0: Persistent failure",
-        ),
+    with pytest.raises(
+        UpdateFailed,
+        match="Error communicating with API: Persistent failure",
     ):
         await coordinator._async_update_data()
 
-    assert mock_wifi_api.get_access_points.call_count == 2
+    assert mock_wifi_api.get_access_points.call_count == 1
 
 
 @pytest.mark.asyncio

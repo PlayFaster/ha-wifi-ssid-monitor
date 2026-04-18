@@ -15,10 +15,6 @@ async def test_setup_unload_entry(hass: HomeAssistant, mock_config_entry):
 
     with (
         patch(
-            "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_config_entry_first_refresh",
-            return_value=None,
-        ),
-        patch(
             "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
             return_value=[],
         ),
@@ -51,10 +47,6 @@ async def test_async_setup_entry_title_migration(
 
     with (
         patch(
-            "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_config_entry_first_refresh",
-            return_value=None,
-        ),
-        patch(
             "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
             return_value=[],
         ),
@@ -72,10 +64,6 @@ async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
     mock_config_entry.add_to_hass(hass)
 
     with (
-        patch(
-            "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_config_entry_first_refresh",
-            return_value=None,
-        ),
         patch(
             "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
             return_value=[],
@@ -102,10 +90,6 @@ async def test_async_reload_entry_options(hass: HomeAssistant, mock_config_entry
 
     with (
         patch(
-            "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_config_entry_first_refresh",
-            return_value=None,
-        ),
-        patch(
             "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
             return_value=[],
         ),
@@ -115,6 +99,10 @@ async def test_async_reload_entry_options(hass: HomeAssistant, mock_config_entry
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
+
+        # Refresh is called once during setup now (background task)
+        assert mock_refresh.call_count == 1
+        mock_refresh.reset_mock()
 
         from custom_components.wifi_ssid_monitor.const import (
             CONF_KNOWN_SSIDS,
@@ -141,12 +129,12 @@ async def test_async_reload_entry_options(hass: HomeAssistant, mock_config_entry
 
 @pytest.mark.asyncio
 async def test_setup_entry_failure(hass: HomeAssistant, mock_config_entry):
-    """Test setup entry failure."""
+    """Test setup entry failure when integration cannot be loaded."""
     mock_config_entry.add_to_hass(hass)
 
     with patch(
-        "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_config_entry_first_refresh",
-        side_effect=Exception("Failed to refresh"),
+        "custom_components.wifi_ssid_monitor.async_get_integration",
+        side_effect=Exception("Failed to load integration"),
     ):
         assert not await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
