@@ -4,7 +4,7 @@
   "service": "homeassistant",
   "workspaceFolder": "/workspaces/ha-wifi-ssid-monitor",
   "_comment": "Added -U to ensure it upgrades if a cached version is old",
-  "postCreateCommand": "sh .devcontainer/setup.sh",
+  "postCreateCommand": "mkdir -p .reports/devcontainer && sh .devcontainer/setup.sh || (echo 'Setup failed! Check .reports/devcontainer/post_setup.log for details.' && sleep infinity)",
   "mounts": [
     {
       "source": "${localEnv:USERPROFILE}/.gemini",

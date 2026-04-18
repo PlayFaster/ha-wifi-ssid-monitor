@@ -25,14 +25,14 @@ async def test_sensors(hass: HomeAssistant, mock_config_entry, mock_coordinator)
         await hass.async_block_till_done()
 
     # Total Count Sensor
-    state = hass.states.get("sensor.wifi_ssid_monitor_wlan0_total_count")
+    state = hass.states.get("sensor.wifi_ssid_monitor_wlan0_total_ssid_count")
     assert state
     assert state.state == "2"
     assert state.attributes["ssids"] == ["MyNetwork1", "UnknownNet"]
     assert state.attributes["icon"] == "mdi:wifi"
 
     # Unknown Count Sensor
-    state = hass.states.get("sensor.wifi_ssid_monitor_wlan0_unknown_count")
+    state = hass.states.get("sensor.wifi_ssid_monitor_wlan0_unknown_ssid_count")
     assert state
     assert state.state == "1"
     assert state.attributes["ssids"] == ["UnknownNet"]
@@ -48,7 +48,7 @@ async def test_sensors(hass: HomeAssistant, mock_config_entry, mock_coordinator)
     sensor = WifiScanSensor(mock_coordinator, mock_config_entry, SENSOR_TYPES[0])
     device_info = sensor.device_info
     assert device_info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
-    assert device_info["name"] == mock_config_entry.title
+    assert device_info["name"] == "WiFi SSID Monitor wlan0"
     assert device_info["manufacturer"] == "PlayFaster"
 
 
@@ -69,12 +69,12 @@ async def test_sensors_no_data(
         )
         await hass.async_block_till_done()
 
-    state = hass.states.get("sensor.wifi_ssid_monitor_wlan0_total_count")
+    state = hass.states.get("sensor.wifi_ssid_monitor_wlan0_total_ssid_count")
     assert state
     assert state.state == "unknown"
     assert "ssids" not in state.attributes
 
-    state = hass.states.get("sensor.wifi_ssid_monitor_wlan0_unknown_count")
+    state = hass.states.get("sensor.wifi_ssid_monitor_wlan0_unknown_ssid_count")
     assert state
     assert state.state == "unknown"
     assert "ssids" not in state.attributes

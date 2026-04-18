@@ -63,7 +63,7 @@ async def test_coordinator_update_data_timeout(hass, mock_config_entry, mock_wif
 
     mock_wifi_api.get_access_points.side_effect = TimeoutError
 
-    with pytest.raises(UpdateFailed, match="API request timed out"):
+    with pytest.raises(UpdateFailed, match="Error communicating with API: "):
         await coordinator._async_update_data()
 
 
@@ -76,7 +76,7 @@ async def test_coordinator_update_data_failure(hass, mock_config_entry, mock_wif
 
     with pytest.raises(
         UpdateFailed,
-        match="Communication error: Persistent failure",
+        match="Error communicating with API: Persistent failure",
     ):
         await coordinator._async_update_data()
 

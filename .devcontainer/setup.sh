@@ -1,42 +1,39 @@
 #!/bin/sh
-set -e
 
-echo "--- Starting Post-Create Setup ---"
+# Ensure the directory exists
+mkdir -p .reports/devcontainer ;
 
-# 1. System Packages
-echo "Installing system packages (apk)..."
-apk update
-apk add nodejs npm bash libc6-compat ncurses coreutils
+# 1. Git Configuration (Moved to start to ensure completion)
+echo "--- Starting Post-Create Setup ---" | tee .reports/devcontainer/post_setup.log ;
+echo "Configuring Git..." | tee -a .reports/devcontainer/post_setup.log ;
+git config --global core.fileMode false 2>&1 | tee -a .reports/devcontainer/post_setup.log ;
+git config --global core.autocrlf input 2>&1 | tee -a .reports/devcontainer/post_setup.log ;
 
-# 2. Python Dependencies
-echo "Installing Python test dependencies..."
-pip install -r .validate/requirements_test.txt
+# 2. System Packages
+echo "Installing system packages (apk)..." | tee -a .reports/devcontainer/post_setup.log ;
+apk update 2>&1 | tee -a .reports/devcontainer/post_setup.log ;
+apk add nodejs npm bash libc6-compat ncurses coreutils 2>&1 | tee -a .reports/devcontainer/post_setup.log ;
 
-# 3. Global NPM Tools
-echo "Installing global NPM tools..."
-npm install -g @google/gemini-cli markdown-link-check markdownlint-cli prettier
+# 3. Python Dependencies
+echo "Installing Python test dependencies..." | tee -a .reports/devcontainer/post_setup.log ;
+pip install -r .validate/requirements_test.txt 2>&1 | tee -a .reports/devcontainer/post_setup.log ;
 
-# 4. Gemini CLI Configuration
-echo "Configuring Gemini CLI..."
+# 4. Global NPM Tools
+echo "Installing global NPM tools..." | tee -a .reports/devcontainer/post_setup.log ;
+npm install -g @google/gemini-cli markdown-link-check markdownlint-cli prettier 2>&1 | tee -a .reports/devcontainer/post_setup.log ;
 
-# Find the real bundle file (handles path variations in Alpine/Node)
-REAL_GEMINI_PATH=$(find /usr/local/lib/node_modules /usr/lib/node_modules -name "gemini.js" 2>/dev/null | head -n 1)
+# 5. Gemini CLI Configuration
+echo "Configuring Gemini CLI..." | tee -a .reports/devcontainer/post_setup.log ;
+# Clean up path by stripping any carriage returns
+NODE_ROOT=$(npm root -g | tr -d '\r') ;
+REAL_GEMINI_PATH="$NODE_ROOT/@google/gemini-cli/bundle/gemini.js" ;
 
-if [ -n "$REAL_GEMINI_PATH" ]; then
-    echo "Found Gemini at: $REAL_GEMINI_PATH"
-    # Fix the shebang to use Alpine's node path directly
-    sed -i '1s|.*|#!/usr/bin/node|' "$REAL_GEMINI_PATH"
-    # Create the global symlink
-    ln -sf "$REAL_GEMINI_PATH" /usr/local/bin/gemini
-    chmod +x /usr/local/bin/gemini
-    echo "Gemini CLI configured successfully."
-else
-    echo "Warning: gemini.js not found. Manual check required."
-fi
+# Use series of && to avoid if/then/else/fi syntax errors with Windows line endings
+[ -f "$REAL_GEMINI_PATH" ] && echo "Found Gemini at: $REAL_GEMINI_PATH" | tee -a .reports/devcontainer/post_setup.log ;
+[ -f "$REAL_GEMINI_PATH" ] && sed -i '1s|.*|#!/usr/bin/node|' "$REAL_GEMINI_PATH" 2>&1 | tee -a .reports/devcontainer/post_setup.log ;
+[ -f "$REAL_GEMINI_PATH" ] && ln -sf "$REAL_GEMINI_PATH" /usr/local/bin/gemini 2>&1 | tee -a .reports/devcontainer/post_setup.log ;
+[ -f "$REAL_GEMINI_PATH" ] && chmod +x /usr/local/bin/gemini 2>&1 | tee -a .reports/devcontainer/post_setup.log ;
+[ -f "$REAL_GEMINI_PATH" ] && echo "Gemini CLI configured successfully." | tee -a .reports/devcontainer/post_setup.log ;
+[ -f "$REAL_GEMINI_PATH" ] || echo "Warning: gemini.js not found at $REAL_GEMINI_PATH. Manual check required." | tee -a .reports/devcontainer/post_setup.log ;
 
-# 5. Git Configuration
-echo "Configuring Git..."
-git config --global core.fileMode false
-git config --global core.autocrlf input
-
-echo "--- Setup Complete ---"
+echo "--- Setup Complete ---" | tee -a .reports/devcontainer/post_setup.log ;

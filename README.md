@@ -105,16 +105,18 @@ actions:
 
 ### Manual Installation
 
-1. Download the repository
+1. Download the [latest release](https://github.com/PlayFaster/ha-wifi-ssid-monitor/releases).
 2. Copy the `custom_components/wifi_ssid_monitor` folder to your Home Assistant `custom_components` directory
 3. Restart Home Assistant
 4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
 
 ## ⚙️ Configuration
 
-All configuration is handled through the Home Assistant UI. During setup, you will configure:
+All configuration is handled through the Home Assistant UI.
 
 ### Initial Setup
+
+Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**. You will need:
 
 - **WiFi Interface**: The network interface to monitor (e.g., `wlan0`)
   - Detected interfaces will be automatically populated where available
@@ -139,7 +141,9 @@ After installation, you can modify settings via the integration's **Configure** 
 > 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar
 > 4. During setup, the integration will attempt to auto-detect available WiFi interfaces
 
-## 📊 Entities
+## 📊 What You Get
+
+This integration provides **5 entities**, as follows:
 
 ### Sensors
 
@@ -242,8 +246,8 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 
 ## 📄 License [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-This project uses the Apache License, Version 2.0, for more details see the [license](LICENSE) document.
+This project is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
 ---
 
-**For issues, feature requests, or contributions, please visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).**
+**Questions or Issues?** Visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).\*\*

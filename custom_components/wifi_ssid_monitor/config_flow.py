@@ -13,6 +13,7 @@ from .api import WifiScanAPI, WifiScanError
 from .const import (
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
+    CONF_NAME,
     CONF_SCAN_INTERVAL,
     DEFAULT_NAME,
     DOMAIN,
@@ -61,14 +62,13 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
                 self._abort_if_unique_id_configured()
 
-                title = DEFAULT_NAME
-                if self._async_current_entries():
-                    title = f"{DEFAULT_NAME} ({user_input[CONF_INTERFACE]})"
+                name = user_input.get(CONF_NAME, DEFAULT_NAME)
 
                 return self.async_create_entry(
-                    title=title,
+                    title=name,
                     data=user_input,
                     options={
+                        CONF_NAME: name,
                         CONF_INTERFACE: user_input[CONF_INTERFACE],
                         CONF_KNOWN_SSIDS: user_input[CONF_KNOWN_SSIDS],
                         CONF_SCAN_INTERVAL: 600,
@@ -83,6 +83,7 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "unknown"
 
         data_schema = {
+            vol.Required(CONF_NAME, default=DEFAULT_NAME): cv.string,
             vol.Optional(CONF_KNOWN_SSIDS, default=""): cv.string,
         }
 
@@ -125,6 +126,15 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_INTERFACE
                 ):
                     await _validate_input(self.hass, user_input)
+
+                # Update entry title if name changed
+                if user_input.get(CONF_NAME) != self._config_entry.options.get(
+                    CONF_NAME
+                ):
+                    self.hass.config_entries.async_update_entry(
+                        self._config_entry, title=user_input[CONF_NAME]
+                    )
+
                 return self.async_create_entry(title="", data=user_input)
             except WifiScanError:
                 errors["base"] = "cannot_connect"
@@ -142,6 +152,10 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
             available_interfaces.append(current_interface)
 
         data_schema = {
+            vol.Required(
+                CONF_NAME,
+                default=self._config_entry.options.get(CONF_NAME, DEFAULT_NAME),
+            ): cv.string,
             vol.Optional(
                 CONF_KNOWN_SSIDS,
                 default=self._config_entry.options.get(

@@ -45,10 +45,12 @@ async def test_user_flow(hass: HomeAssistant):
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["title"] == "WiFi SSID Monitor"
     assert result["data"] == {
+        "name": "WiFi SSID Monitor",
         CONF_INTERFACE: "wlan0",
         CONF_KNOWN_SSIDS: "MyNet1,MyNet2",
     }
     assert result["options"] == {
+        "name": "WiFi SSID Monitor",
         CONF_INTERFACE: "wlan0",
         CONF_KNOWN_SSIDS: "MyNet1,MyNet2",
         CONF_SCAN_INTERVAL: 600,
@@ -84,7 +86,7 @@ async def test_user_flow_multiple_instances(hass: HomeAssistant, mock_config_ent
         await hass.async_block_till_done()
 
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
-    assert result["title"] == "WiFi SSID Monitor (wlan1)"
+    assert result["title"] == "WiFi SSID Monitor"
     assert len(mock_setup_entry.mock_calls) >= 1
 
 
@@ -215,6 +217,7 @@ async def test_options_flow(hass: HomeAssistant, mock_config_entry):
 
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["data"] == {
+        "name": "WiFi SSID Monitor",
         CONF_INTERFACE: "wlan1",
         CONF_KNOWN_SSIDS: "NewNet1",
         CONF_SCAN_INTERVAL: 60,

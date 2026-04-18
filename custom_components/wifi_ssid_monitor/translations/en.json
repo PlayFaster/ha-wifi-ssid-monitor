@@ -5,6 +5,7 @@
       "user": {
         "title": "Setup WiFi SSID Monitor",
         "data": {
+          "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)"
         }
@@ -23,8 +24,10 @@
       "init": {
         "title": "Reconfigure WiFi SSID Monitor",
         "data": {
+          "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
-          "known_wifi_ids": "Known SSIDs (comma separated)"
+          "known_wifi_ids": "Known SSIDs (comma separated)",
+          "scan_interval": "Scan Interval (seconds)"
         }
       }
     },
@@ -35,9 +38,10 @@
   },
   "entity": {
     "sensor": {
-      "total_count": { "name": "Total Count" },
-      "unknown_count": { "name": "Unknown Count" },
-      "interface": { "name": "Interface" }
+      "total_count": { "name": "Total SSID Count" },
+      "unknown_count": { "name": "Unknown SSID Count" },
+      "interface": { "name": "Interface" },
+      "last_updated": { "name": "Last Updated" }
     },
     "binary_sensor": {
       "new_network": { "name": "New Network Alert" }

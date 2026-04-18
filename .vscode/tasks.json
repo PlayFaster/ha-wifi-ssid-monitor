@@ -145,6 +145,16 @@
       "problemMatcher": []
     },
     {
+      "label": "Prettier: Fix Notes",
+      "type": "shell",
+      "command": "prettier --config .validate/.prettierrc --ignore-path /dev/null --write \".notes/**/*.{md,json,yaml,yml}\" || true",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "HA: Verify Version (AwesomeVersion)",
       "type": "shell",
       "command": "mkdir -p .reports && uv run --with awesomeversion python3 -c \"import json; from awesomeversion import AwesomeVersion; v = json.load(open('custom_components/wifi_ssid_monitor/manifest.json'))['version']; av = AwesomeVersion(v); print(f'Version {v} detected strategy: {av.strategy}'); exit(1 if av.strategy == 'unknown' else 0)\" | tee .reports/version_validation.txt",
@@ -225,7 +235,8 @@
         "Ruff: Check Fix (Auto-Repair Lint)",
         "Ruff: Format Fix (Auto-Repair)",
         "Markdown: Lint (Auto-Fix)",
-        "Prettier: Format (Auto-Fix)"
+        "Prettier: Format (Auto-Fix)",
+        "Prettier: Fix Notes"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": [],

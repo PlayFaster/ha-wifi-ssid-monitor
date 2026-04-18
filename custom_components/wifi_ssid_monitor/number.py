@@ -7,7 +7,7 @@ from homeassistant.components.number import NumberEntity, NumberEntityDescriptio
 from homeassistant.const import UnitOfTime
 from homeassistant.helpers.entity import EntityCategory
 
-from .const import CONF_SCAN_INTERVAL, DOMAIN
+from .const import CONF_NAME, CONF_SCAN_INTERVAL, DOMAIN
 from .coordinator import WifiScanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -103,10 +103,11 @@ class WifiScanIntervalNumber(NumberEntity):
     @property
     def device_info(self):
         """Return device information."""
+        name = self._entry.options.get(CONF_NAME, self._entry.title)
         model = f"v{self._coordinator.version} ({self._coordinator.api.interface})"
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
+            "name": name,
             "manufacturer": "PlayFaster",
             "model": model,
         }
