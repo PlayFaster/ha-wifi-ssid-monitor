@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Custom User Naming**: Users can now define a custom prefix (e.g., "GuestScanner") for all devices and entities during setup or via the Options flow.
-- **Startup Safe**: Changed to try to ensure that integration startup will not block Home Assisstant, e.g. if WiFi is unavailable etc.
+- **Startup Safe**: Changed to try to ensure that integration startup will not block Home Assistant, e.g. if WiFi is unavailable etc.
 - **Enhanced Resilience**: The integration now holds last known values for up to 3 failures, preventing sensors from showing as "Unavailable" during brief network or Supervisor API hiccups.
 
 ## [1.4.0] - 2026-04-05

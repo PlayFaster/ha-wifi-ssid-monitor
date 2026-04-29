@@ -1,0 +1,3 @@
+[codespell]
+skip = ./.git,./.venv,./.ruff_cache,./.pytest_cache
+ignore-words-list = hass

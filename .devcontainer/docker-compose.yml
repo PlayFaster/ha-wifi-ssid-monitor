@@ -2,7 +2,7 @@
 services:
   homeassistant:
     container_name: wifi-ssid-monitor-dev
-    image: ghcr.io/home-assistant/home-assistant:stable
+    image: ha-dev-base:latest
     volumes:
       # Mount the whole project so the DevContainer workspace works
       - ..:/workspaces/ha-wifi-ssid-monitor
