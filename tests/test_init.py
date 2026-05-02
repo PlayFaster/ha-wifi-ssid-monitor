@@ -133,8 +133,8 @@ async def test_setup_entry_failure(hass: HomeAssistant, mock_config_entry):
     mock_config_entry.add_to_hass(hass)
 
     with patch(
-        "custom_components.wifi_ssid_monitor.async_get_integration",
-        side_effect=Exception("Failed to load integration"),
+        "custom_components.wifi_ssid_monitor.WifiScanCoordinator",
+        side_effect=Exception("Coordinator creation failed"),
     ):
         assert not await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()

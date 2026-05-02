@@ -1,5 +1,6 @@
 ruff
-pytest-homeassistant-custom-component
+pytest-homeassistant-custom-component==0.13.326
 pytest-cov
 yamllint
 check-jsonschema
+codespell

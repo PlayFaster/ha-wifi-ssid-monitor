@@ -8,6 +8,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.wifi_ssid_monitor.const import (
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
+    CONF_NAME,
     CONF_SCAN_INTERVAL,
     DOMAIN,
 )
@@ -25,11 +26,10 @@ def mock_config_entry():
     return MockConfigEntry(
         domain=DOMAIN,
         unique_id="wifi_ssid_monitor_wlan0",
-        title="WiFi SSID Monitor wlan0",
-        data={
-            CONF_INTERFACE: "wlan0",
-        },
+        title="WiFi SSID Monitor",
+        data={},
         options={
+            CONF_NAME: "WiFi SSID Monitor",
             CONF_INTERFACE: "wlan0",
             CONF_KNOWN_SSIDS: "MyNetwork1,MyNetwork2",
             CONF_SCAN_INTERVAL: 60,

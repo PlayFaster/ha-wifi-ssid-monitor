@@ -22,7 +22,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 
 - **High Test Coverage**: The project maintains 99% test coverage across all core modules and the test suite itself.
 - **Coordinator Logic**: Centralizing SSID deduplication and filtering in the `DataUpdateCoordinator` ensures that all entities share a consistent and optimized data set.
-- **Retry Resilience**: Implemented a two-stage fetch attempt with a 10-second delay to handle transient Supervisor API unavailability.
+- **Retry Resilience**: The coordinator holds last known values for up to 3 consecutive fetch failures before marking entities unavailable. This handles transient Supervisor API restarts or brief network outages without entities toggling to "Unavailable". On the 4th consecutive failure, `UpdateFailed` is raised and HA marks entities unavailable as normal.
 - **DevContainer Mocking**: Integrated a `mock_supervisor.py` service within the `docker-compose.yml` to simulate the Supervisor API. This allows developers on Windows to test the integration's logic despite virtualization limits on physical WiFi access.
 - **Structured Data Model (v1.3.1)**: Refactored the coordinator's internal data model to use a dictionary mapping instead of simple lists. This architectural update allows for adding metadata like RSSI or channel info in the future without breaking changes.
 - **Clean Entity Naming (v1.4.0)**: Implemented logic to omit the interface ID from entity names and the integration title for single-instance installations, while automatically appending it for multi-interface setups. This provides a cleaner UI experience for the majority of users.
@@ -45,6 +45,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Title Updates**: Similar to options, `ConfigEntry.title` is protected and cannot be assigned to directly. It must be updated using `async_update_entry(entry, title="New Title")`.
 - **Options Flow Validation**: Initial versions lacked validation in the reconfiguration step. The `OptionsFlow` now verifies interface changes against the Supervisor API before saving to prevent invalid runtime states.
 - **Windows WiFi Access**: Containers on Windows (via Docker Desktop/WSL2) cannot directly access physical WiFi hardware for scanning. The `mock_supervisor` service provides a reliable alternative for UI and logic validation.
+- **Hidden Network Deduplication**: All APs without a broadcasted SSID are normalised to the key `"[hidden]"` in both `all_ssids` (set deduplication) and `network_map`. If three hidden APs are visible, the total count shows 1 and `network_map["[hidden]"]` stores only the last AP's RSSI/channel (overwritten each pass). This is intentional — hidden networks are indistinguishable by name — but means the count will not match tools like `nmcli` that report each hidden AP separately. BSSID-based tracking (see `FUTURE.md`) would resolve this.
 
 ## 5. Environment Constraints
 

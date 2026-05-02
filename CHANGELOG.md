@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2] - 2026-05-02
+
+### Fixed
+
+- **Scan Interval Minimum**: Aligned the minimum scan interval to 60 seconds across both the Options dialog and the number entity slider. Previously the options dialog accepted 30 seconds, which would silently round to 1 minute in the slider UI.
+
+### Changed
+
+- **Options Dialog**: Scan interval field label updated to "Scan Interval (seconds, minimum 60)" to clarify the expected unit and enforced minimum.
+
+### Documentation
+
+- **Known Limitations**: Added a Known Limitations section to the README documenting that multiple hidden (non-broadcasting) WiFi networks are reported as a single `[hidden]` entry in SSID counts. This is expected behaviour — hidden networks cannot be individually identified without SSID data.
+
 ## [1.4.1] - 2026-04-18
 
 ### Added
@@ -12,7 +26,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Custom User Naming**: Users can now define a custom prefix (e.g., "GuestScanner") for all devices and entities during setup or via the Options flow.
-- **Startup Safe**: Changed to try to ensure that integration startup will not block Home Assisstant, e.g. if WiFi is unavailable etc.
+- **Startup Safe**: Changed to try to ensure that integration startup will not block Home Assistant, e.g. if WiFi is unavailable etc.
 - **Enhanced Resilience**: The integration now holds last known values for up to 3 failures, preventing sensors from showing as "Unavailable" during brief network or Supervisor API hiccups.
 
 ## [1.4.0] - 2026-04-05

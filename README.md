@@ -143,7 +143,7 @@ After installation, you can modify settings via the integration's **Configure** 
 
 ## 📊 What You Get
 
-This integration provides **5 entities**, as follows:
+This integration provides **6 entities**, as follows:
 
 ### Sensors
 
@@ -151,6 +151,7 @@ This integration provides **5 entities**, as follows:
 | --- | --- | --- |
 | `sensor.wifi_ssid_monitor_total_count` | Measurement | Total number of detected WiFi networks |
 | `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
+| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
 | `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
 
 **Attributes:** The total and unknown count sensors include SSID attributes:
@@ -236,6 +237,12 @@ actions:
 - Check that networks are broadcasting in your vicinity
 - Review the Home Assistant logs for detailed error messages
 
+## ⚠️ Known Limitations
+
+### Hidden Networks (No Broadcasted SSID)
+
+WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data.
+
 ## 📝 Maintenance Status
 
 This is a **personal project**. Support and updates are provided on a **"best-effort"** basis only. While I use this integration daily and aim to keep it functional with the latest Home Assistant releases, I cannot guarantee immediate fixes for issues or compatibility with all releases.
@@ -250,4 +257,4 @@ This project is licensed under the Apache License, Version 2.0. See [LICENSE](LI
 
 ---
 
-**Questions or Issues?** Visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).\*\*
+**Questions or Issues?** Visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).

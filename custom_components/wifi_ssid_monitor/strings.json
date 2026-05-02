@@ -27,7 +27,7 @@
           "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)",
-          "scan_interval": "Scan Interval (seconds)"
+          "scan_interval": "Scan Interval (seconds, minimum 60)"
         }
       }
     },

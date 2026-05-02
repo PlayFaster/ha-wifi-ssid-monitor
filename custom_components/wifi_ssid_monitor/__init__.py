@@ -6,7 +6,6 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.loader import async_get_integration
 
 from .api import WifiScanAPI
 from .const import (
@@ -15,6 +14,7 @@ from .const import (
     CONF_SCAN_INTERVAL,
     DEFAULT_NAME,
     DOMAIN,
+    VERSION,
 )
 from .coordinator import WifiScanCoordinator
 
@@ -50,9 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = async_get_clientsession(hass)
     api = WifiScanAPI(session, interface)
 
-    integration = await async_get_integration(hass, DOMAIN)
-
-    coordinator = WifiScanCoordinator(hass, entry, api, integration.version)
+    coordinator = WifiScanCoordinator(hass, entry, api, VERSION)
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
