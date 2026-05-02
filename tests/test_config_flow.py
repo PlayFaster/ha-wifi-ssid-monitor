@@ -44,11 +44,7 @@ async def test_user_flow(hass: HomeAssistant):
 
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["title"] == "WiFi SSID Monitor"
-    assert result["data"] == {
-        "name": "WiFi SSID Monitor",
-        CONF_INTERFACE: "wlan0",
-        CONF_KNOWN_SSIDS: "MyNet1,MyNet2",
-    }
+    assert result["data"] == {}
     assert result["options"] == {
         "name": "WiFi SSID Monitor",
         CONF_INTERFACE: "wlan0",

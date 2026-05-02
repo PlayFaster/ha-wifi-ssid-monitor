@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import WifiScanAPI, WifiScanError
+from .api import WifiScanAPI
 from .const import CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     "networks": network_map,
                 }
 
-        except (TimeoutError, WifiScanError, Exception) as err:
+        except Exception as err:
             self._failure_count += 1
             # Option D: Hold last known values for up to 3 failures
             if self.data and self._failure_count <= 3:

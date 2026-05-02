@@ -72,7 +72,9 @@ class WifiScanIntervalNumber(NumberEntity):
         if self._refresh_task:
             self._refresh_task.cancel()
 
-        self._refresh_task = asyncio.create_task(self._async_debounced_apply(value))
+        self._refresh_task = self.hass.async_create_task(
+            self._async_debounced_apply(value)
+        )
 
     async def _async_debounced_apply(self, value: float) -> None:
         """Apply the new interval with a debounce."""

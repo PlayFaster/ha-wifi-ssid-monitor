@@ -187,7 +187,7 @@
     {
       "label": "Pytest: Run All Tests",
       "type": "shell",
-      "command": "mkdir -p .reports && PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --junitxml=.reports/pytest_results.xml",
+      "command": "mkdir -p .reports && PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --color=yes --junitxml=.reports/pytest_results.xml | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_results.txt)",
       "problemMatcher": [],
       "group": {
         "kind": "test",
@@ -202,7 +202,7 @@
     {
       "label": "Pytest: Check Test Coverage",
       "type": "shell",
-      "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=term-missing --cov-report=html:.reports/coverage tests/",
+      "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=term-missing --cov-report=html:.reports/coverage --color=yes tests/ | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_coverage.txt)",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"

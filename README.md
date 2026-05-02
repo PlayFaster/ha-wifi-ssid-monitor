@@ -236,6 +236,12 @@ actions:
 - Check that networks are broadcasting in your vicinity
 - Review the Home Assistant logs for detailed error messages
 
+## ⚠️ Known Limitations
+
+### Hidden Networks (No Broadcasted SSID)
+
+WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data.
+
 ## 📝 Maintenance Status
 
 This is a **personal project**. Support and updates are provided on a **"best-effort"** basis only. While I use this integration daily and aim to keep it functional with the latest Home Assistant releases, I cannot guarantee immediate fixes for issues or compatibility with all releases.

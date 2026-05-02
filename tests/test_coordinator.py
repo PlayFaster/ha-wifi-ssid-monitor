@@ -130,3 +130,60 @@ async def test_coordinator_update_data_api_none(hass, mock_config_entry, mock_wi
 
     assert data["count"] == 0
     assert data["ssids"] == []
+
+
+@pytest.mark.asyncio
+async def test_coordinator_resilience_holds_for_three_failures(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Test coordinator holds last known values for up to 3 consecutive failures."""
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    initial_data = {
+        "count": 2,
+        "ssids": ["Net1", "Net2"],
+        "unknown_ssids": ["Net2"],
+        "unknown_count": 1,
+        "interface": "wlan0",
+        "networks": {},
+    }
+    coordinator.data = initial_data
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("API down")
+
+    # Failures 1, 2, 3 — stale data returned, no exception
+    for expected_count in range(1, 4):
+        result = await coordinator._async_update_data()
+        assert result == initial_data
+        assert coordinator._failure_count == expected_count
+
+    # Failure 4 — raises UpdateFailed
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_coordinator_resilience_resets_on_success(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Test failure count resets to zero after a successful fetch."""
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+    coordinator.data = {
+        "count": 1,
+        "ssids": ["Net1"],
+        "unknown_ssids": [],
+        "unknown_count": 0,
+        "interface": "wlan0",
+        "networks": {},
+    }
+
+    # Accumulate 2 failures
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("fail")
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    assert coordinator._failure_count == 2
+
+    # Successful fetch resets the count
+    mock_wifi_api.get_access_points.side_effect = None
+    mock_wifi_api.get_access_points.return_value = [{"ssid": "Net1", "signal": -50}]
+    await coordinator._async_update_data()
+    assert coordinator._failure_count == 0

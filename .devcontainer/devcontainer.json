@@ -10,6 +10,11 @@
       "source": "${localEnv:USERPROFILE}/.gemini",
       "target": "/root/.gemini",
       "type": "bind"
+    },
+    {
+      "source": "${localEnv:USERPROFILE}/.gitconfig",
+      "target": "/root/.gitconfig",
+      "type": "bind"
     }
   ],
   "customizations": {

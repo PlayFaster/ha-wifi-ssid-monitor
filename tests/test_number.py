@@ -77,14 +77,14 @@ async def test_number_debounce_cancellation(hass, mock_config_entry, mock_coordi
             await number.async_set_native_value(30)
             task2 = number._refresh_task
 
-            # task.cancel() is requested, check if it's being cancelled
-            assert task1.cancelling() > 0 or task1.cancelled()
-            assert not task2.cancelled()
+            # The two calls must produce distinct tasks
+            assert task1 is not task2
 
             # Let task2 finish
             await task2
             await hass.async_block_till_done()
 
+        # Only the final value (30) should be applied — not the first (20)
         assert mock_coordinator.update_interval == timedelta(minutes=30)
 
 

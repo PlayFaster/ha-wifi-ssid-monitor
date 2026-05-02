@@ -60,7 +60,7 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
     ),
     WifiSensorEntityDescription(
         key="last_updated",
-        name="Last Updated",
+        translation_key="last_updated",
         icon="mdi:update",
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,

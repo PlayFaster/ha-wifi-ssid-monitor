@@ -66,7 +66,7 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 return self.async_create_entry(
                     title=name,
-                    data=user_input,
+                    data={},
                     options={
                         CONF_NAME: name,
                         CONF_INTERFACE: user_input[CONF_INTERFACE],
@@ -166,7 +166,7 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
             vol.Required(
                 CONF_SCAN_INTERVAL,
                 default=self._config_entry.options.get(CONF_SCAN_INTERVAL, 600),
-            ): vol.All(vol.Coerce(int), vol.Range(min=30)),
+            ): vol.All(vol.Coerce(int), vol.Range(min=60)),
         }
 
         if available_interfaces:
