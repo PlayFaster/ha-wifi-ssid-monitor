@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.3-dev1] - Now - Unreleased
+
+### Changed
+
+- **Badge Links**: Added links to readme badges.
+
 ## [1.4.2] - 2026-05-02
 
 ### Fixed
