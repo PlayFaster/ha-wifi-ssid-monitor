@@ -143,7 +143,7 @@ After installation, you can modify settings via the integration's **Configure** 
 
 ## 📊 What You Get
 
-This integration provides **5 entities**, as follows:
+This integration provides **6 entities**, as follows:
 
 ### Sensors
 
@@ -151,6 +151,7 @@ This integration provides **5 entities**, as follows:
 | --- | --- | --- |
 | `sensor.wifi_ssid_monitor_total_count` | Measurement | Total number of detected WiFi networks |
 | `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
+| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
 | `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
 
 **Attributes:** The total and unknown count sensors include SSID attributes:

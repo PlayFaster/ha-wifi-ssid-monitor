@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.4.2] - Unreleased
+## [1.4.2] - 2026-05-02
+
+### Fixed
+
+- **Scan Interval Minimum**: Aligned the minimum scan interval to 60 seconds across both the Options dialog and the number entity slider. Previously the options dialog accepted 30 seconds, which would silently round to 1 minute in the slider UI.
+
+### Changed
+
+- **Options Dialog**: Scan interval field label updated to "Scan Interval (seconds, minimum 60)" to clarify the expected unit and enforced minimum.
+
+### Documentation
+
+- **Known Limitations**: Added a Known Limitations section to the README documenting that multiple hidden (non-broadcasting) WiFi networks are reported as a single `[hidden]` entry in SSID counts. This is expected behaviour — hidden networks cannot be individually identified without SSID data.
+
+## [1.4.2-dev3] - 2026-05-01 - Unreleased
 
 ### Fixed
 
