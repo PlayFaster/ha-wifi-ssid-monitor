@@ -82,3 +82,80 @@ async def test_sensors_no_data(
     assert "ssids" not in state.attributes
 
     await mock_coordinator.async_shutdown()
+
+
+@pytest.mark.asyncio
+async def test_sensors_edge_cases(
+    hass: HomeAssistant, mock_config_entry, mock_coordinator
+):
+    """Test sensor edge cases for native_value."""
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
+
+    with patch.dict(
+        hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
+    ):
+        await hass.config_entries.async_forward_entry_setups(
+            mock_config_entry, ["sensor"]
+        )
+        await hass.async_block_till_done()
+
+    # Test KeyError/AttributeError in value_fn
+    # Using an empty dict for count that doesn't have the expected keys
+    # Instead of calling async_set_updated_data, we directly update the data to avoid TypeError
+    mock_coordinator.data = {"wrong_key": "data"}
+    mock_coordinator.async_update_listeners()
+    state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
+    assert state.state == "unknown"
+
+    # Test value is None
+    mock_coordinator.data = {"count": None}
+    mock_coordinator.async_update_listeners()
+    state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
+    assert state.state == "unknown"
+    state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
+    assert state.state == "unknown"
+
+    # Test min_limit guard band (min_limit=0)
+    mock_coordinator.data = {"count": -1}
+    mock_coordinator.async_update_listeners()
+    state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
+    assert state.state == "unknown"
+
+    # Test max_limit guard band (max_limit=256)
+    mock_coordinator.data = {"count": 1000}
+    mock_coordinator.async_update_listeners()
+    state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
+    assert state.state == "unknown"
+
+    # Test Last Updated
+    from homeassistant.util import dt as dt_util
+    mock_coordinator.last_update_success_time = dt_util.now()
+    mock_coordinator.async_update_listeners()
+    state = hass.states.get("sensor.wifi_ssid_monitor_last_updated")
+    assert state.state != "unknown"
+
+    await mock_coordinator.async_shutdown()
+
+
+@pytest.mark.asyncio
+async def test_sensors_non_numeric_handling(
+    hass: HomeAssistant, mock_config_entry, mock_coordinator
+):
+    """Test that non-numeric values pass through the guard band logic correctly."""
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
+
+    # Use a sensor that returns a string, e.g., 'interface'
+    # The guard band logic 'isinstance(value, int | float)' should be False
+    with patch.dict(
+        hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
+    ):
+        await hass.config_entries.async_forward_entry_setups(
+            mock_config_entry, ["sensor"]
+        )
+        await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.wifi_ssid_monitor_interface")
+    assert state is not None
+    assert state.state == "wlan0"  # Confirms it passed through the guard logic

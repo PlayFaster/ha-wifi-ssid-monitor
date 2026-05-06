@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.4.3-dev4] - 2026-05-06 - Unreleased
+
+### Added
+
+- **Quality Scale**: Added quality_scale.yaml into project folder to track compliance to Home Assistant Integration Quality Scale (IQS). As a custom component full compliance is not possible but this is a good mechanism to ensure alignment with Home Assistant best practise.
+
+### Changed
+
+- **Coverage**: Test coverage improvements to sensor.py.
+
 ## [1.4.3-dev3] - 2026-05-06 - Unreleased
 
 ### Added

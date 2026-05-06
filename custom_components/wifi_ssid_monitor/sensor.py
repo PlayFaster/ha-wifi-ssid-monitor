@@ -133,7 +133,7 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return SSIDs as attributes."""
-        if not self.coordinator.data:
+        if not self.coordinator.data or not isinstance(self.coordinator.data, dict):
             return {}
         if self.entity_description.key == "count":
             return {"ssids": self.coordinator.data.get("ssids")}
