@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.4.3-dev3] - 2026-05-06 - Unreleased
+
+### Added
+
+- **Diagnostics**: Implemented a diagnostics platform (`diagnostics.py`) to provide sanitized integration state for troubleshooting.
+- **Reauthentication**: Added a reauthentication flow to handle invalid or expired Supervisor API tokens.
+- **Reconfiguration**: Added a reconfiguration flow allowing users to update the interface and settings without re-installing.
+
+### Changed
+
+- **Translations**: Updated localized strings for reauth and reconfigure flows; verified entity translation keys.
+- **Quality Standards**: Updated IQS compliance matrix in `ha_quality_standard.md` to reflect Silver/Gold progress.
+
+### Fixed
+
+- **Integration Stability**: Verified clean startup and error-free operation of the diagnostics component.
+
 ## [1.4.3-dev2] - 2026-05-06 - Unreleased
 
 ### Added

@@ -34,6 +34,8 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Data Integrity (Guard Bands)**: Implemented validation for all network count sensors. Values are automatically checked against `min_limit` and `max_limit` (e.g., 0-256 for SSIDs) before being committed to the state machine, preventing dashboard corruption from transient API artifacts.
 - **Resilient Holding**: Enhanced the coordinator to hold last known values for up to 3 consecutive fetch failures. This prevents entities from toggling to "Unavailable" during brief Supervisor API restarts or high-load events.
 - **Custom User Naming**: Implemented global name prefixing. Users can define a custom string (e.g., "Guest WiFi") that is prepended to every device and entity, allowing for multiple instances to be clearly distinguished in the UI without technical entity ID conflicts.
+- **Diagnostics Platform (v1.4.3-dev3)**: Implemented `diagnostics.py` to allow users to download a sanitized state dump. This is essential for troubleshooting and is a core requirement for the HA Gold tier.
+- **Reauthentication & Reconfiguration (v1.4.3-dev3)**: Added UI-driven flows for token recovery and setting updates, significantly improving UX and reducing the need for integration re-installs.
 
 ## 4. Technical Pitfalls & Fixes
 
@@ -59,3 +61,4 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 ## Version Control
 
 - **v1.0.1** (2026-04-01) - Created.
+- **v1.0.2** (2026-05-06) - Updated with diagnostics and flow management patterns.
