@@ -53,3 +53,9 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Supervisor API**: This integration requires Home Assistant to be running in an environment with the Supervisor (HA OS or Supervised). It uses the internal `http://supervisor` endpoint and `SUPERVISOR_TOKEN`.
 - **Testing Dependencies**: Robust testing relies on `pytest-homeassistant-custom-component` and `pytest-asyncio`.
 - **Branding Assets**: Generic branding (WiFi signal + magnifying glass) was generated using Python's `Pillow` library to ensure a clean, modern aesthetic independent of hardware-specific imagery.
+
+---
+
+## Version Control
+
+- **v1.0.1** (2026-04-01) - Created.

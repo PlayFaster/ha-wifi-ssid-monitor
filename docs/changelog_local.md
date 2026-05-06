@@ -1,8 +1,25 @@
-# Changelog: WiFi SSID Monitor
+# Internal Detailed Changelog: WiFi SSID Monitor
 
 All notable changes to this project will be documented in this file.
 
-## [1.4.3-dev1] - Now - Unreleased
+---
+
+## [1.4.3-dev2] - 2026-05-06 - Unreleased
+
+### Added
+
+- **Documentation**: Created `docs/all_sensors.md` (Entity Manifest) and `docs/value_min_max.md` (Guard Bands) to provide clear reference for users and developers.
+
+### Changed
+
+- **Test Coverage**: Achieved 100% unit test coverage for `api.py` by adding exhaustive tests for error paths, including JSON decoding failures and connection issues.
+- **Test Infrastructure**: Enhanced `MockResponse` in `conftest.py` to support simulated JSON content-type errors.
+
+### Fixed
+
+- **API Robustness**: Verified and fixed handling of malformed JSON responses in `api.py` (discovered during coverage testing).
+
+## [1.4.3-dev1] - 2026-05-02 - Unreleased
 
 ### Changed
 
