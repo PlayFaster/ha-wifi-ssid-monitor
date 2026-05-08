@@ -12,7 +12,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 - **Dynamic Polling Control**: Adjust the scan frequency directly from the Home Assistant UI or via automation.
 - **Auto-detected Interface**: Interface names (e.g., `wlan0`) are automatically populated during setup where available. This can be entered manually if auto-detection is not successful
 
-## 📋 System Requirements
+## 🔧 Compatibility & Requirements
 
 **Important:** This integration requires your Home Assistant system to have **WiFi capabilities**.
 
@@ -28,11 +28,11 @@ Monitor for unexpected WiFi networks in your environment that could indicate una
 
 ```yaml
 alias: "Alert on Rogue WiFi Network"
-trigger:
-  platform: state
+triggers:
+  trigger: state
   entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
   to: "on"
-action:
+actions:
   action: notify.mobile_app_phone
   data:
     message: "Unknown WiFi network detected: {{ states('sensor.wifi_ssid_monitor_unknown_count') }} unknown network(s) found"
@@ -75,8 +75,8 @@ Track whether your own WiFi networks remain online. By listing your personal SSI
 
 ```yaml
 alias: "Alert if Home WiFi Offline"
-trigger:
-  platform: numeric_state
+triggers:
+  trigger: numeric_state
   entity_id: sensor.wifi_ssid_monitor_total_count
   below: 2
   for:
@@ -90,6 +90,88 @@ actions:
     data:
       message: "WiFi network count has dropped — a home network may be offline"
 ```
+
+## 📊 What You Get
+
+This integration provides **6 entities**, as follows:
+
+### Sensors
+
+| Entity | Type | Description |
+| --- | --- | --- |
+| `sensor.wifi_ssid_monitor_total_count` | Measurement | Total number of detected WiFi networks |
+| `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
+| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
+| `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
+
+**Attributes:** The total and unknown count sensors include SSID attributes:
+
+- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names
+
+### Binary Sensors
+
+| Entity | Description |
+| --- | --- |
+| `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
+
+### Number Entities
+
+| Entity                                   | Description                               |
+| ---------------------------------------- | ----------------------------------------- |
+| `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
+
+**Example automation:**
+
+```yaml
+alias: "WiFi: Set Scan Interval Based on Time"
+description: "Adjusts SSID scan interval for day and evening cycles"
+mode: single
+triggers:
+  - platform: time
+    at: "08:00:00"
+    id: "day"
+  - platform: time
+    at: "18:00:00"
+    id: "evening"
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "day"
+        sequence:
+          - action: number.set_value
+            target:
+              entity_id: number.wifi_ssid_monitor_scan_interval
+            data:
+              value: 10
+      - conditions:
+          - condition: trigger
+            id: "evening"
+        sequence:
+          - action: number.set_value
+            target:
+              entity_id: number.wifi_ssid_monitor_scan_interval
+            data:
+              value: 20
+```
+
+## 📸 Screenshots
+
+### Integration Screen
+
+![Integration Overview](.github/images/wifi_ssid_mon_integration_screen.png)
+
+### Sensors
+
+![Sensor Entities](.github/images/wifi_ssid_mon_sensors_screen.png)
+
+### Setup Screen
+
+![Setup](.github/images/wifi_ssid_mon_setup_screen.png)
+
+### Network Interface Configuration
+
+![Interface Configuration](.github/images/wlan_name_sys_netw.png)
 
 ## ✨ Installation
 
@@ -141,85 +223,7 @@ After installation, you can modify settings via the integration's **Configure** 
 > 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar
 > 4. During setup, the integration will attempt to auto-detect available WiFi interfaces
 
-## 📊 What You Get
-
-This integration provides **6 entities**, as follows:
-
-### Sensors
-
-| Entity | Type | Description |
-| --- | --- | --- |
-| `sensor.wifi_ssid_monitor_total_count` | Measurement | Total number of detected WiFi networks |
-| `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
-| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
-| `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
-
-**Attributes:** The total and unknown count sensors include SSID attributes:
-
-- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names
-
-### Binary Sensors
-
-| Entity | Description |
-| --- | --- |
-| `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
-
-### Number Entities
-
-| Entity                                   | Description                               |
-| ---------------------------------------- | ----------------------------------------- |
-| `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
-
-**Example automation:**
-
-```yaml
-alias: "WiFi: Set Scan Interval Based on Time"
-description: "Adjusts SSID scan interval for day and evening cycles"
-mode: single
-trigger:
-  - platform: time
-    at: "08:00:00"
-    id: "day"
-  - platform: time
-    at: "18:00:00"
-    id: "evening"
-actions:
-  - choose:
-      - conditions:
-          - condition: trigger
-            id: "day"
-        sequence:
-          - action: number.set_value
-            target:
-              entity_id: number.wifi_ssid_monitor_scan_interval
-            data:
-              value: 10
-      - conditions:
-          - condition: trigger
-            id: "evening"
-        sequence:
-          - action: number.set_value
-            target:
-              entity_id: number.wifi_ssid_monitor_scan_interval
-            data:
-              value: 20
-```
-
-## 📸 Screenshots
-
-### Integration Overview
-
-![Integration Overview](.github/images/wifi_ssid_mon_integration_screen.png)
-
-### Sensor Display
-
-![Sensor Entities](.github/images/wifi_ssid_mon_sensors_screen.png)
-
-### Network Interface Configuration
-
-![Interface Configuration](.github/images/wlan_name_sys_netw.png)
-
-## 🔧 Troubleshooting
+## ❓ FAQ & Troubleshooting
 
 ### Integration Fails to Load
 
@@ -237,11 +241,25 @@ actions:
 - Check that networks are broadcasting in your vicinity
 - Review the Home Assistant logs for detailed error messages
 
-## ⚠️ Known Limitations
+## 🗑️ Removal
 
-### Hidden Networks (No Broadcasted SSID)
+To remove the integration from Home Assistant:
 
-WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data.
+1. Go to **Settings > Devices & Services**.
+2. Find the **WiFI SSID Monitor** card and click into it.
+3. Click the **three dots** (⋮) next to the gear icon and select **Delete**.
+4. Confirm deletion.
+
+To fully uninstall (HACS):
+
+1. Go to **HACS > Integrations**.
+2. Find the **WiFI SSID Monitor** and click into it.
+3. Click the **three dots** (⋮) at the top right and select **Remove**.
+4. Restart Home Assistant.
+
+## ⚠️ Known Limitations /❔ What's Missing?
+
+- **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data.
 
 ## 📝 Maintenance Status
 
