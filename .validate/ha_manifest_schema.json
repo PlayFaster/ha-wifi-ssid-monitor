@@ -1,16 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Home Assistant Integration Manifest",
+  "additionalProperties": true,
   "description": "Validation for Home Assistant integration manifest.json files.",
-  "type": "object",
-  "required": [
-    "domain",
-    "name",
-    "codeowners",
-    "documentation",
-    "issue_tracker",
-    "version"
-  ],
   "properties": {
     "domain": {
       "type": "string",
@@ -95,5 +86,14 @@
       }
     }
   },
-  "additionalProperties": true
+  "required": [
+    "domain",
+    "name",
+    "codeowners",
+    "documentation",
+    "issue_tracker",
+    "version"
+  ],
+  "title": "Home Assistant Integration Manifest",
+  "type": "object"
 }

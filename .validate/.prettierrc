@@ -8,6 +8,7 @@
   "bracketSpacing": true,
   "arrowParens": "always",
   "proseWrap": "always",
+  "plugins": ["prettier-plugin-sort-json"],
   "overrides": [
     {
       "files": "*.md",

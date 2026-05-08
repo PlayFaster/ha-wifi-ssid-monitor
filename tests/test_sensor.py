@@ -130,6 +130,7 @@ async def test_sensors_edge_cases(
 
     # Test Last Updated
     from homeassistant.util import dt as dt_util
+
     mock_coordinator.last_update_success_time = dt_util.now()
     mock_coordinator.async_update_listeners()
     state = hass.states.get("sensor.wifi_ssid_monitor_last_updated")

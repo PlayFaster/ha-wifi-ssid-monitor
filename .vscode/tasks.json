@@ -1,5 +1,4 @@
 {
-  "version": "2.0.0",
   "tasks": [
     {
       "label": "YAML: Lint Project",
@@ -185,6 +184,46 @@
       "problemMatcher": []
     },
     {
+      "label": "Mypy: Check (Standard)",
+      "type": "shell",
+      "command": "mkdir -p .reports && mypy . | tee .reports/mypy_check.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Mypy: Strict Check",
+      "type": "shell",
+      "command": "mkdir -p .reports && mypy . --strict | tee .reports/mypy_strict.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Zizmor: GitHub Actions Audit",
+      "type": "shell",
+      "command": "mkdir -p .reports && zizmor .github/workflows/*.yml | tee .reports/zizmor_audit.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Python: Update Typing Syntax (Maintenance)",
+      "type": "shell",
+      "command": "python-typing-update --py310-plus --keep-updates custom_components/wifi_ssid_monitor/ || true",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "HA: Verify Version (AwesomeVersion)",
       "type": "shell",
       "command": "mkdir -p .reports && uv run --with awesomeversion python3 -c \"import json; from awesomeversion import AwesomeVersion; v = json.load(open('custom_components/wifi_ssid_monitor/manifest.json'))['version']; av = AwesomeVersion(v); print(f'Version {v} detected strategy: {av.strategy}'); exit(1 if av.strategy == 'unknown' else 0)\" | tee .reports/version_validation.txt",
@@ -242,6 +281,8 @@
         "HA: Check Config",
         "Ruff: Check (Lint Only)",
         "Ruff: Format Check (View Only)",
+        "Mypy: Check (Standard)",
+        "Zizmor: GitHub Actions Audit",
         "Markdown: Check Links",
         "Markdown: Lint (View Only)",
         "Codespell: Check (View Only)",
@@ -279,5 +320,6 @@
         "close": false
       }
     }
-  ]
+  ],
+  "version": "2.0.0"
 }

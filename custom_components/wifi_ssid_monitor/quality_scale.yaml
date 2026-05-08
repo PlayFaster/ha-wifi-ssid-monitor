@@ -2,7 +2,6 @@
 # IQS Quality Scale Assessment for WiFi SSID Monitor
 # Generated: 2026-05-06 v1.0.1
 rules:
-
   # Bronze Tier
   action-setup: done
   common-modules: done
@@ -30,7 +29,8 @@ rules:
   reauthentication-flow: done
   test-coverage:
     status: todo
-    comment: Increase sensor.py (92%), __init__.py (96%), and config_flow.py (97%) to 100%
+    comment:
+      Increase sensor.py (92%), __init__.py (96%), and config_flow.py (97%) to 100%
 
   # Gold Tier
   devices: done
