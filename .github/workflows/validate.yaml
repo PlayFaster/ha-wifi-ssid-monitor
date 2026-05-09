@@ -16,12 +16,15 @@ name: Validate
   schedule:
     - cron: "0 0 * * *" # Daily at midnight
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   COMPONENT_PATH: custom_components/wifi_ssid_monitor
 
 permissions:
-  contents: write # Required for updating the coverage badge in README
-  pull-requests: write # For creating/updating PR comments
+  contents: read
 
 jobs:
   # Job 1: Official Home Assistant HASSfest validation.
@@ -81,6 +84,9 @@ jobs:
   test_val:
     name: "Tests & Coverage"
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for updating the coverage badge in README
+      pull-requests: write # Required for creating/updating coverage PR comments
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -100,7 +106,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --cov=${{ env.COMPONENT_PATH }} \
+          pytest --cov="$COMPONENT_PATH" \
             --cov-report=xml \
             --cov-report=term-missing \
             --junitxml=pytest.xml \
@@ -163,7 +169,7 @@ jobs:
         run: |
           check-jsonschema \
             --schemafile .validate/ha_manifest_schema.json \
-            ${{ env.COMPONENT_PATH }}/manifest.json
+            "$COMPONENT_PATH"/manifest.json
 
       - name: YAML Check
         uses: ibiqlik/action-yamllint@v3
