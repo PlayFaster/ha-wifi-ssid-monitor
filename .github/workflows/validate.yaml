@@ -209,10 +209,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install Zizmor
+        run: pip install zizmor==1.24.1
+
       - name: Run Zizmor
-        uses: zizmorcore/zizmor-action@v1
-        with:
-          args: --pedantic
+        run: zizmor --pedantic .github/
 
   # Job 8: Python type checking.
   # continue-on-error: annotation work outstanding; tracked as future work.
