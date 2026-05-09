@@ -30,7 +30,7 @@ class WifiScanAPI:
         await self.get_access_points()
         return True
 
-    async def get_access_points(self) -> list[dict[str, Any]]:
+    async def get_access_points(self) -> list[dict[str, Any]] | None:
         """Fetch access points from the Supervisor API."""
         if not self.token:
             _LOGGER.error("SUPERVISOR_TOKEN not found in environment")

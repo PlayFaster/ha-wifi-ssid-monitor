@@ -3,6 +3,7 @@
 import os
 from unittest.mock import patch
 
+import aiohttp
 import pytest
 
 from custom_components.wifi_ssid_monitor.api import WifiScanAPI, WifiScanError
@@ -41,7 +42,7 @@ async def test_get_access_points_success(mock_aiohttp_client):
                 "Authorization": "Bearer test_token",
                 "Content-Type": "application/json",
             },
-            timeout=30,
+            timeout=aiohttp.ClientTimeout(total=30),
         )
 
 
@@ -123,7 +124,7 @@ async def test_get_interfaces_success(mock_aiohttp_client):
                 "Authorization": "Bearer test_token",
                 "Content-Type": "application/json",
             },
-            timeout=30,
+            timeout=aiohttp.ClientTimeout(total=30),
         )
 
 

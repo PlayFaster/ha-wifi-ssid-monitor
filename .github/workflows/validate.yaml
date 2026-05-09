@@ -16,6 +16,9 @@ name: Validate
   schedule:
     - cron: "0 0 * * *" # Daily at midnight
 
+env:
+  COMPONENT_PATH: custom_components/wifi_ssid_monitor
+
 permissions:
   contents: write # Required for updating the coverage badge in README
   pull-requests: write # For creating/updating PR comments
@@ -28,6 +31,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Hassfest Validation
         uses: home-assistant/actions/hassfest@master
@@ -39,6 +44,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: HACS Validation
         uses: hacs/action@main
@@ -52,6 +59,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -75,6 +84,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -89,7 +100,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --cov=custom_components/wifi_ssid_monitor \
+          pytest --cov=${{ env.COMPONENT_PATH }} \
             --cov-report=xml \
             --cov-report=term-missing \
             --junitxml=pytest.xml \
@@ -128,23 +139,31 @@ jobs:
           maxColorRange: 100
           minColorRange: 0
 
-  # Job 5: File-level integrity (JSON, YAML, and Markdown).
+  # Job 5: File-level integrity (JSON, YAML, Markdown, Prettier, and HA manifest schema).
   file_val:
     name: "File Integrity"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.14"
 
-      - name: JSON Schema Check
+      - name: HACS Schema Check
         run: |
           pip install check-jsonschema
           check-jsonschema --schemafile .validate/hacs_schema.json hacs.json
+
+      - name: HA Manifest Schema Check
+        run: |
+          check-jsonschema \
+            --schemafile .validate/ha_manifest_schema.json \
+            ${{ env.COMPONENT_PATH }}/manifest.json
 
       - name: YAML Check
         uses: ibiqlik/action-yamllint@v3
@@ -152,8 +171,70 @@ jobs:
           file_or_dir: .
           config_data: "{extends: relaxed, rules: {line-length: {max: 120}}}"
 
+      - name: Prettier Format Check
+        run: |
+          npm install -g prettier@3.6.2 prettier-plugin-sort-json@4.2.0
+          export NODE_PATH=$(npm root -g)
+          ln -s "$(npm root -g)" /node_modules || true
+          prettier --config .validate/.prettierrc.js --check "**/*.{md,json,yaml,yml}"
+
       - name: Check README Links
         uses: gaurav-nelson/github-action-markdown-link-check@v1
         with:
           base-branch: main
           file-path: README.md
+
+  # Job 6: Spell checking.
+  codespell:
+    name: "Codespell"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run Codespell
+        uses: codespell-project/actions-codespell@v2
+
+  # Job 7: GitHub Actions workflow security audit.
+  # continue-on-error: known findings exist; tracked as future work.
+  zizmor:
+    name: "Zizmor (Workflow Security)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run Zizmor
+        uses: zizmorcore/zizmor-action@v1
+        with:
+          args: --pedantic
+
+  # Job 8: Python type checking.
+  # continue-on-error: annotation work outstanding; tracked as future work.
+  mypy_val:
+    name: "Python Types (Mypy)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          pip install mypy
+          pip install -r .validate/requirements_test.txt
+
+      - name: Run Mypy
+        run: mypy custom_components/

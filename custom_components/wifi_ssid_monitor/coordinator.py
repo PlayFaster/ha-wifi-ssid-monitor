@@ -49,6 +49,16 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             async with asyncio.timeout(30):
                 access_points = await self.api.get_access_points()
 
+            if access_points is None:
+                return {
+                    "count": 0,
+                    "ssids": [],
+                    "unknown_ssids": [],
+                    "unknown_count": 0,
+                    "interface": self.api.interface,
+                    "networks": {},
+                }
+
             # Success: reset failure count
             self._failure_count = 0
             self.last_update_success_time = dt_util.now()

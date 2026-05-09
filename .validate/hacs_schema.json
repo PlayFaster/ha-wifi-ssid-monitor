@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Manifest file for HACS (Home Assistant Community Store) repositories.",
+  "properties": {
+    "content_in_root": {
+      "description": "Indicates whether the content is in the root of the repository.",
+      "type": "boolean"
+    },
+    "country": {
+      "description": "Two-character country code in ISO 3166-1 alpha-2 format.",
+      "pattern": "^[A-Z]{2}$",
+      "type": "string"
+    },
+    "domains": {
+      "description": "A list of domains that the integration provides.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "filename": {
+      "description": "Name of the file HACS should look for. Applies to single-item types like themes.",
+      "type": "string"
+    },
+    "hacs": {
+      "description": "The minimum required HACS version.",
+      "type": "string"
+    },
+    "hide_default_branch": {
+      "description": "Tells HACS to not offer downloading the default branch.",
+      "type": "boolean"
+    },
+    "homeassistant": {
+      "description": "The minimum required Home Assistant version (e.g., '2024.1.0').",
+      "type": "string"
+    },
+    "iot_class": {
+      "description": "The IoT class of the integration.",
+      "enum": [
+        "assumed_state",
+        "cloud_polling",
+        "cloud_push",
+        "local_polling",
+        "local_push"
+      ],
+      "type": "string"
+    },
+    "name": {
+      "description": "The display name that will be used in the HACS UI.",
+      "type": "string"
+    },
+    "persistent_directory": {
+      "description": "A relative path within the integration directory that will be kept safe during upgrades.",
+      "type": "string"
+    },
+    "render_readme": {
+      "description": "Tells HACS to render the README.md file instead of info.md in the UI.",
+      "type": "boolean"
+    },
+    "zip_release": {
+      "description": "Indicates whether the content is in a zipped archive when releases are published on GitHub.",
+      "type": "boolean"
+    }
+  },
+  "required": ["name"],
+  "title": "HACS Manifest",
+  "type": "object"
+}
