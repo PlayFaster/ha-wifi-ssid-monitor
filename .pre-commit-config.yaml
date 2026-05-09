@@ -27,12 +27,14 @@ repos:
         stages: [manual]
       - id: no-commit-to-branch
         args: [--branch=dev, --branch=main]
+        stages: [manual]
 
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.38.0
     hooks:
       - id: yamllint
         args: [-c, .shared/validate-configs/.yamllint]
+        exclude: \.yamllint$
 
   - repo: https://github.com/rbubley/mirrors-prettier
     rev: v3.6.2
