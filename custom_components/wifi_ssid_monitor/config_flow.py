@@ -1,10 +1,11 @@
 """Config flow for WiFi SSID Monitor integration."""
 
 import logging
+from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -22,14 +23,14 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-async def _validate_input(hass, user_input):
+async def _validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> None:
     """Validate user input."""
     session = async_get_clientsession(hass)
     api = WifiScanAPI(session, user_input[CONF_INTERFACE])
     await api.validate()
 
 
-async def _get_wifi_interfaces(hass):
+async def _get_wifi_interfaces(hass: HomeAssistant) -> list[str]:
     """Fetch available WiFi interfaces.
 
     Returns a list of interface names, or empty list if fetch fails.
@@ -44,12 +45,14 @@ async def _get_wifi_interfaces(hass):
         return []
 
 
-class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg, unused-ignore]  # type: ignore[call-arg]
     """Handle a config flow for WiFi SSID Monitor."""
 
     VERSION = 1
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Handle the initial step."""
         errors = {}
         interfaces = await _get_wifi_interfaces(self.hass)
@@ -100,11 +103,15 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_reauth(self, entry_data):
+    async def async_step_reauth(
+        self, entry_data: dict[str, Any]
+    ) -> config_entries.ConfigFlowResult:
         """Handle reauthentication."""
         return await self.async_step_reauth_confirm()
 
-    async def async_step_reauth_confirm(self, user_input=None):
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Confirm reauthentication."""
         errors = {}
         if user_input is not None:
@@ -123,7 +130,9 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="reauth_confirm", errors=errors)
 
-    async def async_step_reconfigure(self, user_input=None):
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Handle reconfiguration."""
         errors = {}
         entry = self._get_reconfigure_entry()
@@ -190,7 +199,9 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> WifiScanOptionsFlowHandler:
         """Get the options flow for this handler."""
         return WifiScanOptionsFlowHandler(config_entry)
 
@@ -198,11 +209,13 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for WiFi SSID Monitor."""
 
-    def __init__(self, config_entry):
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
         self._config_entry = config_entry
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Manage the options."""
         errors = {}
         interfaces = await _get_wifi_interfaces(self.hass)

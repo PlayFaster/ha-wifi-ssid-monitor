@@ -2,8 +2,10 @@
 
 import logging
 import os
+from typing import Any
 
 import aiohttp
+from aiohttp import ClientTimeout
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,14 +23,14 @@ class WifiScanAPI:
         self.interface = interface
         self.token = os.environ.get("SUPERVISOR_TOKEN")
 
-    async def validate(self):
+    async def validate(self) -> bool:
         """Validate the API connection."""
         if not self.token:
             raise WifiScanError("SUPERVISOR_TOKEN not found")
         await self.get_access_points()
         return True
 
-    async def get_access_points(self):
+    async def get_access_points(self) -> list[dict[str, Any]]:
         """Fetch access points from the Supervisor API."""
         if not self.token:
             _LOGGER.error("SUPERVISOR_TOKEN not found in environment")
@@ -41,7 +43,9 @@ class WifiScanAPI:
         }
 
         try:
-            async with self.session.get(url, headers=headers, timeout=30) as response:
+            async with self.session.get(
+                url, headers=headers, timeout=ClientTimeout(total=30)
+            ) as response:
                 if response.status != 200:
                     text = await response.text()
                     _LOGGER.error(
@@ -67,7 +71,7 @@ class WifiScanAPI:
             _LOGGER.error("Unexpected error fetching access points: %s", e)
             raise WifiScanError(f"Unexpected error: {e}") from e
 
-    async def get_interfaces(self):
+    async def get_interfaces(self) -> list[str]:
         """Fetch all network interfaces and return WiFi ones."""
         if not self.token:
             _LOGGER.error("SUPERVISOR_TOKEN not found in environment")
@@ -80,7 +84,9 @@ class WifiScanAPI:
         }
 
         try:
-            async with self.session.get(url, headers=headers, timeout=30) as response:
+            async with self.session.get(
+                url, headers=headers, timeout=ClientTimeout(total=30)
+            ) as response:
                 if response.status != 200:
                     _LOGGER.error("Failed to fetch network info: %s", response.status)
                     raise WifiScanError(f"API returned status {response.status}")

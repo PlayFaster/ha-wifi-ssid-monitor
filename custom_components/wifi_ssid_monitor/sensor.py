@@ -13,6 +13,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -101,7 +102,7 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
 
     @property
-    def native_value(self):
+    def native_value(self) -> Any | None:
         """Return the value of the sensor."""
         if not self.coordinator.data:
             return None
@@ -131,7 +132,7 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
         return value
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return SSIDs as attributes."""
         if not self.coordinator.data or not isinstance(self.coordinator.data, dict):
             return {}
@@ -142,7 +143,7 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
         return {}
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         """Return device information."""
         name = self._entry.options.get(CONF_NAME, self._entry.title)
         return {

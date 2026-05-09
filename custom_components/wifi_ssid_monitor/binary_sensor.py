@@ -6,6 +6,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -56,7 +57,7 @@ class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorE
         return self.coordinator.data.get("unknown_count", 0) > 0
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         """Return device information."""
         name = self._entry.options.get(CONF_NAME, self._entry.title)
         return {
