@@ -15,10 +15,7 @@ LOG_FILE=".reports/devcontainer/post_setup.log"
     echo "Environment: ha-dev-base:latest"
     echo "Gemini CLI: $(which gemini || echo 'Not found in path')"
 
-    echo "Installing pre-commit git hooks..."
-    pre-commit install
-
-    echo "Pre-warming pre-commit hooks..."
+    echo "Pre-warming pre-commit hook environments..."
     pre-commit install-hooks
 
     echo "--- Setup Complete ---"
