@@ -102,7 +102,8 @@ async def test_sensors_edge_cases(
 
     # Test KeyError/AttributeError in value_fn
     # Using an empty dict for count that doesn't have the expected keys
-    # Instead of calling async_set_updated_data, we directly update the data to avoid TypeError
+    # Instead of calling async_set_updated_data,
+    # we directly update the data to avoid TypeError
     mock_coordinator.data = {"wrong_key": "data"}
     mock_coordinator.async_update_listeners()
     state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
@@ -160,3 +161,5 @@ async def test_sensors_non_numeric_handling(
     state = hass.states.get("sensor.wifi_ssid_monitor_interface")
     assert state is not None
     assert state.state == "wlan0"  # Confirms it passed through the guard logic
+
+    await mock_coordinator.async_shutdown()

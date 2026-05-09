@@ -197,7 +197,7 @@
     {
       "label": "Mypy: Check (Standard)",
       "type": "shell",
-      "command": "mkdir -p .reports && mypy . | tee .reports/mypy_check.txt",
+      "command": "mkdir -p .reports && mypy custom_components/ | tee .reports/mypy_check.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -207,7 +207,7 @@
     {
       "label": "Mypy: Strict Check",
       "type": "shell",
-      "command": "mkdir -p .reports && mypy . --strict | tee .reports/mypy_strict.txt",
+      "command": "mkdir -p .reports && mypy custom_components/ --strict | tee .reports/mypy_strict.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -217,7 +217,7 @@
     {
       "label": "Zizmor: GitHub Actions Audit",
       "type": "shell",
-      "command": "mkdir -p .reports && find .github/workflows -name '*.yml' 2>/dev/null | xargs -r zizmor | tee .reports/zizmor_audit.txt",
+      "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run zizmor --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/zizmor_audit.txt)",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -272,7 +272,7 @@
     {
       "label": "Pre-commit: Fix + Check All",
       "type": "shell",
-      "command": "pre-commit run --all-files",
+      "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/precommit_all.txt)",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -283,7 +283,7 @@
     {
       "label": "Pre-commit: Fix + Check Staged",
       "type": "shell",
-      "command": "pre-commit run",
+      "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/precommit_staged.txt)",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
