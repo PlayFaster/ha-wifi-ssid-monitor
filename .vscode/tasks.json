@@ -3,7 +3,7 @@
     {
       "label": "YAML: Lint Project",
       "type": "shell",
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint -c .validate/.yamllint | tee .reports/yaml_lint.txt",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint -c .shared/validate-configs/.yamllint | tee .reports/yaml_lint.txt",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -24,7 +24,7 @@
     {
       "label": "HA: Verify Manifest",
       "type": "shell",
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .validate/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .shared/validate-configs/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -32,9 +32,20 @@
       "problemMatcher": []
     },
     {
+      "label": "HA: Hassfest Validation",
+      "type": "shell",
+      "command": "mkdir -p .reports && HOST_PATH=$(docker inspect $(hostname) | python3 -c \"import json,sys,re; binds=json.load(sys.stdin)[0]['HostConfig']['Binds']; cw='/workspaces/ha-wifi-ssid-monitor'; result=next((p[0].replace(chr(92),'/') for b in binds for p in [re.split(r'(?<=[^:]):/',b,1)] if len(p)==2 and ('/'+p[1]).split(':')[0]==cw),None); print(result) if result else exit(1)\") && docker run --rm -v \"$HOST_PATH:/github/workspace\" ghcr.io/home-assistant/hassfest:latest | tee .reports/hassfest.txt",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "HACS: Verify Manifest",
       "type": "shell",
-      "command": "mkdir -p .reports && check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt",
+      "command": "mkdir -p .reports && check-jsonschema --schemafile .shared/validate-configs/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -106,7 +117,7 @@
     {
       "label": "Markdown: Lint (View Only)",
       "type": "shell",
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json | tee .reports/markdown_lint.txt",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .shared/validate-configs/.markdownlint.json | tee .reports/markdown_lint.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -116,7 +127,7 @@
     {
       "label": "Markdown: Lint (Auto-Fix)",
       "type": "shell",
-      "command": "git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json --fix || true",
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .shared/validate-configs/.markdownlint.json --fix || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -126,7 +137,7 @@
     {
       "label": "Codespell: Check (View Only)",
       "type": "shell",
-      "command": "mkdir -p .reports && codespell . --config .validate/.codespellrc | tee .reports/codespell.txt",
+      "command": "mkdir -p .reports && codespell . | tee .reports/codespell.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -136,7 +147,7 @@
     {
       "label": "Codespell: Fix (Auto-Repair)",
       "type": "shell",
-      "command": "codespell . --config .validate/.codespellrc -w || true",
+      "command": "codespell . -w || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -146,7 +157,7 @@
     {
       "label": "Prettier: Check (View Only)",
       "type": "shell",
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --check | tee .reports/prettier_check.txt",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .shared/validate-configs/.prettierrc.js --check | tee .reports/prettier_check.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -156,7 +167,7 @@
     {
       "label": "Prettier: Format (Auto-Fix)",
       "type": "shell",
-      "command": "git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc --write || true",
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .shared/validate-configs/.prettierrc.js --write || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -166,7 +177,7 @@
     {
       "label": "Prettier: Fix Notes",
       "type": "shell",
-      "command": "prettier --config .validate/.prettierrc --ignore-path /dev/null --write \".notes/**/*.{md,json,yaml,yml}\" || true",
+      "command": "prettier --config .shared/validate-configs/.prettierrc.js --ignore-path /dev/null --write \".notes/**/*.{md,json,yaml,yml}\" || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -176,7 +187,7 @@
     {
       "label": "Prettier: Fix Shared",
       "type": "shell",
-      "command": "prettier --config .validate/.prettierrc --ignore-path /dev/null --write \".shared/**/*.{md,json,yaml,yml}\" || true",
+      "command": "prettier --config .shared/validate-configs/.prettierrc.js --ignore-path /dev/null --write \".shared/**/*.{md,json,yaml,yml}\" || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -206,7 +217,7 @@
     {
       "label": "Zizmor: GitHub Actions Audit",
       "type": "shell",
-      "command": "mkdir -p .reports && zizmor .github/workflows/*.yml | tee .reports/zizmor_audit.txt",
+      "command": "mkdir -p .reports && find .github/workflows -name '*.yml' 2>/dev/null | xargs -r zizmor | tee .reports/zizmor_audit.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -216,7 +227,7 @@
     {
       "label": "Python: Update Typing Syntax (Maintenance)",
       "type": "shell",
-      "command": "python-typing-update --py310-plus --keep-updates custom_components/wifi_ssid_monitor/ || true",
+      "command": "python-typing-update --py311-plus --force --keep-updates custom_components/wifi_ssid_monitor/ || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -251,7 +262,28 @@
     {
       "label": "Pytest: Check Test Coverage",
       "type": "shell",
-      "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov=custom_components/wifi_ssid_monitor/ --cov-report=term-missing --cov-report=html:.reports/coverage --color=yes tests/ | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_coverage.txt)",
+      "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov --cov-report=term-missing --cov-report=html:.reports/coverage --color=yes tests/ | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_coverage.txt)",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pre-commit: Fix + Check All",
+      "type": "shell",
+      "command": "pre-commit run --all-files",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pre-commit: Fix + Check Staged",
+      "type": "shell",
+      "command": "pre-commit run",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -276,6 +308,7 @@
         "HA: Verify Version (AwesomeVersion)",
         "YAML: Lint Project",
         "JSON: Verify All Files",
+        "HA: Hassfest Validation",
         "HA: Verify Manifest",
         "HACS: Verify Manifest",
         "HA: Check Config",

@@ -1,11 +1,11 @@
 {
+  "domain": "wifi_ssid_monitor",
+  "name": "WiFi SSID Monitor",
   "codeowners": ["@PlayFaster"],
   "config_flow": true,
   "documentation": "https://github.com/PlayFaster/ha-wifi-ssid-monitor",
-  "domain": "wifi_ssid_monitor",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/PlayFaster/ha-wifi-ssid-monitor/issues",
-  "name": "WiFi SSID Monitor",
   "version": "1.4.3-dev4"
 }
