@@ -198,11 +198,10 @@ jobs:
         uses: codespell-project/actions-codespell@v2
 
   # Job 7: GitHub Actions workflow security audit.
-  # continue-on-error: known findings exist; tracked as future work.
+  # Known findings exist — step is non-blocking until resolved.
   zizmor:
     name: "Zizmor (Workflow Security)"
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -213,14 +212,14 @@ jobs:
         run: pip install zizmor==1.24.1
 
       - name: Run Zizmor
+        continue-on-error: true
         run: zizmor --pedantic .github/
 
   # Job 8: Python type checking.
-  # continue-on-error: annotation work outstanding; tracked as future work.
+  # Annotation work outstanding — step is non-blocking until resolved.
   mypy_val:
     name: "Python Types (Mypy)"
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -238,4 +237,5 @@ jobs:
           pip install -r .validate/requirements_test.txt
 
       - name: Run Mypy
+        continue-on-error: true
         run: mypy custom_components/
