@@ -2,7 +2,7 @@
 
 [![HACS Integration](https://img.shields.io/badge/HACS-Integration-orange.svg)](https://hacs.xyz/) [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistant&logoColor=white)](https://hacs.xyz/docs/faq/custom_repositories) [![Latest Release](https://img.shields.io/github/v/release/PlayFaster/ha-wifi-ssid-monitor?label=Release&logo=github)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/releases) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Validate](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml/badge.svg)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml) ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/PlayFaster/6d1d30e996dd53f04d2c2fc6b6cddece/raw/coverage.json) [![Last Commit](https://img.shields.io/github/last-commit/PlayFaster/ha-wifi-ssid-monitor?label=Last%20commit)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/commits/main)
 
-A Home Assistant integration that monitors and reports on WiFi networks in your environment. Using the Home Assistant Supervisor API, this integration scans for SSIDs, counts detectable networks, and identifies unknown networks based on a configurable allowlist.
+A Home Assistant integration that monitors and reports on WiFi networks in your environment. Using the Home Assistant Supervisor API, this integration scans for SSIDs, counts detectable networks, and identifies unknown networks based on a configurable allow-list.
 
 ## ✅ Features
 
@@ -91,34 +91,9 @@ actions:
       message: "WiFi network count has dropped — a home network may be offline"
 ```
 
-## 📊 What You Get
+### Dynamic Monitoring
 
-This integration provides **6 entities**, as follows:
-
-### Sensors
-
-| Entity | Type | Description |
-| --- | --- | --- |
-| `sensor.wifi_ssid_monitor_total_count` | Measurement | Total number of detected WiFi networks |
-| `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
-| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
-| `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
-
-**Attributes:** The total and unknown count sensors include SSID attributes:
-
-- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names
-
-### Binary Sensors
-
-| Entity | Description |
-| --- | --- |
-| `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
-
-### Number Entities
-
-| Entity                                   | Description                               |
-| ---------------------------------------- | ----------------------------------------- |
-| `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
+You can set the scan frequency to between 1 and 180 minutes. Depending on your system, very frequent scanning may have a minor impact on performance. You can mitigate this by automatically changing scan frequency.
 
 **Example automation:**
 
@@ -155,9 +130,38 @@ actions:
               value: 20
 ```
 
+## 🔍 What You Get
+
+This integration provides **6 entities**, as follows:
+
+### Sensors
+
+| Entity | Type | Description |
+| --- | --- | --- |
+| `sensor.wifi_ssid_monitor_total_count` | Measurement | Total number of detected WiFi networks |
+| `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
+| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
+| `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
+
+**Attributes:** The total and unknown count sensors include SSID attributes:
+
+- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names
+
+### Binary Sensors
+
+| Entity | Description |
+| --- | --- |
+| `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
+
+### Number Entities
+
+| Entity                                   | Description                               |
+| ---------------------------------------- | ----------------------------------------- |
+| `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
+
 ## 📸 Screenshots
 
-### Integration Screen
+### Integration Overview
 
 ![Integration Overview](.github/images/wifi_ssid_mon_integration_screen.png)
 
@@ -165,7 +169,7 @@ actions:
 
 ![Sensor Entities](.github/images/wifi_ssid_mon_sensors_screen.png)
 
-### Setup Screen
+### Setup
 
 ![Setup](.github/images/wifi_ssid_mon_setup_screen.png)
 
@@ -173,9 +177,9 @@ actions:
 
 ![Interface Configuration](.github/images/wlan_name_sys_netw.png)
 
-## ✨ Installation
+## 📥 Installation
 
-### HACS (Recommended)
+### ✨ HACS (Recommended)
 
 1. Add this repository as a **Custom Repository** in HACS:
    - Open HACS in Home Assistant
@@ -185,18 +189,16 @@ actions:
 3. Restart Home Assistant
 4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
 
-### Manual Installation
+### 💾 Manual Installation
 
-1. Download the [latest release](https://github.com/PlayFaster/ha-wifi-ssid-monitor/releases).
+1. Download the repository
 2. Copy the `custom_components/wifi_ssid_monitor` folder to your Home Assistant `custom_components` directory
 3. Restart Home Assistant
 4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
 
 ## ⚙️ Configuration
 
-All configuration is handled through the Home Assistant UI.
-
-### Initial Setup
+### 🔧 Initial Setup
 
 Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**. You will need:
 
@@ -205,7 +207,7 @@ Setup is handled entirely via the UI under **Settings > Devices & Services > Add
   - If auto-detection fails, you can enter the interface name manually
 - **Known SSIDs**: Comma-separated list of WiFi networks to consider "known" (e.g., `Home-WiFi, Guest-Network`)
 
-### Runtime Options
+### 🛠️ Runtime Options
 
 After installation, you can modify settings via the integration's **Configure** (gear icon) options menu:
 
@@ -275,4 +277,4 @@ This project is licensed under the Apache License, Version 2.0. See [LICENSE](LI
 
 ---
 
-**Questions or Issues?** Visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).
+💬 **Questions or Issues?** Visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).

@@ -34,7 +34,7 @@
     {
       "label": "HA: Hassfest Validation",
       "type": "shell",
-      "command": "mkdir -p .reports && HOST_PATH=$(docker inspect $(hostname) | python3 -c \"import json,sys,re; binds=json.load(sys.stdin)[0]['HostConfig']['Binds']; cw='/workspaces/ha-wifi-ssid-monitor'; result=next((p[0].replace(chr(92),'/') for b in binds for p in [re.split(r'(?<=[^:]):/',b,1)] if len(p)==2 and ('/'+p[1]).split(':')[0]==cw),None); print(result) if result else exit(1)\") && docker run --rm -v \"$HOST_PATH:/github/workspace\" ghcr.io/home-assistant/hassfest:latest | tee .reports/hassfest.txt",
+      "command": "mkdir -p .reports && HOST_PATH=$(docker inspect $(hostname) | python3 -c \"import json,sys,re; binds=json.load(sys.stdin)[0]['HostConfig']['Binds']; cw='/workspaces/${workspaceFolderBasename}'; result=next((p[0].replace(chr(92),'/') for b in binds for p in [re.split(r'(?<=[^:]):/',b, maxsplit=1)] if len(p)==2 and ('/'+p[1]).split(':')[0]==cw),None); print(result) if result else exit(1)\") && docker run --rm -v \"$HOST_PATH:/github/workspace\" ghcr.io/home-assistant/hassfest:latest | tee .reports/hassfest.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -237,7 +237,7 @@
     {
       "label": "Python: Update Typing Syntax (Maintenance)",
       "type": "shell",
-      "command": "python-typing-update --py311-plus --force --keep-updates custom_components/wifi_ssid_monitor/ || true",
+      "command": "python-typing-update --py311-plus --force --keep-updates custom_components/${config:project.componentName}/ || true",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -247,7 +247,7 @@
     {
       "label": "HA: Verify Version (AwesomeVersion)",
       "type": "shell",
-      "command": "mkdir -p .reports && uv run --with awesomeversion python3 -c \"import json; from awesomeversion import AwesomeVersion; v = json.load(open('custom_components/wifi_ssid_monitor/manifest.json'))['version']; av = AwesomeVersion(v); print(f'Version {v} detected strategy: {av.strategy}'); exit(1 if av.strategy == 'unknown' else 0)\" | tee .reports/version_validation.txt",
+      "command": "mkdir -p .reports && uv run --with awesomeversion python3 -c \"import json; from awesomeversion import AwesomeVersion; v = json.load(open('custom_components/${config:project.componentName}/manifest.json'))['version']; av = AwesomeVersion(v); print(f'Version {v} detected strategy: {av.strategy}'); exit(1 if av.strategy == 'unknown' else 0)\" | tee .reports/version_validation.txt",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -325,20 +325,20 @@
       "label": "Validate All",
       "dependsOn": [
         "Initialize Reports",
-        "HA: Verify Version (AwesomeVersion)",
-        "YAML: Lint Project",
-        "JSON: Verify All Files",
         "HA: Hassfest Validation",
+        "HA: Check Config",
+        "HA: Verify Version (AwesomeVersion)",
         "HA: Verify Manifest",
         "HACS: Verify Manifest",
-        "HA: Check Config",
+        "YAML: Lint Project",
+        "JSON: Verify All Files",
         "Ruff: Check (Lint Only)",
         "Ruff: Format Check (View Only)",
-        "Mypy: Check (Standard)",
-        "Zizmor: GitHub Actions Audit",
         "Markdown: Check Links",
         "Markdown: Lint (View Only)",
         "Codespell: Check (View Only)",
+        "Mypy: Check (Standard)",
+        "Zizmor: GitHub Actions Audit",
         "Prettier: Check (View Only)",
         "Pytest: Run All Tests",
         "Pytest: Check Test Coverage"
@@ -363,7 +363,8 @@
         "Codespell: Fix (Auto-Repair)",
         "Prettier: Format (Auto-Fix)",
         "Prettier: Fix Notes",
-        "Prettier: Fix Shared"
+        "Prettier: Fix Shared",
+        "Pre-commit: Fix + Check All"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": [],

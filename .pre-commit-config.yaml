@@ -60,5 +60,5 @@ repos:
         entry: mypy
         language: system
         types: [python]
-        files: ^custom_components/wifi_ssid_monitor/
+        files: ^custom_components/
         require_serial: true
