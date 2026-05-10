@@ -41,7 +41,7 @@ repos:
     hooks:
       - id: prettier
         additional_dependencies:
-          - prettier@3.6.2
+          - prettier@3.8.3
           - prettier-plugin-sort-json@4.2.0
         args: [--config, .shared/validate-configs/.prettierrc.js]
 
