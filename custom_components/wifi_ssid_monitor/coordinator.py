@@ -2,7 +2,8 @@
 
 import asyncio
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -18,9 +19,12 @@ _LOGGER = logging.getLogger(__name__)
 class WifiScanCoordinator(DataUpdateCoordinator):
     """Class to manage fetching WiFi SSID Monitor data."""
 
+    _failure_count: int
+    last_update_success_time: datetime | None
+
     def __init__(
         self, hass: HomeAssistant, entry: ConfigEntry, api: WifiScanAPI, version: str
-    ):
+    ) -> None:
         """Initialize the coordinator."""
         self.api = api
         self.entry = entry
@@ -38,56 +42,62 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=scan_interval),
         )
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API with resilience and timeout."""
         try:
             # Use standard timeout wrapper (HA Best Practice)
             async with asyncio.timeout(30):
                 access_points = await self.api.get_access_points()
 
-                # Success: reset failure count
-                self._failure_count = 0
-                self.last_update_success_time = dt_util.now()
-
-                # Defensive: ensure access_points is iterable
-                if access_points is None:
-                    access_points = []
-
-                # Handle hidden networks (missing SSID)
-                hidden_count = sum(1 for ap in access_points if "ssid" not in ap)
-                if hidden_count > 0:
-                    _LOGGER.debug("Found %d hidden WiFi networks", hidden_count)
-
-                all_ssids = sorted(
-                    list({ap.get("ssid", "[hidden]") for ap in access_points})
-                )
-
-                # Build a structured map for future-proofing (RSSI, Channel, etc.)
-                network_map = {
-                    ap.get("ssid", "[hidden]"): {
-                        "rssi": ap.get("signal"),
-                        "channel": ap.get("channel"),
-                    }
-                    for ap in access_points
-                }
-
-                known_networks_str = self.entry.options.get(CONF_KNOWN_SSIDS, "")
-                self.last_known_ssids = known_networks_str
-                known_networks = [
-                    x.strip() for x in known_networks_str.split(",") if x.strip()
-                ]
-                unknown_ssids = sorted(
-                    [ssid for ssid in all_ssids if ssid not in known_networks]
-                )
-
+            if access_points is None:
                 return {
-                    "count": len(all_ssids),
-                    "ssids": all_ssids,
-                    "unknown_ssids": unknown_ssids,
-                    "unknown_count": len(unknown_ssids),
+                    "count": 0,
+                    "ssids": [],
+                    "unknown_ssids": [],
+                    "unknown_count": 0,
                     "interface": self.api.interface,
-                    "networks": network_map,
+                    "networks": {},
                 }
+
+            # Success: reset failure count
+            self._failure_count = 0
+            self.last_update_success_time = dt_util.now()
+
+            # Handle hidden networks (missing SSID)
+            hidden_count = sum(1 for ap in access_points if "ssid" not in ap)
+            if hidden_count > 0:
+                _LOGGER.debug("Found %d hidden WiFi networks", hidden_count)
+
+            all_ssids = sorted(
+                list({ap.get("ssid", "[hidden]") for ap in access_points})
+            )
+
+            # Build a structured map for future-proofing (RSSI, Channel, etc.)
+            network_map = {
+                ap.get("ssid", "[hidden]"): {
+                    "rssi": ap.get("signal"),
+                    "channel": ap.get("channel"),
+                }
+                for ap in access_points
+            }
+
+            known_networks_str = self.entry.options.get(CONF_KNOWN_SSIDS, "")
+            self.last_known_ssids = known_networks_str
+            known_networks = [
+                x.strip() for x in known_networks_str.split(",") if x.strip()
+            ]
+            unknown_ssids = sorted(
+                [ssid for ssid in all_ssids if ssid not in known_networks]
+            )
+
+            return {
+                "count": len(all_ssids),
+                "ssids": all_ssids,
+                "unknown_ssids": unknown_ssids,
+                "unknown_count": len(unknown_ssids),
+                "interface": self.api.interface,
+                "networks": network_map,
+            }
 
         except Exception as err:
             self._failure_count += 1

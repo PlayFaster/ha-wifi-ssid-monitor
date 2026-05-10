@@ -1,22 +1,5 @@
 {
-  "name": "WiFi SSID Monitor",
-  "dockerComposeFile": "docker-compose.yml",
-  "service": "homeassistant",
-  "workspaceFolder": "/workspaces/ha-wifi-ssid-monitor",
   "_comment": "Added -U to ensure it upgrades if a cached version is old",
-  "postCreateCommand": "sed -i 's/\\r$//' .devcontainer/setup.sh && sh .devcontainer/setup.sh || (echo 'Setup failed! Check .reports/devcontainer/post_setup.log for details.' && sleep infinity)",
-  "mounts": [
-    {
-      "source": "${localEnv:USERPROFILE}/.gemini",
-      "target": "/root/.gemini",
-      "type": "bind"
-    },
-    {
-      "source": "${localEnv:USERPROFILE}/.gitconfig",
-      "target": "/root/.gitconfig",
-      "type": "bind"
-    }
-  ],
   "customizations": {
     "vscode": {
       "extensions": [
@@ -45,6 +28,33 @@
       }
     }
   },
+  "dockerComposeFile": "docker-compose.yml",
+  "mounts": [
+    {
+      "source": "${localEnv:USERPROFILE}/.gemini",
+      "target": "/root/.gemini",
+      "type": "bind"
+    },
+    {
+      "source": "${localEnv:USERPROFILE}/.gitconfig",
+      "target": "/root/.gitconfig",
+      "type": "bind"
+    },
+    {
+      "source": "C:/Local/Code/github/PlayFaster/home-assistant/shared/ProjNotes/Notes-ha-wifi-ssid-monitor",
+      "target": "${containerWorkspaceFolder}/.notes",
+      "type": "bind"
+    },
+    {
+      "source": "C:/Local/Code/github/PlayFaster/home-assistant/shared/SharedNotes",
+      "target": "${containerWorkspaceFolder}/.shared",
+      "type": "bind"
+    }
+  ],
+  "name": "WiFi SSID Monitor",
+  "overrideCommand": false,
+  "postCreateCommand": "sed -i 's/\\r$//' .devcontainer/setup.sh && sh .devcontainer/setup.sh || (echo 'Setup failed! Check .reports/devcontainer/post_setup.log for details.' && sleep infinity)",
   "remoteUser": "root",
-  "overrideCommand": false
+  "service": "homeassistant",
+  "workspaceFolder": "/workspaces/ha-wifi-ssid-monitor"
 }

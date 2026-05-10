@@ -3,6 +3,7 @@
 import os
 from unittest.mock import patch
 
+import aiohttp
 import pytest
 
 from custom_components.wifi_ssid_monitor.api import WifiScanAPI, WifiScanError
@@ -41,7 +42,7 @@ async def test_get_access_points_success(mock_aiohttp_client):
                 "Authorization": "Bearer test_token",
                 "Content-Type": "application/json",
             },
-            timeout=30,
+            timeout=aiohttp.ClientTimeout(total=30),
         )
 
 
@@ -123,7 +124,7 @@ async def test_get_interfaces_success(mock_aiohttp_client):
                 "Authorization": "Bearer test_token",
                 "Content-Type": "application/json",
             },
-            timeout=30,
+            timeout=aiohttp.ClientTimeout(total=30),
         )
 
 
@@ -147,3 +148,67 @@ async def test_validate_success(mock_aiohttp_client):
         api = WifiScanAPI(mock_aiohttp_client, "wlan0")
         with patch.object(api, "get_access_points", return_value=[]):
             assert await api.validate() is True
+
+
+@pytest.mark.asyncio
+async def test_validate_no_token(mock_aiohttp_client):
+    """Test validation fails when SUPERVISOR_TOKEN is missing."""
+    with patch.dict(os.environ, {}, clear=True):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        with pytest.raises(WifiScanError, match="SUPERVISOR_TOKEN not found"):
+            await api.validate()
+
+
+@pytest.mark.asyncio
+async def test_get_access_points_json_error(mock_aiohttp_client):
+    """Test error when API returns invalid JSON."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        mock_aiohttp_client.get.return_value = MockResponse(json_error=True)
+
+        with pytest.raises(WifiScanError, match="Invalid API response"):
+            await api.get_access_points()
+
+
+@pytest.mark.asyncio
+async def test_get_interfaces_no_token(mock_aiohttp_client):
+    """Test get_interfaces fails when SUPERVISOR_TOKEN is missing."""
+    with patch.dict(os.environ, {}, clear=True):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        with pytest.raises(WifiScanError, match="SUPERVISOR_TOKEN not found"):
+            await api.get_interfaces()
+
+
+@pytest.mark.asyncio
+async def test_get_interfaces_json_error(mock_aiohttp_client):
+    """Test error when get_interfaces API returns invalid JSON."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        mock_aiohttp_client.get.return_value = MockResponse(json_error=True)
+
+        with pytest.raises(WifiScanError, match="Invalid API response"):
+            await api.get_interfaces()
+
+
+@pytest.mark.asyncio
+async def test_get_interfaces_connection_error(mock_aiohttp_client):
+    """Test error when connection fails during get_interfaces."""
+    import aiohttp
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        mock_aiohttp_client.get.side_effect = aiohttp.ClientError("Connection failed")
+
+        with pytest.raises(WifiScanError, match="Connection error"):
+            await api.get_interfaces()
+
+
+@pytest.mark.asyncio
+async def test_get_interfaces_generic_error(mock_aiohttp_client):
+    """Test error when a generic exception occurs during get_interfaces."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        mock_aiohttp_client.get.side_effect = Exception("Generic error")
+
+        with pytest.raises(WifiScanError, match="Unexpected error"):
+            await api.get_interfaces()

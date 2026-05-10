@@ -1,8 +1,8 @@
 # WiFi SSID Monitor for Home Assistant
 
-![HACS Integration](https://img.shields.io/badge/HACS-Integration-orange.svg) ![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistant&logoColor=white) ![Latest Release](https://img.shields.io/github/v/release/PlayFaster/ha-wifi-ssid-monitor?label=Release&logo=github) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Validate](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml/badge.svg)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml) ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/PlayFaster/6d1d30e996dd53f04d2c2fc6b6cddece/raw/coverage.json) ![Last Commit](https://img.shields.io/github/last-commit/PlayFaster/ha-wifi-ssid-monitor?label=Last%20commit)
+[![HACS Integration](https://img.shields.io/badge/HACS-Integration-orange.svg)](https://hacs.xyz/) [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistant&logoColor=white)](https://hacs.xyz/docs/faq/custom_repositories) [![Latest Release](https://img.shields.io/github/v/release/PlayFaster/ha-wifi-ssid-monitor?label=Release&logo=github)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/releases) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Validate](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml/badge.svg)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml) ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/PlayFaster/6d1d30e996dd53f04d2c2fc6b6cddece/raw/coverage.json) [![Last Commit](https://img.shields.io/github/last-commit/PlayFaster/ha-wifi-ssid-monitor?label=Last%20commit)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/commits/main)
 
-A Home Assistant integration that monitors and reports on WiFi networks in your environment. Using the Home Assistant Supervisor API, this integration scans for SSIDs, counts detectable networks, and identifies unknown networks based on a configurable allowlist.
+A Home Assistant integration that monitors and reports on WiFi networks in your environment. Using the Home Assistant Supervisor API, this integration scans for SSIDs, counts detectable networks, and identifies unknown networks based on a configurable allow-list.
 
 ## ✅ Features
 
@@ -12,7 +12,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 - **Dynamic Polling Control**: Adjust the scan frequency directly from the Home Assistant UI or via automation.
 - **Auto-detected Interface**: Interface names (e.g., `wlan0`) are automatically populated during setup where available. This can be entered manually if auto-detection is not successful
 
-## 📋 System Requirements
+## 🔧 Compatibility & Requirements
 
 **Important:** This integration requires your Home Assistant system to have **WiFi capabilities**.
 
@@ -28,11 +28,11 @@ Monitor for unexpected WiFi networks in your environment that could indicate una
 
 ```yaml
 alias: "Alert on Rogue WiFi Network"
-trigger:
-  platform: state
+triggers:
+  trigger: state
   entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
   to: "on"
-action:
+actions:
   action: notify.mobile_app_phone
   data:
     message: "Unknown WiFi network detected: {{ states('sensor.wifi_ssid_monitor_unknown_count') }} unknown network(s) found"
@@ -75,8 +75,8 @@ Track whether your own WiFi networks remain online. By listing your personal SSI
 
 ```yaml
 alias: "Alert if Home WiFi Offline"
-trigger:
-  platform: numeric_state
+triggers:
+  trigger: numeric_state
   entity_id: sensor.wifi_ssid_monitor_total_count
   below: 2
   for:
@@ -91,84 +91,9 @@ actions:
       message: "WiFi network count has dropped — a home network may be offline"
 ```
 
-## ✨ Installation
+### Dynamic Monitoring
 
-### HACS (Recommended)
-
-1. Add this repository as a **Custom Repository** in HACS:
-   - Open HACS in Home Assistant
-   - Click **Custom repositories** (⋮ menu)
-   - Add repository URL and Type: `Integration`
-2. Search for "WiFi SSID Monitor" and click **Download**
-3. Restart Home Assistant
-4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
-
-### Manual Installation
-
-1. Download the [latest release](https://github.com/PlayFaster/ha-wifi-ssid-monitor/releases).
-2. Copy the `custom_components/wifi_ssid_monitor` folder to your Home Assistant `custom_components` directory
-3. Restart Home Assistant
-4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
-
-## ⚙️ Configuration
-
-All configuration is handled through the Home Assistant UI.
-
-### Initial Setup
-
-Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**. You will need:
-
-- **WiFi Interface**: The network interface to monitor (e.g., `wlan0`)
-  - Detected interfaces will be automatically populated where available
-  - If auto-detection fails, you can enter the interface name manually
-- **Known SSIDs**: Comma-separated list of WiFi networks to consider "known" (e.g., `Home-WiFi, Guest-Network`)
-
-### Runtime Options
-
-After installation, you can modify settings via the integration's **Configure** (gear icon) options menu:
-
-- **Known SSIDs**: Update the list of known networks
-- **Scan Interval**: Adjust polling frequency (1–180 minutes) (default 10 minutes)
-  - Note this is also available directly from the UI as a number slider, which can be dynamically changed via automation (see example in **Number Entities** below)
-- **WiFi Interface**: Change which interface is monitored
-
-> [!TIP]
->
-> **Finding Your WiFi Interface Name:**
->
-> 1. In Home Assistant, go to **Settings > System > Network**
-> 2. Check **Configure network interfaces**
-> 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar
-> 4. During setup, the integration will attempt to auto-detect available WiFi interfaces
-
-## 📊 What You Get
-
-This integration provides **6 entities**, as follows:
-
-### Sensors
-
-| Entity | Type | Description |
-| --- | --- | --- |
-| `sensor.wifi_ssid_monitor_total_count` | Measurement | Total number of detected WiFi networks |
-| `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
-| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
-| `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
-
-**Attributes:** The total and unknown count sensors include SSID attributes:
-
-- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names
-
-### Binary Sensors
-
-| Entity | Description |
-| --- | --- |
-| `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
-
-### Number Entities
-
-| Entity                                   | Description                               |
-| ---------------------------------------- | ----------------------------------------- |
-| `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
+You can set the scan frequency to between 1 and 180 minutes. Depending on your system, very frequent scanning may have a minor impact on performance. You can mitigate this by automatically changing scan frequency.
 
 **Example automation:**
 
@@ -176,7 +101,7 @@ This integration provides **6 entities**, as follows:
 alias: "WiFi: Set Scan Interval Based on Time"
 description: "Adjusts SSID scan interval for day and evening cycles"
 mode: single
-trigger:
+triggers:
   - platform: time
     at: "08:00:00"
     id: "day"
@@ -205,21 +130,102 @@ actions:
               value: 20
 ```
 
+## 🔍 What You Get
+
+This integration provides **6 entities**, as follows:
+
+### Sensors
+
+| Entity | Type | Description |
+| --- | --- | --- |
+| `sensor.wifi_ssid_monitor_total_count` | Measurement | Total number of detected WiFi networks |
+| `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
+| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
+| `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
+
+**Attributes:** The total and unknown count sensors include SSID attributes:
+
+- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names
+
+### Binary Sensors
+
+| Entity | Description |
+| --- | --- |
+| `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
+
+### Number Entities
+
+| Entity                                   | Description                               |
+| ---------------------------------------- | ----------------------------------------- |
+| `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
+
 ## 📸 Screenshots
 
 ### Integration Overview
 
 ![Integration Overview](.github/images/wifi_ssid_mon_integration_screen.png)
 
-### Sensor Display
+### Sensors
 
 ![Sensor Entities](.github/images/wifi_ssid_mon_sensors_screen.png)
+
+### Setup
+
+![Setup](.github/images/wifi_ssid_mon_setup_screen.png)
 
 ### Network Interface Configuration
 
 ![Interface Configuration](.github/images/wlan_name_sys_netw.png)
 
-## 🔧 Troubleshooting
+## 📥 Installation
+
+### ✨ HACS (Recommended)
+
+1. Add this repository as a **Custom Repository** in HACS:
+   - Open HACS in Home Assistant
+   - Click **Custom repositories** (⋮ menu)
+   - Add repository URL and Type: `Integration`
+2. Search for "WiFi SSID Monitor" and click **Download**
+3. Restart Home Assistant
+4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
+
+### 💾 Manual Installation
+
+1. Download the repository
+2. Copy the `custom_components/wifi_ssid_monitor` folder to your Home Assistant `custom_components` directory
+3. Restart Home Assistant
+4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
+
+## ⚙️ Configuration
+
+### 🔧 Initial Setup
+
+Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**. You will need:
+
+- **WiFi Interface**: The network interface to monitor (e.g., `wlan0`)
+  - Detected interfaces will be automatically populated where available
+  - If auto-detection fails, you can enter the interface name manually
+- **Known SSIDs**: Comma-separated list of WiFi networks to consider "known" (e.g., `Home-WiFi, Guest-Network`)
+
+### 🛠️ Runtime Options
+
+After installation, you can modify settings via the integration's **Configure** (gear icon) options menu:
+
+- **Known SSIDs**: Update the list of known networks
+- **Scan Interval**: Adjust polling frequency (1–180 minutes) (default 10 minutes)
+  - Note this is also available directly from the UI as a number slider, which can be dynamically changed via automation (see example in **Number Entities** below)
+- **WiFi Interface**: Change which interface is monitored
+
+> [!TIP]
+>
+> **Finding Your WiFi Interface Name:**
+>
+> 1. In Home Assistant, go to **Settings > System > Network**
+> 2. Check **Configure network interfaces**
+> 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar
+> 4. During setup, the integration will attempt to auto-detect available WiFi interfaces
+
+## ❓ FAQ & Troubleshooting
 
 ### Integration Fails to Load
 
@@ -237,11 +243,25 @@ actions:
 - Check that networks are broadcasting in your vicinity
 - Review the Home Assistant logs for detailed error messages
 
-## ⚠️ Known Limitations
+## 🗑️ Removal
 
-### Hidden Networks (No Broadcasted SSID)
+To remove the integration from Home Assistant:
 
-WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data.
+1. Go to **Settings > Devices & Services**.
+2. Find the **WiFI SSID Monitor** card and click into it.
+3. Click the **three dots** (⋮) next to the gear icon and select **Delete**.
+4. Confirm deletion.
+
+To fully uninstall (HACS):
+
+1. Go to **HACS > Integrations**.
+2. Find the **WiFI SSID Monitor** and click into it.
+3. Click the **three dots** (⋮) at the top right and select **Remove**.
+4. Restart Home Assistant.
+
+## ⚠️ Known Limitations /❔ What's Missing?
+
+- **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data.
 
 ## 📝 Maintenance Status
 
@@ -257,4 +277,4 @@ This project is licensed under the Apache License, Version 2.0. See [LICENSE](LI
 
 ---
 
-**Questions or Issues?** Visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).
+💬 **Questions or Issues?** Visit the [GitHub repository](https://github.com/PlayFaster/ha-wifi-ssid-monitor).

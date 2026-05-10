@@ -4,8 +4,12 @@ import asyncio
 import logging
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTime
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_NAME, CONF_SCAN_INTERVAL, DOMAIN
 from .coordinator import WifiScanCoordinator
@@ -24,7 +28,9 @@ SCAN_INTERVAL_DESCRIPTION = NumberEntityDescription(
 )
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up the number platform."""
     coordinator: WifiScanCoordinator = hass.data[DOMAIN][entry.entry_id]
 
@@ -52,17 +58,17 @@ class WifiScanIntervalNumber(NumberEntity):
     def __init__(
         self,
         coordinator: WifiScanCoordinator,
-        entry,
+        entry: ConfigEntry,
         description: NumberEntityDescription,
-        initial_value,
-    ):
+        initial_value: float,
+    ) -> None:
         """Initialize the number entity."""
         self._coordinator = coordinator
         self._entry = entry
         self.entity_description = description
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
         self._attr_native_value = initial_value
-        self._refresh_task = None
+        self._refresh_task: asyncio.Task | None = None
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the scan interval."""
@@ -103,7 +109,7 @@ class WifiScanIntervalNumber(NumberEntity):
             self.async_write_ha_state()
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         """Return device information."""
         name = self._entry.options.get(CONF_NAME, self._entry.title)
         model = f"v{self._coordinator.version} ({self._coordinator.api.interface})"

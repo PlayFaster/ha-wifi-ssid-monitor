@@ -44,10 +44,14 @@ uv.lock
 
 # Note Scratch Compare Area
 .comp/
+.notes
+.shared
 .notes/
+.shared/
 loc_only/
 
 # AI
 *.gptcache
 .geminignore
 .aiexclude
+.aider*

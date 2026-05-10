@@ -1,0 +1,64 @@
+---
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.12
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.2
+    hooks:
+      - id: codespell
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.24.1
+    hooks:
+      - id: zizmor
+        args: [--pedantic]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-json
+        exclude: (\.vscode|\.devcontainer)
+      - id: check-executables-have-shebangs
+        stages: [manual]
+      - id: no-commit-to-branch
+        args: [--branch=dev, --branch=main]
+        stages: [manual]
+
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [-c, .shared/validate-configs/.yamllint]
+        exclude: \.yamllint$
+
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.6.2
+    hooks:
+      - id: prettier
+        additional_dependencies:
+          - prettier@3.6.2
+          - prettier-plugin-sort-json@4.2.0
+        args: [--config, .shared/validate-configs/.prettierrc.js]
+
+  - repo: https://github.com/cdce8p/python-typing-update
+    rev: v0.6.0
+    hooks:
+      - id: python-typing-update
+        stages: [manual]
+        args: [--py311-plus, --force, --keep-updates]
+        files: ^custom_components/.+\.py$
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: system
+        types: [python]
+        files: ^custom_components/
+        require_serial: true

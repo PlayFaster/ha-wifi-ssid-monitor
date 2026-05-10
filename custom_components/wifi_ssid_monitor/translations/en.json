@@ -1,9 +1,20 @@
 {
-  "title": "WiFi SSID Monitor",
   "config": {
     "step": {
       "user": {
         "title": "Setup WiFi SSID Monitor",
+        "data": {
+          "name": "Integration Name",
+          "wifi_interface": "Wifi Interface (e.g., wlan0)",
+          "known_wifi_ids": "Known SSIDs (comma separated)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate WiFi SSID Monitor",
+        "description": "The Supervisor API token is invalid or has expired. Please confirm to re-validate."
+      },
+      "reconfigure": {
+        "title": "Reconfigure WiFi SSID Monitor",
         "data": {
           "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
@@ -17,6 +28,20 @@
     },
     "abort": {
       "already_configured": "This interface is already configured"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "total_count": { "name": "Total SSID Count" },
+      "unknown_count": { "name": "Unknown SSID Count" },
+      "interface": { "name": "Interface" },
+      "last_updated": { "name": "Last Updated" }
+    },
+    "binary_sensor": {
+      "new_network": { "name": "New Network Alert" }
+    },
+    "number": {
+      "scan_interval": { "name": "Scan Interval" }
     }
   },
   "options": {
@@ -36,18 +61,5 @@
       "unknown": "Unexpected error occurred."
     }
   },
-  "entity": {
-    "sensor": {
-      "total_count": { "name": "Total SSID Count" },
-      "unknown_count": { "name": "Unknown SSID Count" },
-      "interface": { "name": "Interface" },
-      "last_updated": { "name": "Last Updated" }
-    },
-    "binary_sensor": {
-      "new_network": { "name": "New Network Alert" }
-    },
-    "number": {
-      "scan_interval": { "name": "Scan Interval" }
-    }
-  }
+  "title": "WiFi SSID Monitor"
 }

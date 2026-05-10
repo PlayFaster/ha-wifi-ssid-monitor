@@ -30,3 +30,9 @@ This document outlines potential features and enhancements for the WiFi SSID Mon
 - **Multi-Interface Support**: Allow the integration to aggregate results from multiple WiFi cards (e.g., internal + USB) simultaneously.
 - **Hardware Health Monitoring**: Add a diagnostic sensor to monitor the status of the WiFi adapter hardware and alert if it enters a stalled state.
 - **System Role Attribute**: Re-integrate the "System Role" logic from the original script to provide more context on the scanning environment.
+
+---
+
+## Version Control
+
+- **v1.0.1** (2026-04-01) - Created.

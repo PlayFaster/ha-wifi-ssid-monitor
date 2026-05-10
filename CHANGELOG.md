@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+---
+
+## [1.4.3] - 2026-05-10
+
+### Changed
+
+- **Readme**: Overhaul of the readme file, additional example automations, re-ordered for readability.
+- **Under the Hood**: Several internal code changes to improve maintainability and alignment with Home Assistant development standards (no functional breaking changes).
+- **Validations**: Improved local and automated remote testing to ensure code remains secure and follows best practices.
+
 ## [1.4.2] - 2026-05-02
 
 ### Fixed

@@ -1,62 +1,45 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Home Assistant Integration Manifest",
+  "additionalProperties": true,
   "description": "Validation for Home Assistant integration manifest.json files.",
-  "type": "object",
-  "required": [
-    "domain",
-    "name",
-    "codeowners",
-    "documentation",
-    "issue_tracker",
-    "version"
-  ],
   "properties": {
-    "domain": {
-      "type": "string",
-      "description": "Unique identifier for the integration (lowercase, no spaces).",
-      "pattern": "^[a-z0-9_]+$"
-    },
-    "name": {
-      "type": "string",
-      "description": "Human-readable name of the integration."
-    },
-    "version": {
-      "type": "string",
-      "description": "Version of the integration (must follow Semantic Versioning)."
-    },
-    "documentation": {
-      "type": "string",
-      "format": "uri",
-      "description": "URL to the integration's documentation."
-    },
-    "issue_tracker": {
-      "type": "string",
-      "format": "uri",
-      "description": "URL where users can report issues."
+    "after_dependencies": {
+      "description": "Soft dependencies that should load first if present.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     },
     "codeowners": {
-      "type": "array",
       "description": "GitHub usernames of the maintainers.",
       "items": {
-        "type": "string",
-        "pattern": "^@.+$"
-      }
+        "pattern": "^@.+$",
+        "type": "string"
+      },
+      "type": "array"
     },
-    "iot_class": {
-      "type": "string",
-      "description": "Communication type.",
-      "enum": [
-        "local_push",
-        "local_polling",
-        "cloud_push",
-        "cloud_polling",
-        "calculated",
-        "assumed_state"
-      ]
+    "config_flow": {
+      "description": "Whether the integration uses a UI-based configuration flow.",
+      "type": "boolean"
+    },
+    "dependencies": {
+      "description": "Other integrations that must be loaded first.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "documentation": {
+      "description": "URL to the integration's documentation.",
+      "format": "uri",
+      "type": "string"
+    },
+    "domain": {
+      "description": "Unique identifier for the integration (lowercase, no spaces).",
+      "pattern": "^[a-z0-9_]+$",
+      "type": "string"
     },
     "integration_type": {
-      "type": "string",
       "description": "Purpose of the integration.",
       "enum": [
         "entity",
@@ -67,33 +50,50 @@
         "service",
         "system",
         "virtual"
-      ]
+      ],
+      "type": "string"
     },
-    "config_flow": {
-      "type": "boolean",
-      "description": "Whether the integration uses a UI-based configuration flow."
+    "iot_class": {
+      "description": "Communication type.",
+      "enum": [
+        "local_push",
+        "local_polling",
+        "cloud_push",
+        "cloud_polling",
+        "calculated",
+        "assumed_state"
+      ],
+      "type": "string"
     },
-    "dependencies": {
-      "type": "array",
-      "description": "Other integrations that must be loaded first.",
-      "items": {
-        "type": "string"
-      }
+    "issue_tracker": {
+      "description": "URL where users can report issues.",
+      "format": "uri",
+      "type": "string"
     },
-    "after_dependencies": {
-      "type": "array",
-      "description": "Soft dependencies that should load first if present.",
-      "items": {
-        "type": "string"
-      }
+    "name": {
+      "description": "Human-readable name of the integration.",
+      "type": "string"
     },
     "requirements": {
-      "type": "array",
       "description": "Python PyPI dependencies.",
       "items": {
         "type": "string"
-      }
+      },
+      "type": "array"
+    },
+    "version": {
+      "description": "Version of the integration (must follow Semantic Versioning).",
+      "type": "string"
     }
   },
-  "additionalProperties": true
+  "required": [
+    "domain",
+    "name",
+    "codeowners",
+    "documentation",
+    "issue_tracker",
+    "version"
+  ],
+  "title": "Home Assistant Integration Manifest",
+  "type": "object"
 }

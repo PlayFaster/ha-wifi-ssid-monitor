@@ -1,6 +1,89 @@
-# Changelog: WiFi SSID Monitor
+# Internal Detailed Changelog: WiFi SSID Monitor
 
 All notable changes to this project will be documented in this file.
+
+---
+
+## [1.4.3] - 2026-05-10 - Unreleased
+
+### Changed
+
+- **Readme**: Overhaul of the readme file, additional example automations, re-ordered for readability.
+- **Under the Hood**: Several internal code changes to improve maintainability and alignment with Home Assistant development standards (no functional breaking changes).
+- **Validations**: Improved local and automated remote testing to ensure code remains secure and follows best practices.
+
+## [1.4.3-rc1] - 2026-05-10 - Unreleased
+
+### Changed
+
+- **Readme**: Updated Readme with additional information. Re-ordered some sections. Added more emoji icons to headings.
+- **pyproject.toml**: pyproject.toml is now fully project agnostic. It does not contain the name of the specific project, instead just references the general custom_components folder for pytest coverage.
+- **tasks.json**: tasks.json is also not fully project agnostic. It does require a settings.json file, but this now only requires one change per project.
+
+## [1.4.3-dev20] - 2026-05-09 - Unreleased
+
+### Dev Tooling
+
+- **Shared Reusable CI Workflow**: Created `PlayFaster/.github` organisation repo containing a parameterised reusable workflow (`validate.yaml`, named "Validate (Shared)"). All 8 validation jobs (`hassfest`, `hacs_val`, `py_val`, `test_val`, `file_val`, `codespell`, `zizmor`, `mypy_val`) now live in the shared repo and are called by each integration via a thin caller. Changes to validation logic propagate to all 4 projects on the next CI run without per-project edits.
+- **Thin Caller Workflow**: Replaced the 270-line inline `.github/workflows/validate.yaml` with a ~30-line caller that delegates to the shared workflow via `uses: PlayFaster/.github/.github/workflows/validate.yaml@main`. Permissions correctly scoped: `contents: read` at workflow level, `contents: write` and `pull-requests: write` at job level (required by `test_val` for coverage badge and PR comments).
+- **Shared Workflow Concurrency**: Reusable workflow uses `${{ github.workflow }}-${{ github.ref }}-${{ github.repository }}` as its concurrency group, preventing cross-repo cancellation when multiple integrations trigger simultaneously.
+- **Shared Workflow Dependabot**: Added `dependabot.yml` to `PlayFaster/.github` tracking the `github-actions` ecosystem weekly, keeping SHA pins in the shared workflow current.
+- **Pre-commit: Suppress Inapplicable Hooks**: Added `stages: [manual]` to the `no-commit-to-branch` hook — direct commits to `main`/`dev` are the working pattern for this project, so the hook is retained for explicit use but removed from the default commit flow. Added `exclude: \.yamllint$` to the `yamllint` hook to prevent it from linting its own config file (which lacks `---` and uses CRLF).
+- **VS Code Tasks**: Added `Zizmor: Fix (Safe Auto-Fix)` task (`zizmor --fix .github/`) for applying zizmor's safe auto-fixes on demand. Added `Pre-commit: Autoupdate Hooks` task (`pre-commit autoupdate`) for updating all hook `rev:` pins to their latest releases. Neither task is wired into `Fix All` or `Validate All`.
+
+## [1.4.3-dev11] - 2026-05-09 - Unreleased
+
+### Changed
+
+- **mypy errors**: Addressed all type issues flagged by mypy tool (in HA mode, not --strict mode). Added type annotations to all functions, params, and return types.
+
+## [1.4.3-dev4] - 2026-05-06 - Unreleased
+
+### Added
+
+- **Quality Scale**: Added quality_scale.yaml into project folder to track compliance to Home Assistant Integration Quality Scale (IQS). As a custom component full compliance is not possible but this is a good mechanism to ensure alignment with Home Assistant best practice.
+
+### Changed
+
+- **Coverage**: Test coverage improvements to sensor.py.
+
+## [1.4.3-dev3] - 2026-05-06 - Unreleased
+
+### Added
+
+- **Diagnostics**: Implemented a diagnostics platform (`diagnostics.py`) to provide sanitized integration state for troubleshooting.
+- **Reauthentication**: Added a reauthentication flow to handle invalid or expired Supervisor API tokens.
+- **Reconfiguration**: Added a reconfiguration flow allowing users to update the interface and settings without re-installing.
+
+### Changed
+
+- **Translations**: Updated localized strings for reauth and reconfigure flows; verified entity translation keys.
+- **Quality Standards**: Updated IQS compliance matrix in `ha_quality_standard.md` to reflect Silver/Gold progress.
+
+### Fixed
+
+- **Integration Stability**: Verified clean startup and error-free operation of the diagnostics component.
+
+## [1.4.3-dev2] - 2026-05-06 - Unreleased
+
+### Added
+
+- **Documentation**: Created `docs/all_sensors.md` (Entity Manifest) and `docs/value_min_max.md` (Guard Bands) to provide clear reference for users and developers.
+
+### Changed
+
+- **Test Coverage**: Achieved 100% unit test coverage for `api.py` by adding exhaustive tests for error paths, including JSON decoding failures and connection issues.
+- **Test Infrastructure**: Enhanced `MockResponse` in `conftest.py` to support simulated JSON content-type errors.
+
+### Fixed
+
+- **API Robustness**: Verified and fixed handling of malformed JSON responses in `api.py` (discovered during coverage testing).
+
+## [1.4.3-dev1] - 2026-05-02 - Unreleased
+
+### Changed
+
+- **Badge Links**: Added links to readme badges.
 
 ## [1.4.2] - 2026-05-02
 
