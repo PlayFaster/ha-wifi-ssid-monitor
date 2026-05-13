@@ -4,7 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.4.3] - 2026-05-10 - Unreleased
+## [1.4.4-dev2] - 2026-05-13 - Unreleased
+
+### Added
+
+- Full IQS Review carried out , all open items implemented. IQS compliance is currently taken as far as it can go in this project.
+
+### Changed
+
+- **runtime-data** (IQS Bronze): Migrated coordinator storage from `hass.data[DOMAIN]` to `entry.runtime_data` in `__init__.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `diagnostics.py`; `async_unload_entry` simplified — HA handles `runtime_data` cleanup automatically, no manual teardown needed.
+- **parallel-updates** (IQS Silver): Added `PARALLEL_UPDATES = 0` to `sensor.py`, `binary_sensor.py`, `number.py`, signaling  to HA that the coordinator handles all update coordination.
+- **config-flow** (IQS Bronze): Added `data_description` contextual hints to all config and options flow steps in `strings.json` and `translations/en.json`.
+- **docs-data-update** (IQS Gold): Added Data Updates section to `README.md` documenting polling endpoint, interval, 3-strike resilience, and immediate-refresh behaviour.
+- **repair-issues** (IQS Gold): Implemented `ir.async_create_issue` / `ir.async_delete_issue` in `coordinator.py`; added `supervisor_unavailable` repair issue strings to `strings.json` and `translations/en.json`. Issue is raised on 4th consecutive failure and cleared on next successful scan.
+- **quality_scale.yaml**: Rewrote to canonical 52-rule format; all 47 trackable rules now `done`.
+
+### Fixed
+
+- **Tests**: Updated `test_sensor.py`, `test_binary_sensor.py`, `test_number.py` to use `mock_config_entry.runtime_data = mock_coordinator` instead of `patch.dict(hass.data, {DOMAIN: ...})` injection — aligns test setup with runtime-data migration.
+
+## [1.4.4-dev1] - 2026-05-13 - Unreleased
+
+### Changed
+
+- **icons.json**: Implemented icons.json standard, where all icons are defined in an icons.json file, not individual .py files.
+- **mypy --strict**: Addressed all mypy type issues.
+
+## [1.4.3] - 2026-05-10
 
 ### Changed
 

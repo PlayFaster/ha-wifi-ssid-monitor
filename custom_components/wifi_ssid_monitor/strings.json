@@ -7,6 +7,11 @@
           "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)"
+        },
+        "data_description": {
+          "name": "Display name shown in the Home Assistant UI for this integration instance.",
+          "wifi_interface": "The network interface to scan for WiFi networks (e.g., wlan0). Available interfaces are detected automatically where possible.",
+          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Networks not in this list are counted as unknown."
         }
       },
       "reauth_confirm": {
@@ -19,6 +24,11 @@
           "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)"
+        },
+        "data_description": {
+          "name": "Display name shown in the Home Assistant UI for this integration instance.",
+          "wifi_interface": "The network interface to scan for WiFi networks (e.g., wlan0). Available interfaces are detected automatically where possible.",
+          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Networks not in this list are counted as unknown."
         }
       }
     },
@@ -44,6 +54,12 @@
       "scan_interval": { "name": "Scan Interval" }
     }
   },
+  "issues": {
+    "supervisor_unavailable": {
+      "title": "WiFi SSID Monitor cannot reach the Supervisor API",
+      "description": "The integration has failed to connect to the Home Assistant Supervisor API for multiple consecutive scan cycles. WiFi scan data is now stale. Check that the Supervisor service is running and that the monitored interface is valid under **Settings > System > Network**."
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -53,6 +69,12 @@
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)",
           "scan_interval": "Scan Interval (seconds, minimum 60)"
+        },
+        "data_description": {
+          "name": "Display name shown in the Home Assistant UI for this integration instance.",
+          "wifi_interface": "The network interface to scan for WiFi networks (e.g., wlan0).",
+          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Networks not in this list are counted as unknown.",
+          "scan_interval": "How often to poll for WiFi networks, in seconds. Minimum 60 seconds. Default is 600 seconds (10 minutes)."
         }
       }
     },

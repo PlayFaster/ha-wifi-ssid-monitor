@@ -7,11 +7,12 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .api import WifiScanAPI
-from .const import CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL
+from .const import CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,9 +60,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):  # type: ignore[misc]
                     "networks": {},
                 }
 
-            # Success: reset failure count
+            # Success: reset failure count and clear any active repair issue
             self._failure_count = 0
             self.last_update_success_time = dt_util.now()
+            ir.async_delete_issue(self.hass, DOMAIN, "supervisor_unavailable")
 
             # Handle hidden networks (missing SSID)
             hidden_count = sum(1 for ap in access_points if "ssid" not in ap)
@@ -113,4 +115,12 @@ class WifiScanCoordinator(DataUpdateCoordinator):  # type: ignore[misc]
                 return result
 
             _LOGGER.error("Failed to fetch WiFi networks: %s", err)
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                "supervisor_unavailable",
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="supervisor_unavailable",
+            )
             raise UpdateFailed(f"Error communicating with API: {err}") from err

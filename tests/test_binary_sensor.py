@@ -1,7 +1,5 @@
 """Tests for WiFi SSID Monitor binary sensor."""
 
-from unittest.mock import patch
-
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
@@ -20,14 +18,12 @@ async def test_binary_sensor_setup(
     """Test binary sensor platform setup and initial state."""
     mock_config_entry.add_to_hass(hass)
     mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
+    mock_config_entry.runtime_data = mock_coordinator
 
-    with patch.dict(
-        hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
-    ):
-        await hass.config_entries.async_forward_entry_setups(
-            mock_config_entry, ["binary_sensor"]
-        )
-        await hass.async_block_till_done()
+    await hass.config_entries.async_forward_entry_setups(
+        mock_config_entry, ["binary_sensor"]
+    )
+    await hass.async_block_till_done()
 
     # Fixture has unknown_count=1, so sensor should be on
     state = hass.states.get("binary_sensor.wifi_ssid_monitor_new_network_alert")

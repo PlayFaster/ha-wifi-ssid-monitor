@@ -7,7 +7,6 @@ from homeassistant.core import HomeAssistant
 from custom_components.wifi_ssid_monitor.const import (
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
-    DOMAIN,
 )
 from custom_components.wifi_ssid_monitor.diagnostics import (
     async_get_config_entry_diagnostics,
@@ -32,8 +31,7 @@ async def test_diagnostics(hass: HomeAssistant, mock_config_entry: MockConfigEnt
         "unknown_ssids": ["Hidden1", "Hidden2"],
     }
 
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][mock_config_entry.entry_id] = mock_coordinator
+    mock_config_entry.runtime_data = mock_coordinator
 
     diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
 

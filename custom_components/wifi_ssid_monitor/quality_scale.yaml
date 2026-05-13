@@ -1,13 +1,18 @@
 ---
 # IQS Quality Scale Assessment for WiFi SSID Monitor
-# Generated: 2026-05-06 v1.0.1
+# Generated: 2026-05-13 v1.1.0
 rules:
-  # Bronze Tier
+  # Bronze
   action-setup: done
+  appropriate-polling: done
+  brands: done
   common-modules: done
-  config-flow: done
   config-flow-test-coverage: done
+  config-flow: done
   dependency-transparency: done
+  docs-actions:
+    status: exempt
+    comment: No service actions in this integration.
   docs-high-level-description: done
   docs-installation-instructions: done
   docs-removal-instructions: done
@@ -19,23 +24,30 @@ rules:
   test-before-setup: done
   unique-config-entry: done
 
-  # Silver Tier
+  # Silver
+  action-exceptions:
+    status: exempt
+    comment: No service actions or button handlers that raise exceptions on failure.
   config-entry-unloading: done
   docs-configuration-parameters: done
   docs-installation-parameters: done
   entity-unavailable: done
+  integration-owner: done
   log-when-unavailable: done
   parallel-updates: done
   reauthentication-flow: done
-  test-coverage:
-    status: todo
-    comment:
-      Increase sensor.py (92%), __init__.py (96%), and config_flow.py (97%) to 100%
+  test-coverage: done
 
-  # Gold Tier
+  # Gold
   devices: done
   diagnostics: done
-  docs-data-update: todo
+  discovery-update-info:
+    status: exempt
+    comment: Depends on discovery, which is exempt for this integration.
+  discovery:
+    status: exempt
+    comment: Fixed HA Supervisor API endpoint; no mDNS or SSDP discovery needed.
+  docs-data-update: done
   docs-examples: done
   docs-known-limitations: done
   docs-supported-devices: done
@@ -47,10 +59,21 @@ rules:
   entity-device-class: done
   entity-disabled-by-default: done
   entity-translations: done
-  exception-translations: todo
-  icon-translations: todo
+  exception-translations:
+    status: exempt
+    comment:
+      Config flow errors use translation keys via strings.json. No service actions
+      exist, so no HomeAssistantError messages require translation.
+  icon-translations: done
   reconfiguration-flow: done
-  repair-issues: todo
+  repair-issues: done
+  stale-devices:
+    status: exempt
+    comment:
+      Network counts and SSID lists are static entities. No dynamic device instances to
+      remove.
 
-  # Platinum Tier
-  strict-typing: todo
+  # Platinum
+  async-dependency: done
+  inject-websession: done
+  strict-typing: done

@@ -225,6 +225,18 @@ After installation, you can modify settings via the integration's **Configure** 
 > 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar
 > 4. During setup, the integration will attempt to auto-detect available WiFi interfaces
 
+## 🔄 Data Updates
+
+The integration polls the Home Assistant Supervisor Network API endpoint (`/network/interface/{interface}/accesspoints`) on a configurable schedule.
+
+**Polling interval:** Default is 10 minutes. Adjustable from 1–180 minutes via the **Scan Interval** entity or the integration's Configure menu.
+
+**Data freshness for automations:** Entity states are updated once per poll cycle. An automation triggered by `binary_sensor.wifi_ssid_monitor_new_network_alert` or `sensor.wifi_ssid_monitor_unknown_count` will reflect data that is at most `scan_interval` minutes old.
+
+**Resilience (3-strike rule):** If the Supervisor API is temporarily unreachable, the integration holds its last known values for up to 3 consecutive failed scans. Entities remain available with stale data during this window. On the 4th consecutive failure, entities are marked **Unavailable** and a warning appears in the HA Repairs panel.
+
+**Immediate refresh:** Changing the **Known SSIDs** list (via the Configure menu) triggers a scan immediately, without waiting for the next scheduled poll. Changing only the scan interval does not trigger an immediate refresh.
+
 ## ❓ FAQ & Troubleshooting
 
 ### Integration Fails to Load

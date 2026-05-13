@@ -25,8 +25,6 @@ PLATFORMS: list[str] = ["sensor", "binary_sensor", "number"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up WiFi SSID Monitor from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
-
     # Migrate from entry.data to entry.options if needed
     if entry.data and not entry.options:
         _LOGGER.debug("Migrating configuration from data to options")
@@ -52,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     coordinator = WifiScanCoordinator(hass, entry, api, VERSION)
 
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -68,18 +66,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry and release resources."""
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
-        # Standardized Cleanup: Remove the domain key if no entries remain
-        if not hass.data[DOMAIN]:
-            hass.data.pop(DOMAIN)
-
-    return bool(unload_ok)
+    return bool(await hass.config_entries.async_unload_platforms(entry, PLATFORMS))
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry when options are updated."""
-    coordinator: WifiScanCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: WifiScanCoordinator = entry.runtime_data
 
     new_interface = entry.options.get(CONF_INTERFACE)
 

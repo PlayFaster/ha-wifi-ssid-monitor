@@ -5,8 +5,6 @@ from unittest.mock import patch
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.wifi_ssid_monitor.const import DOMAIN
-
 
 @pytest.mark.asyncio
 async def test_setup_unload_entry(hass: HomeAssistant, mock_config_entry):
@@ -22,14 +20,11 @@ async def test_setup_unload_entry(hass: HomeAssistant, mock_config_entry):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    assert DOMAIN in hass.data
-    assert mock_config_entry.entry_id in hass.data[DOMAIN]
+    assert mock_config_entry.runtime_data is not None
 
     # Unload
     assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
     await hass.async_block_till_done()
-
-    assert mock_config_entry.entry_id not in hass.data.get(DOMAIN, {})
 
 
 @pytest.mark.asyncio
@@ -109,7 +104,7 @@ async def test_async_reload_entry_options(hass: HomeAssistant, mock_config_entry
             CONF_SCAN_INTERVAL,
         )
 
-        coordinator = hass.data[DOMAIN][mock_config_entry.entry_id]
+        coordinator = mock_config_entry.runtime_data
 
         # Update scan interval
         new_options = {**mock_config_entry.options, CONF_SCAN_INTERVAL: 120}
@@ -139,4 +134,4 @@ async def test_setup_entry_failure(hass: HomeAssistant, mock_config_entry):
         assert not await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    assert mock_config_entry.entry_id not in hass.data.get(DOMAIN, {})
+    assert getattr(mock_config_entry, "runtime_data", None) is None

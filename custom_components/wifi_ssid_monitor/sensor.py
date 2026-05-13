@@ -23,6 +23,8 @@ from .coordinator import WifiScanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+PARALLEL_UPDATES = 0
+
 
 @dataclass(frozen=True, kw_only=True)
 class WifiSensorEntityDescription(SensorEntityDescription):  # type: ignore[misc]
@@ -72,7 +74,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    coordinator: WifiScanCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: WifiScanCoordinator = entry.runtime_data
     entities = [
         WifiScanSensor(coordinator, entry, description) for description in SENSOR_TYPES
     ]

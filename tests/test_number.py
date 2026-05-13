@@ -21,34 +21,32 @@ async def test_number_setup_and_update(hass, mock_config_entry, mock_coordinator
     mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
 
     # Setup environment for the reload listener
-    with patch.dict(
-        hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
-    ):
-        mock_config_entry.add_update_listener(async_reload_entry)
+    mock_config_entry.runtime_data = mock_coordinator
+    mock_config_entry.add_update_listener(async_reload_entry)
 
-        # CONF_SCAN_INTERVAL is 60 in conftest, so initial_value should be 1
-        number = WifiScanIntervalNumber(
-            mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 1
-        )
-        number.hass = hass
-        number.async_write_ha_state = MagicMock()
-        mock_coordinator.async_request_refresh = AsyncMock()
+    # CONF_SCAN_INTERVAL is 60 in conftest, so initial_value should be 1
+    number = WifiScanIntervalNumber(
+        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 1
+    )
+    number.hass = hass
+    number.async_write_ha_state = MagicMock()
+    mock_coordinator.async_request_refresh = AsyncMock()
 
-        # Test setting a new value via direct call to simulate service
-        with patch("asyncio.sleep", AsyncMock()):
-            await number.async_set_native_value(15)
-            # We MUST await the background task created by the entity
-            if number._refresh_task:
-                await number._refresh_task
-            await hass.async_block_till_done()
+    # Test setting a new value via direct call to simulate service
+    with patch("asyncio.sleep", AsyncMock()):
+        await number.async_set_native_value(15)
+        # We MUST await the background task created by the entity
+        if number._refresh_task:
+            await number._refresh_task
+        await hass.async_block_till_done()
 
-        # Verify coordinator update
-        assert mock_coordinator.update_interval == timedelta(minutes=15)
-        # Note: integration does NOT trigger refresh on interval change ONLY
-        mock_coordinator.async_request_refresh.assert_not_called()
+    # Verify coordinator update
+    assert mock_coordinator.update_interval == timedelta(minutes=15)
+    # Note: integration does NOT trigger refresh on interval change ONLY
+    mock_coordinator.async_request_refresh.assert_not_called()
 
-        # Verify persistence in options
-        assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 900  # 15 * 60
+    # Verify persistence in options
+    assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 900  # 15 * 60
 
 
 @pytest.mark.asyncio
@@ -57,35 +55,33 @@ async def test_number_debounce_cancellation(hass, mock_config_entry, mock_coordi
     mock_config_entry.add_to_hass(hass)
     mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
 
-    with patch.dict(
-        hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
-    ):
-        mock_config_entry.add_update_listener(async_reload_entry)
+    mock_config_entry.runtime_data = mock_coordinator
+    mock_config_entry.add_update_listener(async_reload_entry)
 
-        number = WifiScanIntervalNumber(
-            mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
-        )
-        number.hass = hass
-        number.async_write_ha_state = MagicMock()
+    number = WifiScanIntervalNumber(
+        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
+    )
+    number.hass = hass
+    number.async_write_ha_state = MagicMock()
 
-        with patch("asyncio.sleep", AsyncMock()):
-            # First update
-            await number.async_set_native_value(20)
-            task1 = number._refresh_task
+    with patch("asyncio.sleep", AsyncMock()):
+        # First update
+        await number.async_set_native_value(20)
+        task1 = number._refresh_task
 
-            # Immediate second update should cancel the first
-            await number.async_set_native_value(30)
-            task2 = number._refresh_task
+        # Immediate second update should cancel the first
+        await number.async_set_native_value(30)
+        task2 = number._refresh_task
 
-            # The two calls must produce distinct tasks
-            assert task1 is not task2
+        # The two calls must produce distinct tasks
+        assert task1 is not task2
 
-            # Let task2 finish
-            await task2
-            await hass.async_block_till_done()
+        # Let task2 finish
+        await task2
+        await hass.async_block_till_done()
 
-        # Only the final value (30) should be applied — not the first (20)
-        assert mock_coordinator.update_interval == timedelta(minutes=30)
+    # Only the final value (30) should be applied — not the first (20)
+    assert mock_coordinator.update_interval == timedelta(minutes=30)
 
 
 @pytest.mark.asyncio

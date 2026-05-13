@@ -1,7 +1,5 @@
 """Tests for WiFi SSID Monitor sensors."""
 
-from unittest.mock import patch
-
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
@@ -15,14 +13,12 @@ async def test_sensors(hass: HomeAssistant, mock_config_entry, mock_coordinator)
     """Test sensor states and attributes."""
     mock_config_entry.add_to_hass(hass)
     mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
+    mock_config_entry.runtime_data = mock_coordinator
 
-    with patch.dict(
-        hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
-    ):
-        await hass.config_entries.async_forward_entry_setups(
-            mock_config_entry, ["sensor"]
-        )
-        await hass.async_block_till_done()
+    await hass.config_entries.async_forward_entry_setups(
+        mock_config_entry, ["sensor"]
+    )
+    await hass.async_block_till_done()
 
     # Total Count Sensor
     state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
@@ -59,14 +55,12 @@ async def test_sensors_no_data(
     mock_config_entry.add_to_hass(hass)
     mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
     mock_coordinator.data = None
+    mock_config_entry.runtime_data = mock_coordinator
 
-    with patch.dict(
-        hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
-    ):
-        await hass.config_entries.async_forward_entry_setups(
-            mock_config_entry, ["sensor"]
-        )
-        await hass.async_block_till_done()
+    await hass.config_entries.async_forward_entry_setups(
+        mock_config_entry, ["sensor"]
+    )
+    await hass.async_block_till_done()
 
     state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
     assert state
@@ -88,14 +82,12 @@ async def test_sensors_edge_cases(
     """Test sensor edge cases for native_value."""
     mock_config_entry.add_to_hass(hass)
     mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
+    mock_config_entry.runtime_data = mock_coordinator
 
-    with patch.dict(
-        hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
-    ):
-        await hass.config_entries.async_forward_entry_setups(
-            mock_config_entry, ["sensor"]
-        )
-        await hass.async_block_till_done()
+    await hass.config_entries.async_forward_entry_setups(
+        mock_config_entry, ["sensor"]
+    )
+    await hass.async_block_till_done()
 
     # Test KeyError/AttributeError in value_fn
     # Using an empty dict for count that doesn't have the expected keys
@@ -147,13 +139,11 @@ async def test_sensors_non_numeric_handling(
 
     # Use a sensor that returns a string, e.g., 'interface'
     # The guard band logic 'isinstance(value, int | float)' should be False
-    with patch.dict(
-        hass.data, {DOMAIN: {mock_config_entry.entry_id: mock_coordinator}}
-    ):
-        await hass.config_entries.async_forward_entry_setups(
-            mock_config_entry, ["sensor"]
-        )
-        await hass.async_block_till_done()
+    mock_config_entry.runtime_data = mock_coordinator
+    await hass.config_entries.async_forward_entry_setups(
+        mock_config_entry, ["sensor"]
+    )
+    await hass.async_block_till_done()
 
     state = hass.states.get("sensor.wifi_ssid_monitor_interface")
     assert state is not None

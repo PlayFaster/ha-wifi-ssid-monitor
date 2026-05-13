@@ -16,6 +16,8 @@ from .coordinator import WifiScanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+PARALLEL_UPDATES = 0
+
 SCAN_INTERVAL_DESCRIPTION = NumberEntityDescription(
     key="scan_interval",
     translation_key="scan_interval",
@@ -31,7 +33,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the number platform."""
-    coordinator: WifiScanCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: WifiScanCoordinator = entry.runtime_data
 
     # Read initial value from entry options (in minutes)
     # Default to 10 if not set (600 seconds).

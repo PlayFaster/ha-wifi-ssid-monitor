@@ -13,6 +13,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import CONF_NAME, DOMAIN
 from .coordinator import WifiScanCoordinator
 
+PARALLEL_UPDATES = 0
+
 NEW_NETWORK_DESCRIPTION = BinarySensorEntityDescription(
     key="new_network",
     translation_key="new_network",
@@ -25,7 +27,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the binary sensor platform."""
-    coordinator: WifiScanCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: WifiScanCoordinator = entry.runtime_data
     async_add_entities(
         [WifiScanBinarySensor(coordinator, entry, NEW_NETWORK_DESCRIPTION)]
     )

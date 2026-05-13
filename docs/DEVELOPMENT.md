@@ -36,6 +36,8 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Custom User Naming**: Implemented global name prefixing. Users can define a custom string (e.g., "Guest WiFi") that is prepended to every device and entity, allowing for multiple instances to be clearly distinguished in the UI without technical entity ID conflicts.
 - **Diagnostics Platform (v1.4.3-dev3)**: Implemented `diagnostics.py` to allow users to download a sanitized state dump. This is essential for troubleshooting and is a core requirement for the HA Gold tier.
 - **Reauthentication & Reconfiguration (v1.4.3-dev3)**: Added UI-driven flows for token recovery and setting updates, significantly improving UX and reducing the need for integration re-installs.
+- **`entry.runtime_data` Pattern (v1.4.4-dev2)**: The coordinator is stored on `entry.runtime_data` rather than `hass.data[DOMAIN]`. HA manages the lifecycle automatically — `async_unload_entry` needs no manual cleanup beyond unloading platforms. Platform files access it with `coordinator: WifiScanCoordinator = entry.runtime_data`. Update listeners (`async_reload_entry`) also read it directly. Tests set `mock_config_entry.runtime_data = mock_coordinator` before calling `async_forward_entry_setups`.
+- **Repair Issues (v1.4.4-dev2)**: Persistent API failures surface in the HA Repairs panel via `ir.async_create_issue(hass, DOMAIN, "supervisor_unavailable", ...)`. The issue is cleared with `ir.async_delete_issue()` on the next successful scan. Issue title/description strings live under the `"issues"` key in `strings.json` and `translations/en.json`, keyed by the issue id (`supervisor_unavailable`).
 
 ## 4. Technical Pitfalls & Fixes
 
@@ -46,6 +48,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Options Management**: Configuration options must be updated via `hass.config_entries.async_update_entry()` rather than direct assignment to the `options` attribute.
 - **Title Updates**: Similar to options, `ConfigEntry.title` is protected and cannot be assigned to directly. It must be updated using `async_update_entry(entry, title="New Title")`.
 - **Options Flow Validation**: Initial versions lacked validation in the reconfiguration step. The `OptionsFlow` now verifies interface changes against the Supervisor API before saving to prevent invalid runtime states.
+- **`runtime_data` in Platform Tests**: When tests call `async_forward_entry_setups` directly (bypassing `hass.config_entries.async_setup`), `entry.runtime_data` is not populated automatically. Set `mock_config_entry.runtime_data = mock_coordinator` before calling `async_forward_entry_setups`. The old pattern of `patch.dict(hass.data, {DOMAIN: {entry_id: coordinator}})` is obsolete after the runtime-data migration and will cause `AttributeError: 'MockConfigEntry' object has no attribute 'runtime_data'`.
 - **Windows WiFi Access**: Containers on Windows (via Docker Desktop/WSL2) cannot directly access physical WiFi hardware for scanning. The `mock_supervisor` service provides a reliable alternative for UI and logic validation.
 - **Hidden Network Deduplication**: All APs without a broadcasted SSID are normalised to the key `"[hidden]"` in both `all_ssids` (set deduplication) and `network_map`. If three hidden APs are visible, the total count shows 1 and `network_map["[hidden]"]` stores only the last AP's RSSI/channel (overwritten each pass). This is intentional — hidden networks are indistinguishable by name — but means the count will not match tools like `nmcli` that report each hidden AP separately. BSSID-based tracking (see `FUTURE.md`) would resolve this.
 
@@ -62,3 +65,4 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 
 - **v1.0.1** (2026-04-01) - Created.
 - **v1.0.2** (2026-05-06) - Updated with diagnostics and flow management patterns.
+- **v1.0.3** (2026-05-13) - Added `entry.runtime_data` pattern, repair issues pattern, and `runtime_data` test pitfall (v1.4.4-dev2).
