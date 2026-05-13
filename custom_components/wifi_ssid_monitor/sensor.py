@@ -25,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, kw_only=True)
-class WifiSensorEntityDescription(SensorEntityDescription):
+class WifiSensorEntityDescription(SensorEntityDescription):  # type: ignore[misc]
     """Describes WiFi sensor entity."""
 
     value_fn: Callable[[Any], Any]
@@ -37,7 +37,6 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
     WifiSensorEntityDescription(
         key="count",
         translation_key="total_count",
-        icon="mdi:wifi",
         state_class=SensorStateClass.MEASUREMENT,
         min_limit=0,
         max_limit=256,
@@ -46,7 +45,6 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
     WifiSensorEntityDescription(
         key="unknown_count",
         translation_key="unknown_count",
-        icon="mdi:wifi-off",
         state_class=SensorStateClass.MEASUREMENT,
         min_limit=0,
         max_limit=256,
@@ -55,14 +53,12 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
     WifiSensorEntityDescription(
         key="interface",
         translation_key="interface",
-        icon="mdi:lan",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.get("interface"),
     ),
     WifiSensorEntityDescription(
         key="last_updated",
         translation_key="last_updated",
-        icon="mdi:update",
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: None,  # Handled in native_value
@@ -83,7 +79,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
+class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):  # type: ignore[misc]
     """Implementation of WiFi SSID Monitor sensors."""
 
     _attr_has_entity_name = True

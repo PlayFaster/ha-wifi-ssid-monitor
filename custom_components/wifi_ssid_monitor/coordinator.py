@@ -16,7 +16,7 @@ from .const import CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL
 _LOGGER = logging.getLogger(__name__)
 
 
-class WifiScanCoordinator(DataUpdateCoordinator):
+class WifiScanCoordinator(DataUpdateCoordinator):  # type: ignore[misc]
     """Class to manage fetching WiFi SSID Monitor data."""
 
     _failure_count: int
@@ -109,7 +109,8 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     self._failure_count,
                     err,
                 )
-                return self.data
+                result: dict[str, Any] = self.data
+                return result
 
             _LOGGER.error("Failed to fetch WiFi networks: %s", err)
             raise UpdateFailed(f"Error communicating with API: {err}") from err

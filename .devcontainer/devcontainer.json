@@ -39,16 +39,6 @@
       "source": "${localEnv:USERPROFILE}/.gitconfig",
       "target": "/root/.gitconfig",
       "type": "bind"
-    },
-    {
-      "source": "C:/Local/Code/github/PlayFaster/home-assistant/shared/ProjNotes/Notes-ha-wifi-ssid-monitor",
-      "target": "${containerWorkspaceFolder}/.notes",
-      "type": "bind"
-    },
-    {
-      "source": "C:/Local/Code/github/PlayFaster/home-assistant/shared/SharedNotes",
-      "target": "${containerWorkspaceFolder}/.shared",
-      "type": "bind"
     }
   ],
   "name": "WiFi SSID Monitor",

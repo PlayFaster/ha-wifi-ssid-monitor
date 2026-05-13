@@ -1,0 +1,32 @@
+{
+  "entity": {
+    "sensor": {
+      "total_count": {
+        "default": "mdi:wifi"
+      },
+      "unknown_count": {
+        "default": "mdi:wifi-off"
+      },
+      "interface": {
+        "default": "mdi:lan"
+      },
+      "last_updated": {
+        "default": "mdi:update"
+      }
+    },
+    "binary_sensor": {
+      "new_network": {
+        "default": "mdi:wifi-check",
+        "state": {
+          "on": "mdi:wifi-alert",
+          "off": "mdi:wifi-check"
+        }
+      }
+    },
+    "number": {
+      "scan_interval": {
+        "default": "mdi:timer-cog-outline"
+      }
+    }
+  }
+}

@@ -29,20 +29,17 @@ async def test_sensors(hass: HomeAssistant, mock_config_entry, mock_coordinator)
     assert state
     assert state.state == "2"
     assert state.attributes["ssids"] == ["MyNetwork1", "UnknownNet"]
-    assert state.attributes["icon"] == "mdi:wifi"
 
     # Unknown Count Sensor
     state = hass.states.get("sensor.wifi_ssid_monitor_unknown_ssid_count")
     assert state
     assert state.state == "1"
     assert state.attributes["ssids"] == ["UnknownNet"]
-    assert state.attributes["icon"] == "mdi:wifi-off"
 
     # Interface Sensor
     state = hass.states.get("sensor.wifi_ssid_monitor_interface")
     assert state
     assert state.state == "wlan0"
-    assert state.attributes["icon"] == "mdi:lan"
 
     # Test Device Info
     sensor = WifiScanSensor(mock_coordinator, mock_config_entry, SENSOR_TYPES[0])

@@ -60,7 +60,8 @@ class WifiScanAPI:
                     raise WifiScanError(f"Invalid API response: {e}") from e
 
                 data_block = res_data.get("data") or {}
-                return data_block.get("accesspoints", [])
+                access_points: list[dict[str, Any]] = data_block.get("accesspoints", [])
+                return access_points
         except WifiScanError:
             # Re-raise our custom errors without wrapping
             raise

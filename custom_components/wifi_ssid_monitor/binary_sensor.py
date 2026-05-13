@@ -16,7 +16,6 @@ from .coordinator import WifiScanCoordinator
 NEW_NETWORK_DESCRIPTION = BinarySensorEntityDescription(
     key="new_network",
     translation_key="new_network",
-    icon="mdi:wifi-alert",
 )
 
 
@@ -32,7 +31,7 @@ async def async_setup_entry(
     )
 
 
-class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorEntity):
+class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorEntity):  # type: ignore[misc]
     """Implementation of WiFi SSID Monitor binary sensors."""
 
     _attr_has_entity_name = True
@@ -54,7 +53,7 @@ class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorE
         """Return true if any unknown networks are currently detected."""
         if not self.coordinator.data:
             return False
-        return self.coordinator.data.get("unknown_count", 0) > 0
+        return bool(self.coordinator.data.get("unknown_count", 0) > 0)
 
     @property
     def device_info(self) -> DeviceInfo | None:

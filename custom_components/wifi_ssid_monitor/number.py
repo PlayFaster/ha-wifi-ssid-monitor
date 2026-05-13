@@ -19,7 +19,6 @@ _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL_DESCRIPTION = NumberEntityDescription(
     key="scan_interval",
     translation_key="scan_interval",
-    icon="mdi:timer-cog-outline",
     native_min_value=1,
     native_max_value=180,
     native_step=1,
@@ -49,7 +48,7 @@ async def async_setup_entry(
     )
 
 
-class WifiScanIntervalNumber(NumberEntity):
+class WifiScanIntervalNumber(NumberEntity):  # type: ignore[misc]
     """Number entity to control the scan interval in minutes."""
 
     _attr_has_entity_name = True
@@ -68,7 +67,7 @@ class WifiScanIntervalNumber(NumberEntity):
         self.entity_description = description
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
         self._attr_native_value = initial_value
-        self._refresh_task: asyncio.Task | None = None
+        self._refresh_task: asyncio.Task[None] | None = None
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the scan interval."""
