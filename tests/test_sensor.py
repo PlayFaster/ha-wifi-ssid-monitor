@@ -15,9 +15,7 @@ async def test_sensors(hass: HomeAssistant, mock_config_entry, mock_coordinator)
     mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
     mock_config_entry.runtime_data = mock_coordinator
 
-    await hass.config_entries.async_forward_entry_setups(
-        mock_config_entry, ["sensor"]
-    )
+    await hass.config_entries.async_forward_entry_setups(mock_config_entry, ["sensor"])
     await hass.async_block_till_done()
 
     # Total Count Sensor
@@ -57,9 +55,7 @@ async def test_sensors_no_data(
     mock_coordinator.data = None
     mock_config_entry.runtime_data = mock_coordinator
 
-    await hass.config_entries.async_forward_entry_setups(
-        mock_config_entry, ["sensor"]
-    )
+    await hass.config_entries.async_forward_entry_setups(mock_config_entry, ["sensor"])
     await hass.async_block_till_done()
 
     state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
@@ -84,9 +80,7 @@ async def test_sensors_edge_cases(
     mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
     mock_config_entry.runtime_data = mock_coordinator
 
-    await hass.config_entries.async_forward_entry_setups(
-        mock_config_entry, ["sensor"]
-    )
+    await hass.config_entries.async_forward_entry_setups(mock_config_entry, ["sensor"])
     await hass.async_block_till_done()
 
     # Test KeyError/AttributeError in value_fn
@@ -140,9 +134,7 @@ async def test_sensors_non_numeric_handling(
     # Use a sensor that returns a string, e.g., 'interface'
     # The guard band logic 'isinstance(value, int | float)' should be False
     mock_config_entry.runtime_data = mock_coordinator
-    await hass.config_entries.async_forward_entry_setups(
-        mock_config_entry, ["sensor"]
-    )
+    await hass.config_entries.async_forward_entry_setups(mock_config_entry, ["sensor"])
     await hass.async_block_till_done()
 
     state = hass.states.get("sensor.wifi_ssid_monitor_interface")
