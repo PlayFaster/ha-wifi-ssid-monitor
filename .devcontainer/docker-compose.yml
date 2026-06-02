@@ -13,8 +13,8 @@ services:
       # This ensures HA sees your code as an integration
       - ../custom_components/wifi_ssid_monitor:/config/custom_components/wifi_ssid_monitor:ro
       # Project notes and shared files
-      - C:/Local/Code/github/PlayFaster/home-assistant/shared/ProjNotes/Notes-ha-huawei-router-5g-monitor:/workspaces/ha-huawei-router-5g-monitor/.notes
-      - C:/Local/Code/github/PlayFaster/home-assistant/shared/SharedNotes:/workspaces/ha-huawei-router-5g-monitor/.shared
+      - C:/Local/Code/github/PlayFaster/home-assistant/shared/ProjNotes/Notes-ha-wifi-ssid-monitor:/workspaces/ha-wifi-ssid-monitor/.notes
+      - C:/Local/Code/github/PlayFaster/home-assistant/shared/SharedNotes:/workspaces/ha-wifi-ssid-monitor/.shared
       # HA core source — read-only, used by mypy for type resolution
       - C:/Local/Code/ha_core/core:/ha_core:ro
       # Docker Outside Docker (DooD) — allows running docker commands from inside

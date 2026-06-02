@@ -1,6 +1,6 @@
 [tool.ruff]
 # Target the version used in your devcontainer
-target-version = "py314"
+target-version = "py313"
 line-length = 88
 
 [tool.ruff.lint]
