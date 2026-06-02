@@ -41,15 +41,19 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 ## ✅ Features
 
-- **Real-time SSID Scanning**: Count all detectable WiFi networks in range.
-- **Unknown Network Detection**: Identify networks not in your pre-configured known list.
-- **Detailed Attributes**: View complete lists of detected and unknown SSIDs inside sensor attributes.
+- **Real-time SSID Scanning**: Count all detectable WiFi networks in range and view full SSID lists with signal strength and frequency band in sensor attributes.
+- **Unknown Network Detection**: Identify networks not in your known list, with wildcard pattern matching (e.g., `Guest_*`) for flexible filtering.
+- **Proximity Alert**: A binary sensor fires when an unknown network's signal strength exceeds a configurable threshold, indicating a nearby rogue AP.
+- **On-Demand Scan**: Trigger an immediate scan at any time using the **Scan Now** button entity or the `add_known_ssid` service — no need to wait for the next interval.
+- **Add to Known Service**: Whitelist a detected SSID instantly from an automation or Developer Tools, with an immediate re-scan to confirm.
+- **Last Seen Tracking**: Each unknown SSID records when it was last detected, surfaced as a timestamp attribute on the unknown count sensor.
 - **Dynamic Polling Control**: Adjust the scan frequency (1–180 minutes) from the HA UI or via automations.
-- **Auto-detected Interface**: WiFi interfaces (e.g., `wlan0`) are automatically populated during setup where available. This can be entered manually if auto-detection is not successful.
+- **Hidden Network Control**: Toggle whether unbroadcasted (hidden) SSIDs are counted or silently ignored.
+- **Auto-detected Interface**: WiFi interfaces (e.g., `wlan0`) are automatically populated during setup where available.
 
 ## 🔍 What You Get
 
-This integration provides **6 entities** (all enabled by default) organized under a single WiFi SSID Monitor device.
+This integration provides **8 entities** (all enabled by default) organized under a single WiFi SSID Monitor device.
 
 ### Sensors
 
@@ -60,21 +64,55 @@ This integration provides **6 entities** (all enabled by default) organized unde
 | `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
 | `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
 
-**Attributes:** The total and unknown count sensors include SSID attributes:
+**Attributes:** Both count sensors expose rich per-SSID data in their state attributes:
 
-- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names.
+| Attribute | On Sensor | Description |
+| :-- | :-- | :-- |
+| `ssids` | Both | List of detected (`total`) or unknown (`unknown`) SSID names |
+| `signal_strengths` | Both | `{ssid: dBm}` — signal strength per network where data is available |
+| `bands` | Both | `{ssid: "2.4 GHz" / "5 GHz"}` — frequency band where channel data is available |
+| `last_seen` | Unknown only | `{ssid: ISO-timestamp}` — when each unknown SSID was last detected (in-memory; resets on HA restart) |
 
 ### Binary Sensors
 
 | Entity | Description |
 | --- | --- |
 | `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
+| `binary_sensor.wifi_ssid_monitor_proximity_alert` | On when an unknown network's signal meets or exceeds the configured RSSI threshold |
+
+The `proximity_alert` sensor exposes `strongest_unknown_rssi` (dBm of the closest unknown network) and `threshold` (the configured limit) as state attributes.
 
 ### Number Entities
 
 | Entity                                   | Description                               |
 | ---------------------------------------- | ----------------------------------------- |
 | `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
+
+### Button Entities
+
+| Entity | Description |
+| --- | --- |
+| `button.wifi_ssid_monitor_scan_now` | Triggers an immediate on-demand WiFi scan, regardless of the current scheduled interval |
+
+### 🔌 Services
+
+| Service | Description |
+| :-- | :-- |
+| `wifi_ssid_monitor.add_known_ssid` | Adds an SSID to the known networks list and triggers an immediate re-scan |
+
+**Parameters:**
+
+| Parameter | Required | Description |
+| :-- | :-- | :-- |
+| `ssid` | **Yes** | The network name (SSID) to add to the known list |
+| `config_entry_id` | No | Target a specific integration entry. Leave blank to update all configured entries. |
+
+```yaml
+service: wifi_ssid_monitor.add_known_ssid
+data:
+  ssid: "MyHomeNetwork"
+  # config_entry_id: "abc123"  # Optional — omit to update all entries
+```
 
 ### 📊 Long Term Statistics (LTS)
 
@@ -191,6 +229,41 @@ actions:
               value: 20
 ```
 
+### 📡 Proximity Alert Notification
+
+Alert when an unknown network is detected unusually close to the premises.
+
+```yaml
+alias: "Alert on Nearby Unknown WiFi"
+description: "Fires when an unknown network signal exceeds the proximity threshold"
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.wifi_ssid_monitor_proximity_alert
+    to: "on"
+actions:
+  - action: notify.mobile_app_phone
+    data:
+      message: >
+        Unknown WiFi detected nearby! Signal: {{ state_attr('binary_sensor.wifi_ssid_monitor_proximity_alert', 'strongest_unknown_rssi') }} dBm. Networks: {{ state_attr('sensor.wifi_ssid_monitor_unknown_ssid_count', 'ssids') | join(', ') }}
+```
+
+### 🔍 Security Scan on Arrival
+
+Trigger an immediate scan the moment someone arrives home, rather than waiting for the next scheduled poll.
+
+```yaml
+alias: "WiFi: Scan on Arrival"
+description: "Runs an on-demand WiFi scan when someone arrives home"
+triggers:
+  - trigger: state
+    entity_id: person.your_name
+    to: "home"
+actions:
+  - action: button.press
+    target:
+      entity_id: button.wifi_ssid_monitor_scan_now
+```
+
 ## 📸 Screenshots
 
 | Integration Overview | Sensor Entities |
@@ -238,9 +311,11 @@ After setup, settings can be updated by clicking **Configure** on the integratio
 
 | Parameter | Default | Range | Description |
 | :-- | :-- | :-- | :-- |
-| **Known SSIDs** | — | String | Update the comma-separated list of known networks. |
-| **Scan Interval** | `600` | 60–10800s | Adjust polling frequency (in seconds; equivalent to 1–180 minutes). |
+| **Known SSIDs** | — | String | Comma-separated list of known networks. Wildcards supported (e.g., `Guest_*`). Case-sensitive. |
+| **Scan Interval** | `600` | 60–10800s | Polling frequency (in seconds; equivalent to 1–180 minutes). |
 | **WiFi Interface** | `wlan0` | String | Change which WiFi interface is monitored. |
+| **Include Hidden Networks** | On | Toggle | When off, networks without a broadcasted SSID are ignored entirely and do not appear in any count or attribute. |
+| **Proximity Alert Threshold** | `-60` | −100 to −30 dBm | Signal strength at which the Proximity Alert sensor fires. **dBm values are negative** — −40 dBm means the device must be very close; −80 dBm allows distant signals to trigger the alert. |
 
 > [!TIP]
 >
@@ -258,7 +333,7 @@ The integration utilizes a custom polling mechanism designed to interact with th
 
 - **Supervisor Endpoint**: Polls the endpoint `/network/interface/{interface}/accesspoints` to gather access point configurations.
 - **3-Strike Logic**: To prevent entities flickering to `Unavailable` due to temporary network congestion or Supervisor latency, the integration holds its last known values for up to 3 consecutive failures. If the 4th consecutive poll fails, the entities are marked `Unavailable` and an issue is raised in the Home Assistant repairs center.
-- **Immediate Refresh**: Updating the **Known SSIDs** list via the configuration options menu triggers an immediate background scan, bypassing the scheduled timer. (Changing the scan interval only updates the timer, it does not trigger an immediate scan).
+- **Immediate Refresh**: Updating the **Known SSIDs** list via the configuration options menu triggers an immediate background scan, bypassing the scheduled timer. You can also trigger an immediate scan at any time by pressing the **Scan Now** button entity or by calling the `wifi_ssid_monitor.add_known_ssid` service. (Changing the scan interval only updates the timer — it does not trigger an immediate scan.)
 
 ### 🆔 Stable Entities & Reconfiguration
 
@@ -283,6 +358,31 @@ The integration utilizes a custom polling mechanism designed to interact with th
 - Check that networks are actively broadcasting in range of the system.
 - Review the Home Assistant logs for detailed error messages.
 
+### Proximity Alert Is Always On
+
+**Issue:** `binary_sensor.wifi_ssid_monitor_proximity_alert` stays on permanently even when no suspicious device is nearby.
+
+**Causes & Solutions:**
+
+- **Threshold is too permissive**: The default threshold of −60 dBm may be too broad for a dense WiFi environment (many neighbours' networks). Open **Configure** on the integration card and raise the **Proximity Alert Threshold** toward −50 or −40 dBm to require a closer signal before the alert fires.
+- **Persistent unknown networks in range**: Check the `signal_strengths` attribute on `sensor.wifi_ssid_monitor_unknown_ssid_count` to identify which network is triggering the alert, then decide whether to add it to the Known SSIDs list.
+
+### Known SSID Pattern Not Matching
+
+**Issue:** A network remains flagged as unknown even though a matching entry or wildcard is in the Known SSIDs list.
+
+**Causes & Solutions:**
+
+- **Case mismatch**: Pattern matching is case-sensitive. Verify the pattern casing exactly matches the SSID (e.g., `Guest_*` will not match `guest_wifi`).
+- **Missing wildcard**: A plain string is treated as an exact match. Use `Guest_*` or `*guest*` for partial matches.
+- **Trailing spaces**: The Known SSIDs field strips leading/trailing whitespace from each entry, but double-check there are no invisible characters.
+
+### `last_seen` Timestamps Are Missing or Show Old Data
+
+**Issue:** The `last_seen` attribute on `sensor.wifi_ssid_monitor_unknown_ssid_count` is empty or shows timestamps from a previous day.
+
+**Cause:** `last_seen` data is held in memory only and resets every time Home Assistant restarts. This is expected behaviour — the timestamps track the current session, not historical data. If persistence across restarts is important for your use case, consider using a template sensor backed by an `input_datetime` helper.
+
 ## 🗑️ Removal
 
 To remove the integration from Home Assistant:
@@ -301,7 +401,10 @@ To fully uninstall (HACS):
 
 ## ⚠️ Known Limitations /❔ What's Missing?
 
-- **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data.
+- **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data. You can disable hidden network tracking entirely via the **Include Hidden Networks** option.
+- **Last Seen Timestamps Reset on Restart**: The `last_seen` timestamps in the unknown SSID count sensor attributes are held in memory and reset every time Home Assistant restarts. They reflect the current HA session only and are not persisted to disk.
+- **Pattern Matching is Case-Sensitive**: Known SSID patterns (including wildcards like `Guest_*`) are matched case-sensitively. `homewifi` and `HomeWiFi` are treated as different networks — make sure your patterns match the exact casing of the SSIDs you want to filter.
+- **Proximity Alert Threshold Direction**: The threshold is a dBm value, which is always negative. A less-negative value (e.g., −40 dBm) requires the unknown device to be very close before the alert fires. A more-negative value (e.g., −80 dBm) lets distant signals trigger it. If the alert fires constantly in a dense urban area, raise the threshold closer to −40.
 
 ## 📝 Maintenance Status
 
