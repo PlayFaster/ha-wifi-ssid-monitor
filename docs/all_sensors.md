@@ -4,11 +4,11 @@ This document provides a comprehensive list of all entities currently implemente
 
 ## Summary
 
-| Sub-Device  | Entity Count | Description                                          |
-| :---------- | :----------- | :--------------------------------------------------- |
-| **System**  | 4            | Core interface info and global integration settings. |
+| Sub-Device  | Entity Count | Description                                           |
+| :---------- | :----------- | :---------------------------------------------------- |
+| **System**  | 4            | Core interface info and global integration settings.  |
 | **Monitor** | 5            | WiFi network counters, alerts, and on-demand control. |
-| **Total**   | **9**        |                                                      |
+| **Total**   | **9**        |                                                       |
 
 ---
 
