@@ -114,7 +114,7 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):  # t
 
         try:
             value = description.value_fn(self.coordinator.data)
-        except KeyError, AttributeError:
+        except (KeyError, AttributeError):
             return None
 
         if value is None:

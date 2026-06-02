@@ -201,7 +201,7 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ign
     @callback  # type: ignore[untyped-decorator]
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> WifiScanOptionsFlowHandler:
+    ) -> "WifiScanOptionsFlowHandler":
         """Get the options flow for this handler."""
         return WifiScanOptionsFlowHandler(config_entry)
 
