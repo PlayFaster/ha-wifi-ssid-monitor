@@ -2,32 +2,94 @@
 
 [![HACS Integration](https://img.shields.io/badge/HACS-Integration-orange.svg)](https://hacs.xyz/) [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistant&logoColor=white)](https://hacs.xyz/docs/faq/custom_repositories) [![Latest Release](https://img.shields.io/github/v/release/PlayFaster/ha-wifi-ssid-monitor?label=Release&logo=github)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/releases) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Validate](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml/badge.svg)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/actions/workflows/validate.yaml) ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/PlayFaster/6d1d30e996dd53f04d2c2fc6b6cddece/raw/coverage.json) [![Last Commit](https://img.shields.io/github/last-commit/PlayFaster/ha-wifi-ssid-monitor?label=Last%20commit)](https://github.com/PlayFaster/ha-wifi-ssid-monitor/commits/main)
 
-A Home Assistant integration that monitors and reports on WiFi networks in your environment. Using the Home Assistant Supervisor API, this integration scans for SSIDs, counts detectable networks, and identifies unknown networks based on a configurable allow-list.
+A Home Assistant integration that monitors and reports on WiFi networks in your environment using the Home Assistant Supervisor API.
 
-## ✅ Features
-
-- **Real-time SSID Scanning**: Count all detectable WiFi networks in your vicinity
-- **Unknown Network Detection**: Identify networks not in your pre-configured known list
-- **Detailed Attributes**: View complete lists of detected and unknown SSIDs
-- **Dynamic Polling Control**: Adjust the scan frequency directly from the Home Assistant UI or via automation.
-- **Auto-detected Interface**: Interface names (e.g., `wlan0`) are automatically populated during setup where available. This can be entered manually if auto-detection is not successful.
+> [!NOTE]
+>
+> **Is this the right integration for you?**
+>
+> - **If you want to monitor WiFi networks** in your vicinity, track connection uptime, or detect rogue/unauthorized access points, then **yes**.
+> - **This integration is for you if** you want:
+>   - **Rogue AP Detection** — Count detectable networks and alert on unknown SSIDs.
+>   - **Smart Device Setup Tracking** — Identify when new devices enter pairing/AP mode.
+>   - **Dynamic Polling** — Change scan intervals directly from the Home Assistant UI or via automations.
+>
+> Requires a Home Assistant Supervised or HAOS installation with physical WiFi hardware. The Supervisor API is not available on container or core installations.
 
 ## 🔧 Compatibility & Requirements
 
-**Important:** This integration requires your Home Assistant system to have **WiFi capabilities**.
+**💻 Tested Hardware:**
+- **Fully Tested**: Home Assistant OS (HAOS) on **Raspberry Pi 4** and **Intel (standard x86) Mini PC** with compatible WiFi hardware.
 
-- **Tested Hardware Platforms:** Home Assistant OS (HAOS) on Raspberry Pi 4 and Intel (standard x86) Mini PC.
-- **Software Requirements:** Home Assistant Core 2024.1+ and Python 3.12+.
+**🌐 Network & System:**
+- Local network access and a **Home Assistant OS (HAOS)** or **Supervised** installation is required to access the Supervisor Network API.
+- WiFi must be enabled under **Settings > System > Network**.
 
-> [!NOTE] Many Home Assistant installations (particularly supervised or container-based deployments on headless systems) may not have WiFi hardware or drivers available. This integration will not function on systems without WiFi networking support. If you see errors during setup, verify that your system has WiFi enabled under **Settings > System > Network**.
+**🏠 Home Assistant Version:**
+- Minimum: Home Assistant **2024.1.0**
+- Minimum Python: **3.12+**
 
 ## 🎯 Use Cases
 
-### Security Monitoring: Rogue Network Detection
+- **Security Monitoring (Rogue Network Detection)**: Monitor for unexpected WiFi networks in your environment that could indicate unauthorized access points or security threats. Get alerted instantly when unrecognized SSIDs are broadcast in range.
+- **Device Management (Smart Device Setup Detection)**: Identify when smart home devices enter pairing or recovery mode (broadcasting their own setup APs) due to a fresh installation or an unexpected reset.
+- **Network Uptime (Known Network Monitoring)**: Track whether your own home networks remain online. Get notified if one of your personal access points stops broadcasting or goes offline.
+- **Dynamic Performance Tuning**: Automatically lower the scan frequency during high-traffic or evening hours and speed it up during security cycles to minimize system load.
 
-Monitor for unexpected WiFi networks in your environment that could indicate unauthorized access points or security threats. The integration alerts you when new networks appear that are not on your known networks list.
+## ✅ Features
 
-**Example automation:**
+- **Real-time SSID Scanning**: Count all detectable WiFi networks in range.
+- **Unknown Network Detection**: Identify networks not in your pre-configured known list.
+- **Detailed Attributes**: View complete lists of detected and unknown SSIDs inside sensor attributes.
+- **Dynamic Polling Control**: Adjust the scan frequency (1–180 minutes) from the HA UI or via automations.
+- **Auto-detected Interface**: WiFi interfaces (e.g., `wlan0`) are automatically populated during setup where available. This can be entered manually if auto-detection is not successful.
+
+## 🔍 What You Get
+
+This integration provides **6 entities** (all enabled by default) organized under a single WiFi SSID Monitor device.
+
+### Sensors
+
+| Entity | Type | Description |
+| --- | --- | --- |
+| `sensor.wifi_ssid_monitor_total_ssid_count` | Measurement | Total number of detected WiFi networks |
+| `sensor.wifi_ssid_monitor_unknown_ssid_count` | Measurement | Count of networks not in your known list |
+| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
+| `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
+
+**Attributes:** The total and unknown count sensors include SSID attributes:
+- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names.
+
+### Binary Sensors
+
+| Entity | Description |
+| --- | --- |
+| `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
+
+### Number Entities
+
+| Entity | Description |
+| --- | --- |
+| `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
+
+### 📊 Long Term Statistics (LTS)
+
+Home Assistant stores Long Term Statistics for numeric sensors that have a `state_class` set. This integration enables LTS for sensors where tracking trend data is useful:
+
+| Sensors with LTS enabled | Why |
+| :-- | :-- |
+| `sensor.wifi_ssid_monitor_total_ssid_count` | Track WiFi network density trends over time |
+| `sensor.wifi_ssid_monitor_unknown_ssid_count` | Monitor for unrecognized network spikes in your environment |
+
+The following diagnostic sensors have **no LTS** to avoid unnecessary database growth:
+- `sensor.wifi_ssid_monitor_interface` (Text diagnostic)
+- `sensor.wifi_ssid_monitor_last_updated` (Timestamp diagnostic)
+
+## 💡 Example Automations
+
+### 🚨 Rogue Network Detection Alert
+
+This automation fires when an unknown network is detected and sends a notification to your mobile phone.
 
 ```yaml
 alias: "Alert on Rogue WiFi Network"
@@ -41,17 +103,9 @@ actions:
     message: "Unknown WiFi network detected: {{ states('sensor.wifi_ssid_monitor_unknown_ssid_count') }} unknown network(s) found"
 ```
 
-### Device Management: Smart Device Setup Detection
+### 📟 Smart Device Setup Detection
 
-Identify when smart home devices are broadcasting setup or recovery access points—either when newly installed or after a reset. This helps you track device provisioning status and detect unexpected device resets that may indicate configuration issues.
-
-**Example Use:**
-
-- Detect when a smart device enters pairing mode
-- Alert when a previously configured device has reset and needs reconfiguration
-- Monitor for expected temporary access points during device setup
-
-**Example automation:**
+Detect when a smart home device enters access point (pairing) mode.
 
 ```yaml
 alias: Alert if Device in AP Mode
@@ -73,11 +127,9 @@ actions:
         Smart Device in AP Mode Detected: {{ states('sensor.wifi_ssid_monitor_unknown_ssid_count') }} APs found.
 ```
 
-### Network Reliability: Known Network Monitoring
+### 🌐 Home WiFi Offline Alert
 
-Track whether your own WiFi networks remain online. By listing your personal SSIDs in the known networks list and monitoring the network count over time, you can detect when one of your networks has gone offline or become unavailable.
-
-**Example automation:**
+Monitor whether one of your own networks has stopped broadcasting.
 
 ```yaml
 alias: "Alert if Home WiFi Offline"
@@ -97,11 +149,9 @@ actions:
       message: "WiFi network count has dropped — a home network may be offline"
 ```
 
-### Dynamic Monitoring
+### ⏯️ Dynamic Polling Control
 
-You can set the scan frequency to between 1 and 180 minutes. Depending on your system, very frequent scanning may have a minor impact on performance. You can mitigate this by automatically changing scan frequency.
-
-**Example automation:**
+Automatically adjust the scan frequency between day and evening hours.
 
 ```yaml
 alias: "WiFi: Set Scan Interval Based on Time"
@@ -136,52 +186,15 @@ actions:
               value: 20
 ```
 
-## 🔍 What You Get
-
-This integration provides **6 entities** (all enabled by default):
-
-### Sensors
-
-| Entity | Type | Description |
-| --- | --- | --- |
-| `sensor.wifi_ssid_monitor_total_ssid_count` | Measurement | Total number of detected WiFi networks |
-| `sensor.wifi_ssid_monitor_unknown_ssid_count` | Measurement | Count of networks not in your known list |
-| `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
-| `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
-
-**Attributes:** The total and unknown count sensors include SSID attributes:
-
-- `ssids`: List of all detected (`total`) or unknown (`unknown`) network names
-
-### Binary Sensors
-
-| Entity | Description |
-| --- | --- |
-| `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
-
-### Number Entities
-
-| Entity                                   | Description                               |
-| ---------------------------------------- | ----------------------------------------- |
-| `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
-
 ## 📸 Screenshots
 
-### Integration Overview
+| Integration Overview | Sensor Entities |
+| :-: | :-: |
+| ![Integration Overview](.github/images/wifi_ssid_mon_integration_screen.png) | ![Sensor Entities](.github/images/wifi_ssid_mon_sensors_screen.png) |
 
-![Integration Overview](.github/images/wifi_ssid_mon_integration_screen.png)
-
-### Sensors
-
-![Sensor Entities](.github/images/wifi_ssid_mon_sensors_screen.png)
-
-### Setup
-
-![Setup](.github/images/wifi_ssid_mon_setup_screen.png)
-
-### Network Interface Configuration
-
-![Interface Configuration](.github/images/wlan_name_sys_netw.png)
+| Setup | Network Interface Configuration |
+| :-: | :-: |
+| ![Setup](.github/images/wifi_ssid_mon_setup_screen.png) | ![Interface Configuration](.github/images/wlan_name_sys_netw.png) |
 
 ## 📥 Installation
 
@@ -206,60 +219,60 @@ This integration provides **6 entities** (all enabled by default):
 
 ### 🔧 Initial Setup
 
-Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**. You will need:
+Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**.
 
-- **WiFi Interface**: The network interface to monitor (e.g., `wlan0`)
-  - Detected interfaces will be automatically populated where available
-  - If auto-detection fails, you can enter the interface name manually
-- **Known SSIDs**: Comma-separated list of WiFi networks to consider "known" (e.g., `Home-WiFi, Guest-Network`)
+| Parameter | Required | Description |
+| :--- | :--- | :--- |
+| **WiFi Interface** | **Yes** | The network interface to monitor (e.g., `wlan0`). Autopopulated where available. |
+| **Known SSIDs** | No | Comma-separated list of WiFi networks to treat as known (e.g., `Home-WiFi, Guest-Network`). |
+| **Integration Name** | No | Display name shown in the UI for this integration instance (default: `WiFi SSID Monitor`). |
 
 ### 🛠️ Runtime Options
 
-After installation, you can modify settings via the integration's **Configure** (gear icon) options menu:
+After setup, settings can be updated by clicking **Configure** on the integration card:
 
-- **Known SSIDs**: Update the list of known networks
-- **Scan Interval**: Adjust polling frequency (1–180 minutes) (default 10 minutes)
-  - Note this is also available directly from the UI as a number slider, which can be dynamically changed via automation (see example in **Dynamic Monitoring** above)
-- **WiFi Interface**: Change which interface is monitored
+| Parameter | Default | Range | Description |
+| :--- | :--- | :--- | :--- |
+| **Known SSIDs** | — | String | Update the comma-separated list of known networks. |
+| **Scan Interval** | `600` | 60–10800s | Adjust polling frequency (in seconds; equivalent to 1–180 minutes). |
+| **WiFi Interface** | `wlan0` | String | Change which WiFi interface is monitored. |
 
 > [!TIP]
 >
 > **Finding Your WiFi Interface Name:**
 >
-> 1. In Home Assistant, go to **Settings > System > Network**
-> 2. Check **Configure network interfaces**
-> 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar
-> 4. During setup, the integration will attempt to auto-detect available WiFi interfaces
+> 1. In Home Assistant, go to **Settings > System > Network**.
+> 2. Check **Configure network interfaces**.
+> 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar.
 
-## 🔄 Data Updates
+## 🏗️ Under the Hood - Technical Architecture
 
-The integration polls the Home Assistant Supervisor Network API endpoint (`/network/interface/{interface}/accesspoints`) on a configurable schedule.
+### 🔄 Polling & 3-Strike Resilience 🩹
 
-**Polling interval:** Default is 10 minutes. Adjustable from 1–180 minutes via the **Scan Interval** entity or the integration's Configure menu.
+The integration utilizes a custom polling mechanism designed to interact with the Home Assistant Supervisor Network API:
+- **Supervisor Endpoint**: Polls the endpoint `/network/interface/{interface}/accesspoints` to gather access point configurations.
+- **3-Strike Logic**: To prevent entities flickering to `Unavailable` due to temporary network congestion or Supervisor latency, the integration holds its last known values for up to 3 consecutive failures. If the 4th consecutive poll fails, the entities are marked `Unavailable` and an issue is raised in the Home Assistant repairs center.
+- **Immediate Refresh**: Updating the **Known SSIDs** list via the configuration options menu triggers an immediate background scan, bypassing the scheduled timer. (Changing the scan interval only updates the timer, it does not trigger an immediate scan).
 
-**Data freshness for automations:** Entity states are updated once per poll cycle. An automation triggered by `binary_sensor.wifi_ssid_monitor_new_network_alert` or `sensor.wifi_ssid_monitor_unknown_count` will reflect data that is at most `scan_interval` minutes old.
+### 🆔 Stable Entities & Reconfiguration
 
-**Resilience (3-strike rule):** If the Supervisor API is temporarily unreachable, the integration holds its last known values for up to 3 consecutive failed scans. Entities remain available with stale data during this window. On the 4th consecutive failure, entities are marked **Unavailable** and a warning appears in the HA Repairs panel.
-
-**Immediate refresh:** Changing the **Known SSIDs** list (via the Configure menu) triggers a scan immediately, without waiting for the next scheduled poll. Changing only the scan interval does not trigger an immediate refresh.
+- **Interface-Based Identity**: The integration registers its unique ID based on `wifi_ssid_monitor_{interface}`. This prevents duplicate configurations for the same interface and ensures entity history remains stable.
+- **Data Validation**: Values retrieved from the Supervisor API are run through guard validations. Out-of-bounds metrics (e.g., total count exceeding 256) are filtered to prevent database corruption.
 
 ## ❓ FAQ & Troubleshooting
 
 ### Integration Fails to Load
-
-**Issue:** "Failed to connect to Supervisor API" or similar errors
+**Issue:** "Failed to connect to Supervisor API" or similar errors.
 
 **Causes & Solutions:**
-
-- **WiFi hardware unavailable:** Verify your Home Assistant system has WiFi capabilities (see System Requirements above)
-- **Invalid interface:** Ensure the interface name is correct (e.g., `wlan0` not `wlan`)
+- **WiFi hardware unavailable**: Verify your Home Assistant system has physical WiFi capabilities enabled under **Settings > System > Network**.
+- **Invalid interface**: Ensure the interface name is correct and configured on your host OS.
 
 ### No Networks Detected
-
-- Verify the interface name is correct for your system
-- Ensure WiFi is enabled in **Settings > System > Network**
-- Check that networks are broadcasting in your vicinity
-- Review the Home Assistant logs for detailed error messages
+- Verify the interface name is correct for your system.
+- Ensure WiFi is enabled in **Settings > System > Network**.
+- Check that networks are actively broadcasting in range of the system.
+- Review the Home Assistant logs for detailed error messages.
 
 ## 🗑️ Removal
 
