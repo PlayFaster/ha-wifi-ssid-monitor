@@ -11,7 +11,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import WifiScanAPI
+from .api import WifiScanAPI, WifiScanError
 from .const import CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,14 +51,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 access_points = await self.api.get_access_points()
 
             if access_points is None:
-                return {
-                    "count": 0,
-                    "ssids": [],
-                    "unknown_ssids": [],
-                    "unknown_count": 0,
-                    "interface": self.api.interface,
-                    "networks": {},
-                }
+                raise WifiScanError("API returned no data")
 
             # Success: reset failure count and clear any active repair issue
             self._failure_count = 0

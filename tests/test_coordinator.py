@@ -121,15 +121,16 @@ async def test_coordinator_update_data_hidden_networks(
 
 @pytest.mark.asyncio
 async def test_coordinator_update_data_api_none(hass, mock_config_entry, mock_wifi_api):
-    """Test data update when API returns None (defensive check)."""
+    """Test data update when API returns None (fails rather than swallowing)."""
     coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
 
     mock_wifi_api.get_access_points.return_value = None
 
-    data = await coordinator._async_update_data()
-
-    assert data["count"] == 0
-    assert data["ssids"] == []
+    with pytest.raises(
+        UpdateFailed,
+        match="Error communicating with API: API returned no data",
+    ):
+        await coordinator._async_update_data()
 
 
 @pytest.mark.asyncio
