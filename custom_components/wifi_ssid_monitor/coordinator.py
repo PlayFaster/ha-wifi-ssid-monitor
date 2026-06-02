@@ -1,6 +1,7 @@
 """DataUpdateCoordinator for WiFi SSID Monitor integration."""
 
 import asyncio
+import fnmatch
 import logging
 from datetime import datetime, timedelta
 from typing import Any
@@ -12,9 +13,26 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api import WifiScanAPI, WifiScanError
-from .const import CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_INCLUDE_HIDDEN,
+    CONF_KNOWN_SSIDS,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_INCLUDE_HIDDEN,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _channel_to_band(channel: int | None) -> str | None:
+    """Return the WiFi band for a given channel number."""
+    if channel is None:
+        return None
+    if 1 <= channel <= 14:
+        return "2.4 GHz"
+    if 36 <= channel <= 177:
+        return "5 GHz"
+    return None
 
 
 class WifiScanCoordinator(DataUpdateCoordinator):
@@ -33,6 +51,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         self.last_known_ssids = entry.options.get(CONF_KNOWN_SSIDS, "")
         self.last_update_success_time = None
         self._failure_count = 0
+        self._last_seen: dict[str, datetime] = {}
 
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, 600)
 
@@ -55,34 +74,61 @@ class WifiScanCoordinator(DataUpdateCoordinator):
 
             # Success: reset failure count and clear any active repair issue
             self._failure_count = 0
-            self.last_update_success_time = dt_util.now()
+            now = dt_util.now()
+            self.last_update_success_time = now
             ir.async_delete_issue(self.hass, DOMAIN, "supervisor_unavailable")
 
-            # Handle hidden networks (missing SSID)
-            hidden_count = sum(1 for ap in access_points if "ssid" not in ap)
-            if hidden_count > 0:
-                _LOGGER.debug("Found %d hidden WiFi networks", hidden_count)
+            # Optionally filter out hidden networks (APs without an ssid key)
+            include_hidden = self.entry.options.get(
+                CONF_INCLUDE_HIDDEN, DEFAULT_INCLUDE_HIDDEN
+            )
+            if not include_hidden:
+                access_points = [ap for ap in access_points if "ssid" in ap]
+            else:
+                hidden_count = sum(1 for ap in access_points if "ssid" not in ap)
+                if hidden_count > 0:
+                    _LOGGER.debug("Found %d hidden WiFi networks", hidden_count)
 
             all_ssids = sorted(
                 list({ap.get("ssid", "[hidden]") for ap in access_points})
             )
 
-            # Build a structured map for future-proofing (RSSI, Channel, etc.)
-            network_map = {
-                ap.get("ssid", "[hidden]"): {
+            # Build a structured map with signal, channel, and band
+            network_map: dict[str, dict[str, Any]] = {}
+            for ap in access_points:
+                ssid = ap.get("ssid", "[hidden]")
+                channel = ap.get("channel")
+                network_map[ssid] = {
                     "rssi": ap.get("signal"),
-                    "channel": ap.get("channel"),
+                    "channel": channel,
+                    "band": _channel_to_band(channel),
                 }
-                for ap in access_points
-            }
+
+            # Track last-seen timestamps (in-memory; resets on HA restart)
+            for ssid in all_ssids:
+                self._last_seen[ssid] = now
 
             known_networks_str = self.entry.options.get(CONF_KNOWN_SSIDS, "")
             self.last_known_ssids = known_networks_str
-            known_networks = [
+            known_patterns = [
                 x.strip() for x in known_networks_str.split(",") if x.strip()
             ]
             unknown_ssids = sorted(
-                [ssid for ssid in all_ssids if ssid not in known_networks]
+                [
+                    ssid
+                    for ssid in all_ssids
+                    if not any(fnmatch.fnmatch(ssid, p) for p in known_patterns)
+                ]
+            )
+
+            # Strongest RSSI among unknown networks (least-negative = closest)
+            unknown_rssi_values = [
+                network_map[ssid]["rssi"]
+                for ssid in unknown_ssids
+                if network_map.get(ssid, {}).get("rssi") is not None
+            ]
+            strongest_unknown_rssi: int | None = (
+                max(unknown_rssi_values) if unknown_rssi_values else None
             )
 
             return {
@@ -92,6 +138,8 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 "unknown_count": len(unknown_ssids),
                 "interface": self.api.interface,
                 "networks": network_map,
+                "last_seen": dict(self._last_seen),
+                "strongest_unknown_rssi": strongest_unknown_rssi,
             }
 
         except Exception as err:

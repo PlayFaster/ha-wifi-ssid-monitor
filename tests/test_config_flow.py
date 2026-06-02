@@ -10,9 +10,13 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.wifi_ssid_monitor.api import WifiScanError
 from custom_components.wifi_ssid_monitor.const import (
+    CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
+    CONF_PROXIMITY_RSSI_THRESHOLD,
     CONF_SCAN_INTERVAL,
+    DEFAULT_INCLUDE_HIDDEN,
+    DEFAULT_PROXIMITY_RSSI_THRESHOLD,
     DOMAIN,
 )
 
@@ -249,6 +253,8 @@ async def test_options_flow(hass: HomeAssistant, mock_config_entry):
         CONF_INTERFACE: "wlan1",
         CONF_KNOWN_SSIDS: "NewNet1",
         CONF_SCAN_INTERVAL: 60,
+        CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+        CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
     }
 
 

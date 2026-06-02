@@ -3,8 +3,10 @@
 import logging
 from datetime import timedelta
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import WifiScanAPI
@@ -20,7 +22,15 @@ from .coordinator import WifiScanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[str] = ["sensor", "binary_sensor", "number"]
+PLATFORMS: list[str] = ["sensor", "binary_sensor", "number", "button"]
+
+SERVICE_ADD_KNOWN_SSID = "add_known_ssid"
+SERVICE_SCHEMA_ADD_KNOWN_SSID = vol.Schema(
+    {
+        vol.Required("ssid"): cv.string,
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -60,6 +70,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+
+    if not hass.services.has_service(DOMAIN, SERVICE_ADD_KNOWN_SSID):
+
+        async def _handle_add_known_ssid(call: ServiceCall) -> None:
+            ssid = call.data["ssid"].strip()
+            target_entry_id: str | None = call.data.get("config_entry_id")
+            entries = hass.config_entries.async_entries(DOMAIN)
+            if target_entry_id:
+                entries = [e for e in entries if e.entry_id == target_entry_id]
+            for target_entry in entries:
+                current = target_entry.options.get(CONF_KNOWN_SSIDS, "")
+                existing = [x.strip() for x in current.split(",") if x.strip()]
+                if ssid in existing:
+                    continue
+                existing.append(ssid)
+                new_options = dict(target_entry.options)
+                new_options[CONF_KNOWN_SSIDS] = ", ".join(existing)
+                hass.config_entries.async_update_entry(
+                    target_entry, options=new_options
+                )
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_ADD_KNOWN_SSID,
+            _handle_add_known_ssid,
+            schema=SERVICE_SCHEMA_ADD_KNOWN_SSID,
+        )
 
     return True
 

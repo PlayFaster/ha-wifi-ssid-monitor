@@ -64,6 +64,12 @@ def mock_coordinator(hass, mock_config_entry, mock_wifi_api):
         "unknown_ssids": ["UnknownNet"],
         "unknown_count": 1,
         "interface": "wlan0",
+        "networks": {
+            "MyNetwork1": {"rssi": -50, "channel": 6, "band": "2.4 GHz"},
+            "UnknownNet": {"rssi": -70, "channel": 36, "band": "5 GHz"},
+        },
+        "last_seen": {},
+        "strongest_unknown_rssi": -70,
     }
     return coordinator
 

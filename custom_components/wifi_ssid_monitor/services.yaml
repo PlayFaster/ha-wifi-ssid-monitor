@@ -1,0 +1,23 @@
+add_known_ssid:
+  name: Add Known SSID
+  description: >
+    Adds an SSID to the known networks list for one or all integration entries. Triggers
+    an immediate re-scan after the list is updated.
+  fields:
+    ssid:
+      name: SSID
+      description: The network name (SSID) to add to the known list.
+      required: true
+      example: "MyHomeNetwork"
+      selector:
+        text:
+    config_entry_id:
+      name: Config Entry ID
+      description: >
+        Target a specific integration entry by its ID. Leave blank to update all
+        configured entries.
+      required: false
+      example: "abc123def456"
+      selector:
+        config_entry:
+          integration: wifi_ssid_monitor

@@ -12,11 +12,15 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import WifiScanAPI, WifiScanError
 from .const import (
+    CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
     CONF_NAME,
+    CONF_PROXIMITY_RSSI_THRESHOLD,
     CONF_SCAN_INTERVAL,
+    DEFAULT_INCLUDE_HIDDEN,
     DEFAULT_NAME,
+    DEFAULT_PROXIMITY_RSSI_THRESHOLD,
     DOMAIN,
 )
 
@@ -268,6 +272,18 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
                 CONF_SCAN_INTERVAL,
                 default=self._config_entry.options.get(CONF_SCAN_INTERVAL, 600),
             ): vol.All(vol.Coerce(int), vol.Range(min=60)),
+            vol.Optional(
+                CONF_INCLUDE_HIDDEN,
+                default=self._config_entry.options.get(
+                    CONF_INCLUDE_HIDDEN, DEFAULT_INCLUDE_HIDDEN
+                ),
+            ): cv.boolean,
+            vol.Required(
+                CONF_PROXIMITY_RSSI_THRESHOLD,
+                default=self._config_entry.options.get(
+                    CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=-100, max=-30)),
         }
 
         if available_interfaces:

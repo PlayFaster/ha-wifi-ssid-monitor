@@ -11,7 +11,7 @@
         "data_description": {
           "name": "Display name shown in the Home Assistant UI for this integration instance.",
           "wifi_interface": "The network interface to scan for WiFi networks (e.g., wlan0). Available interfaces are detected automatically where possible.",
-          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Networks not in this list are counted as unknown."
+          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Wildcards supported (e.g., Guest_*). Networks not matching this list are counted as unknown."
         }
       },
       "reauth_confirm": {
@@ -28,7 +28,7 @@
         "data_description": {
           "name": "Display name shown in the Home Assistant UI for this integration instance.",
           "wifi_interface": "The network interface to scan for WiFi networks (e.g., wlan0). Available interfaces are detected automatically where possible.",
-          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Networks not in this list are counted as unknown."
+          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Wildcards supported (e.g., Guest_*). Networks not matching this list are counted as unknown."
         }
       }
     },
@@ -48,10 +48,14 @@
       "last_updated": { "name": "Last Updated" }
     },
     "binary_sensor": {
-      "new_network": { "name": "New Network Alert" }
+      "new_network": { "name": "New Network Alert" },
+      "proximity_alert": { "name": "Proximity Alert" }
     },
     "number": {
       "scan_interval": { "name": "Scan Interval" }
+    },
+    "button": {
+      "scan_now": { "name": "Scan Now" }
     }
   },
   "issues": {
@@ -68,13 +72,17 @@
           "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)",
-          "scan_interval": "Scan Interval (seconds, minimum 60)"
+          "scan_interval": "Scan Interval (seconds, minimum 60)",
+          "include_hidden": "Include Hidden Networks",
+          "proximity_rssi_threshold": "Proximity Alert Threshold (dBm)"
         },
         "data_description": {
           "name": "Display name shown in the Home Assistant UI for this integration instance.",
           "wifi_interface": "The network interface to scan for WiFi networks (e.g., wlan0).",
-          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Networks not in this list are counted as unknown.",
-          "scan_interval": "How often to poll for WiFi networks, in seconds. Minimum 60 seconds. Default is 600 seconds (10 minutes)."
+          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Wildcards supported (e.g., Guest_*). Networks not matching this list are counted as unknown.",
+          "scan_interval": "How often to poll for WiFi networks, in seconds. Minimum 60 seconds. Default is 600 seconds (10 minutes).",
+          "include_hidden": "When enabled, networks that do not broadcast their SSID are counted as a single '[hidden]' entry. Disable to ignore them entirely.",
+          "proximity_rssi_threshold": "Signal strength threshold (dBm) for the Proximity Alert sensor. The alert triggers when an unknown network's signal is at or above this value (e.g., -60 dBm indicates a nearby device). Range: -100 to -30."
         }
       }
     },

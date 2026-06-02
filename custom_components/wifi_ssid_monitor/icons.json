@@ -21,11 +21,23 @@
           "on": "mdi:wifi-alert",
           "off": "mdi:wifi-check"
         }
+      },
+      "proximity_alert": {
+        "default": "mdi:wifi-strength-4-alert",
+        "state": {
+          "on": "mdi:wifi-strength-4-alert",
+          "off": "mdi:wifi-strength-outline"
+        }
       }
     },
     "number": {
       "scan_interval": {
         "default": "mdi:timer-cog-outline"
+      }
+    },
+    "button": {
+      "scan_now": {
+        "default": "mdi:radar"
       }
     }
   }

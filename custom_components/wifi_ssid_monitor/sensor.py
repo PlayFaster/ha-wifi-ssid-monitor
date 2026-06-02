@@ -131,13 +131,58 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return SSIDs as attributes."""
+        """Return SSIDs with signal and band data as attributes."""
         if not self.coordinator.data or not isinstance(self.coordinator.data, dict):
             return {}
+
+        networks: dict[str, Any] = self.coordinator.data.get("networks", {})
+
         if self.entity_description.key == "count":
-            return {"ssids": self.coordinator.data.get("ssids")}
+            ssids: list[str] = self.coordinator.data.get("ssids") or []
+            attrs: dict[str, Any] = {"ssids": ssids}
+            signal_data = {
+                ssid: networks[ssid]["rssi"]
+                for ssid in ssids
+                if ssid in networks and networks[ssid].get("rssi") is not None
+            }
+            if signal_data:
+                attrs["signal_strengths"] = signal_data
+            band_data = {
+                ssid: networks[ssid]["band"]
+                for ssid in ssids
+                if ssid in networks and networks[ssid].get("band")
+            }
+            if band_data:
+                attrs["bands"] = band_data
+            return attrs
+
         if self.entity_description.key == "unknown_count":
-            return {"ssids": self.coordinator.data.get("unknown_ssids")}
+            unknown_ssids: list[str] = self.coordinator.data.get("unknown_ssids") or []
+            last_seen: dict[str, Any] = self.coordinator.data.get("last_seen", {})
+            u_attrs: dict[str, Any] = {"ssids": unknown_ssids}
+            u_signal = {
+                ssid: networks[ssid]["rssi"]
+                for ssid in unknown_ssids
+                if ssid in networks and networks[ssid].get("rssi") is not None
+            }
+            if u_signal:
+                u_attrs["signal_strengths"] = u_signal
+            u_bands = {
+                ssid: networks[ssid]["band"]
+                for ssid in unknown_ssids
+                if ssid in networks and networks[ssid].get("band")
+            }
+            if u_bands:
+                u_attrs["bands"] = u_bands
+            u_last_seen = {
+                ssid: last_seen[ssid].isoformat()
+                for ssid in unknown_ssids
+                if ssid in last_seen
+            }
+            if u_last_seen:
+                u_attrs["last_seen"] = u_last_seen
+            return u_attrs
+
         return {}
 
     @property
