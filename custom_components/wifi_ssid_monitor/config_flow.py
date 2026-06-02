@@ -45,7 +45,7 @@ async def _get_wifi_interfaces(hass: HomeAssistant) -> list[str]:
         return []
 
 
-class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg, misc]
+class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for WiFi SSID Monitor."""
 
     VERSION = 1
@@ -198,7 +198,7 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ign
         )
 
     @staticmethod
-    @callback  # type: ignore[untyped-decorator]
+    @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> "WifiScanOptionsFlowHandler":
@@ -206,7 +206,7 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ign
         return WifiScanOptionsFlowHandler(config_entry)
 
 
-class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):  # type: ignore[misc]
+class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for WiFi SSID Monitor."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:

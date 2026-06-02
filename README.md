@@ -10,11 +10,14 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 - **Unknown Network Detection**: Identify networks not in your pre-configured known list
 - **Detailed Attributes**: View complete lists of detected and unknown SSIDs
 - **Dynamic Polling Control**: Adjust the scan frequency directly from the Home Assistant UI or via automation.
-- **Auto-detected Interface**: Interface names (e.g., `wlan0`) are automatically populated during setup where available. This can be entered manually if auto-detection is not successful
+- **Auto-detected Interface**: Interface names (e.g., `wlan0`) are automatically populated during setup where available. This can be entered manually if auto-detection is not successful.
 
 ## 🔧 Compatibility & Requirements
 
 **Important:** This integration requires your Home Assistant system to have **WiFi capabilities**.
+
+- **Tested Hardware Platforms:** Home Assistant OS (HAOS) on Raspberry Pi 4 and Intel (standard x86) Mini PC.
+- **Software Requirements:** Home Assistant Core 2024.1+ and Python 3.12+.
 
 > [!NOTE] Many Home Assistant installations (particularly supervised or container-based deployments on headless systems) may not have WiFi hardware or drivers available. This integration will not function on systems without WiFi networking support. If you see errors during setup, verify that your system has WiFi enabled under **Settings > System > Network**.
 
@@ -35,7 +38,7 @@ triggers:
 actions:
   action: notify.mobile_app_phone
   data:
-    message: "Unknown WiFi network detected: {{ states('sensor.wifi_ssid_monitor_unknown_count') }} unknown network(s) found"
+    message: "Unknown WiFi network detected: {{ states('sensor.wifi_ssid_monitor_unknown_ssid_count') }} unknown network(s) found"
 ```
 
 ### Device Management: Smart Device Setup Detection
@@ -59,12 +62,15 @@ triggers:
 conditions:
   - condition: template
     alias: Check If Unknown SSID Is a Known Smart Device
-    value_template: "{% set ssids = state_attr('sensor.wifi_ssid_monitor_unknown_count', 'ssids') | string | lower %} {% set device_aps = ['mfg1_new', 'mfg2_resets', 'mfg3'] | lower %} {{ device_aps | select('in', ssids) | list | length > 0 }}"
+    value_template: |
+      {% set ssids = state_attr('sensor.wifi_ssid_monitor_unknown_ssid_count', 'ssids') | string | lower %}
+      {% set device_aps = ['mfg1_new', 'mfg2_resets', 'mfg3'] | lower %}
+      {{ device_aps | select('in', ssids) | list | length > 0 }}
 actions:
   - action: notify.mobile_app_phone
     data:
-      message: >-
-        Smart Device in AP Mode Detected: {{ states('sensor.wifi_ssid_monitor_unknown_count') }} APs found.
+      message: |
+        Smart Device in AP Mode Detected: {{ states('sensor.wifi_ssid_monitor_unknown_ssid_count') }} APs found.
 ```
 
 ### Network Reliability: Known Network Monitoring
@@ -77,7 +83,7 @@ Track whether your own WiFi networks remain online. By listing your personal SSI
 alias: "Alert if Home WiFi Offline"
 triggers:
   trigger: numeric_state
-  entity_id: sensor.wifi_ssid_monitor_total_count
+  entity_id: sensor.wifi_ssid_monitor_total_ssid_count
   below: 2
   for:
     minutes: 5
@@ -102,10 +108,10 @@ alias: "WiFi: Set Scan Interval Based on Time"
 description: "Adjusts SSID scan interval for day and evening cycles"
 mode: single
 triggers:
-  - platform: time
+  - trigger: time
     at: "08:00:00"
     id: "day"
-  - platform: time
+  - trigger: time
     at: "18:00:00"
     id: "evening"
 actions:
@@ -132,14 +138,14 @@ actions:
 
 ## 🔍 What You Get
 
-This integration provides **6 entities**, as follows:
+This integration provides **6 entities** (all enabled by default):
 
 ### Sensors
 
 | Entity | Type | Description |
 | --- | --- | --- |
-| `sensor.wifi_ssid_monitor_total_count` | Measurement | Total number of detected WiFi networks |
-| `sensor.wifi_ssid_monitor_unknown_count` | Measurement | Count of networks not in your known list |
+| `sensor.wifi_ssid_monitor_total_ssid_count` | Measurement | Total number of detected WiFi networks |
+| `sensor.wifi_ssid_monitor_unknown_ssid_count` | Measurement | Count of networks not in your known list |
 | `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
 | `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
 
@@ -213,7 +219,7 @@ After installation, you can modify settings via the integration's **Configure** 
 
 - **Known SSIDs**: Update the list of known networks
 - **Scan Interval**: Adjust polling frequency (1–180 minutes) (default 10 minutes)
-  - Note this is also available directly from the UI as a number slider, which can be dynamically changed via automation (see example in **Number Entities** below)
+  - Note this is also available directly from the UI as a number slider, which can be dynamically changed via automation (see example in **Dynamic Monitoring** above)
 - **WiFi Interface**: Change which interface is monitored
 
 > [!TIP]
@@ -260,14 +266,14 @@ The integration polls the Home Assistant Supervisor Network API endpoint (`/netw
 To remove the integration from Home Assistant:
 
 1. Go to **Settings > Devices & Services**.
-2. Find the **WiFI SSID Monitor** card and click into it.
+2. Find the **WiFi SSID Monitor** card and click into it.
 3. Click the **three dots** (⋮) next to the gear icon and select **Delete**.
 4. Confirm deletion.
 
 To fully uninstall (HACS):
 
 1. Go to **HACS > Integrations**.
-2. Find the **WiFI SSID Monitor** and click into it.
+2. Find the **WiFi SSID Monitor** and click into it.
 3. Click the **three dots** (⋮) at the top right and select **Remove**.
 4. Restart Home Assistant.
 

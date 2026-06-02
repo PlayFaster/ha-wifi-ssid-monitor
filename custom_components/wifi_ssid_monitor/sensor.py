@@ -12,9 +12,9 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -27,7 +27,7 @@ PARALLEL_UPDATES = 0
 
 
 @dataclass(frozen=True, kw_only=True)
-class WifiSensorEntityDescription(SensorEntityDescription):  # type: ignore[misc]
+class WifiSensorEntityDescription(SensorEntityDescription):
     """Describes WiFi sensor entity."""
 
     value_fn: Callable[[Any], Any]
@@ -81,7 +81,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):  # type: ignore[misc]
+class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
     """Implementation of WiFi SSID Monitor sensors."""
 
     _attr_has_entity_name = True

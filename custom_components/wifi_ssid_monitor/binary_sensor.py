@@ -33,7 +33,7 @@ async def async_setup_entry(
     )
 
 
-class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorEntity):  # type: ignore[misc]
+class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorEntity):
     """Implementation of WiFi SSID Monitor binary sensors."""
 
     _attr_has_entity_name = True

@@ -17,7 +17,7 @@ from .const import CONF_KNOWN_SSIDS, CONF_SCAN_INTERVAL, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-class WifiScanCoordinator(DataUpdateCoordinator):  # type: ignore[misc]
+class WifiScanCoordinator(DataUpdateCoordinator):
     """Class to manage fetching WiFi SSID Monitor data."""
 
     _failure_count: int
