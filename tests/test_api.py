@@ -1,7 +1,7 @@
 """Tests for WiFi SSID Monitor API."""
 
 import os
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
@@ -211,4 +211,46 @@ async def test_get_interfaces_generic_error(mock_aiohttp_client):
         mock_aiohttp_client.get.side_effect = Exception("Generic error")
 
         with pytest.raises(WifiScanError, match="Unexpected error"):
+            await api.get_interfaces()
+
+
+@pytest.mark.asyncio
+async def test_get_access_points_json_value_error(mock_aiohttp_client):
+    """Test ValueError from json() is caught and wrapped in WifiScanError."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(
+            side_effect=ValueError("No JSON object could be decoded")
+        )
+
+        mock_cm = MagicMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_aiohttp_client.get.return_value = mock_cm
+
+        with pytest.raises(WifiScanError, match="Invalid API response"):
+            await api.get_access_points()
+
+
+@pytest.mark.asyncio
+async def test_get_interfaces_json_value_error(mock_aiohttp_client):
+    """Test ValueError from json() on get_interfaces is caught and wrapped."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(
+            side_effect=ValueError("No JSON object could be decoded")
+        )
+
+        mock_cm = MagicMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_aiohttp_client.get.return_value = mock_cm
+
+        with pytest.raises(WifiScanError, match="Invalid API response"):
             await api.get_interfaces()

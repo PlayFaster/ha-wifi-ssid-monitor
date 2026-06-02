@@ -4,7 +4,24 @@ import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.wifi_ssid_monitor.api import WifiScanError
-from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
+from custom_components.wifi_ssid_monitor.const import CONF_INCLUDE_HIDDEN
+from custom_components.wifi_ssid_monitor.coordinator import (
+    WifiScanCoordinator,
+    _channel_to_band,
+)
+
+
+def test_channel_to_band_boundaries():
+    """Test _channel_to_band at all boundary values including None, edges, and out-of-range."""  # noqa: E501
+    assert _channel_to_band(None) is None
+    assert _channel_to_band(0) is None
+    assert _channel_to_band(1) == "2.4 GHz"
+    assert _channel_to_band(14) == "2.4 GHz"
+    assert _channel_to_band(15) is None
+    assert _channel_to_band(35) is None
+    assert _channel_to_band(36) == "5 GHz"
+    assert _channel_to_band(177) == "5 GHz"
+    assert _channel_to_band(178) is None
 
 
 @pytest.mark.asyncio
@@ -26,6 +43,19 @@ async def test_coordinator_update_data_success(hass, mock_config_entry, mock_wif
     assert data["unknown_ssids"] == ["Net1", "Net2"]
     assert data["unknown_count"] == 2
     assert data["interface"] == "wlan0"
+
+    # Covers finding RETVAL.1 from recommendations_20260602.md
+    assert "networks" in data
+    assert data["networks"]["Net1"]["rssi"] == -55
+    assert data["networks"]["Net2"]["rssi"] == -60
+    assert data["networks"]["MyNetwork1"]["rssi"] == -40
+
+    assert set(data["last_seen"].keys()) == {"MyNetwork1", "Net1", "Net2"}
+
+    assert data["strongest_unknown_rssi"] == -55
+
+    assert coordinator._failure_count == 0
+    assert coordinator.last_update_success_time is not None
 
 
 @pytest.mark.asyncio
@@ -117,6 +147,87 @@ async def test_coordinator_update_data_hidden_networks(
     assert "[hidden]" in data["ssids"]
     assert data["networks"]["[hidden]"]["rssi"] == -80  # Overwritten by last one
     assert data["networks"]["VisibleNet"]["channel"] == 1
+
+    # Covers finding RETVAL.2 from recommendations_20260602.md
+    assert data["networks"]["VisibleNet"]["band"] == "2.4 GHz"
+    assert data["networks"]["[hidden]"]["band"] == "2.4 GHz"
+
+    assert data["strongest_unknown_rssi"] == -50
+
+    assert "VisibleNet" in data["last_seen"]
+    assert "[hidden]" in data["last_seen"]
+
+
+@pytest.mark.asyncio
+async def test_coordinator_include_hidden_false(hass, mock_config_entry, mock_wifi_api):
+    """Test hidden APs are filtered out when include_hidden is False."""
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_INCLUDE_HIDDEN: False},
+    )
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    mock_wifi_api.get_access_points.return_value = [
+        {"ssid": "VisibleA", "signal": -50},
+        {"ssid": "VisibleB", "signal": -60},
+        {"signal": -70},  # Hidden
+        {"signal": -80},  # Hidden
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert data["count"] == 2
+    assert "[hidden]" not in data["ssids"]
+    assert "[hidden]" not in data["networks"]
+    assert data["ssids"] == ["VisibleA", "VisibleB"]
+
+
+@pytest.mark.asyncio
+async def test_coordinator_include_hidden_true(hass, mock_config_entry, mock_wifi_api):
+    """Test hidden APs are collected into [hidden] when include_hidden is True."""
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_INCLUDE_HIDDEN: True},
+    )
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    mock_wifi_api.get_access_points.return_value = [
+        {"ssid": "VisibleA", "signal": -50},
+        {"ssid": "VisibleB", "signal": -60},
+        {"signal": -70},  # Hidden
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert "[hidden]" in data["ssids"]
+    assert data["count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_coordinator_wildcard_known_ssid(hass, mock_config_entry, mock_wifi_api):
+    """Test fnmatch wildcard patterns in known_wifi_ids (Guest_*, IoT_?) matching case-sensitively."""  # noqa: E501
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, "known_wifi_ids": "Guest_*,IoT_?"},
+    )
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    mock_wifi_api.get_access_points.return_value = [
+        {"ssid": "Guest_Home", "signal": -50},
+        {"ssid": "Guest_Back", "signal": -55},
+        {"ssid": "IoT_1", "signal": -60},
+        {"ssid": "guest_home", "signal": -65},
+        {"ssid": "Rogue", "signal": -70},
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert data["unknown_ssids"] == ["Rogue", "guest_home"]
+    assert data["unknown_count"] == 2
+    assert data["count"] == 5
 
 
 @pytest.mark.asyncio

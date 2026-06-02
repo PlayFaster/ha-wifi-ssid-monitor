@@ -180,6 +180,46 @@ async def test_add_known_ssid_service_with_entry_id(
 
 
 @pytest.mark.asyncio
+async def test_add_known_ssid_service_deduplication(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test add_known_ssid service deduplicates a runtime-added SSID."""
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_KNOWN_SSIDS,
+        DOMAIN,
+    )
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "add_known_ssid",
+        {"ssid": "BrandNew"},
+        blocking=True,
+    )
+
+    options_after_first = mock_config_entry.options.get(CONF_KNOWN_SSIDS, "")
+
+    await hass.services.async_call(
+        DOMAIN,
+        "add_known_ssid",
+        {"ssid": "BrandNew"},
+        blocking=True,
+    )
+
+    options_after_second = mock_config_entry.options.get(CONF_KNOWN_SSIDS, "")
+    assert options_after_second == options_after_first
+    assert options_after_first.count("BrandNew") == 1
+
+
+@pytest.mark.asyncio
 async def test_async_reload_entry(hass: HomeAssistant, mock_config_entry):
     """Test reloading the entry."""
     mock_config_entry.add_to_hass(hass)

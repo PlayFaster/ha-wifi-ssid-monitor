@@ -24,11 +24,25 @@ async def test_sensors(hass: HomeAssistant, mock_config_entry, mock_coordinator)
     assert state.state == "2"
     assert state.attributes["ssids"] == ["MyNetwork1", "UnknownNet"]
 
+    # Covers finding ASSERT.2 from recommendations_20260602.md
+    assert state.attributes["signal_strengths"] == {
+        "MyNetwork1": -50,
+        "UnknownNet": -70,
+    }
+    assert state.attributes["bands"] == {
+        "MyNetwork1": "2.4 GHz",
+        "UnknownNet": "5 GHz",
+    }
+
     # Unknown Count Sensor
     state = hass.states.get("sensor.wifi_ssid_monitor_unknown_ssid_count")
     assert state
     assert state.state == "1"
     assert state.attributes["ssids"] == ["UnknownNet"]
+
+    # Covers finding ASSERT.2 from recommendations_20260602.md
+    assert state.attributes["signal_strengths"] == {"UnknownNet": -70}
+    assert state.attributes["bands"] == {"UnknownNet": "5 GHz"}
 
     # Interface Sensor
     state = hass.states.get("sensor.wifi_ssid_monitor_interface")
@@ -108,6 +122,23 @@ async def test_sensors_edge_cases(
 
     # Test max_limit guard band (max_limit=256)
     mock_coordinator.data = {"count": 1000}
+    mock_coordinator.async_update_listeners()
+    state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
+    assert state.state == "unknown"
+
+    # Test min_limit at exact boundary (count=0) — BVA.3
+    mock_coordinator.data = {"count": 0}
+    mock_coordinator.async_update_listeners()
+    state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
+    assert state.state == "0"
+
+    # Test max_limit at and above boundary (256/257) — BVA.4
+    mock_coordinator.data = {"count": 256}
+    mock_coordinator.async_update_listeners()
+    state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
+    assert state.state == "256"
+
+    mock_coordinator.data = {"count": 257}
     mock_coordinator.async_update_listeners()
     state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
     assert state.state == "unknown"

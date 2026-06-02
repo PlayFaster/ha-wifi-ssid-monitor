@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.5.0-dev2] - 2026-06-02 - Unreleased
+
+### Added
+
+- **Level 1 Deeper Testing**: Implemented all 14 findings from recommendations_20260602.md — 22 new tests across 5 files. Coverage: BVA boundary-value tests for `_channel_to_band`, `WifiProximityBinarySensor.is_on`, and sensor guard bands; combinatorial tests for `include_hidden`, `fnmatch` wildcard matching, and proximity sensor unit tests; error-path tests for `ValueError` in JSON decode (`get_access_points` and `get_interfaces`); assertion gap tests for `proximity_alert` check, `signal_strengths`/`bands` attributes, `networks`/`last_seen`/`strongest_unknown_rssi` return validation, hidden network band/strongest_rssi assertions, and `add_known_ssid` runtime deduplication.
+
+### Changed
+
+- **Coverage**: `__init__.py` coverage increased from 76% to 100% (overall 95% → 98%) with 4 new tests for data-to-options migration and `add_known_ssid` service paths.
+- **Docstrings**: Fixed 18 D103 missing-docstring violations across `test_coordinator.py`, `test_binary_sensor.py`, `test_api.py`, and `test_init.py`.
+
+---
+
 ## [1.5.0-dev1] - 2026-06-02 - Unreleased
 
 ### Added
