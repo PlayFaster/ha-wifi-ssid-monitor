@@ -1,18 +1,26 @@
 ---
 # IQS Quality Scale Assessment for WiFi SSID Monitor
 # Generated: 2026-05-13 v1.1.0
+# Updated: 2026-06-03 v1.2.0
 rules:
   # Bronze
-  action-setup: done
+  action-setup:
+    status: todo
+    comment:
+      Service add_known_ssid is registered in async_setup_entry (guarded with
+      has_service) instead of async_setup. Add a proper async_setup function and move
+      registration there.
   appropriate-polling: done
   brands: done
   common-modules: done
-  config-flow-test-coverage: done
+  config-flow-test-coverage:
+    status: todo
+    comment:
+      98% coverage; lines 194 and 294 uncovered (cv.string fallback in
+      async_step_reconfigure and async_step_init when no interfaces are available).
   config-flow: done
   dependency-transparency: done
-  docs-actions:
-    status: exempt
-    comment: No service actions in this integration.
+  docs-actions: done
   docs-high-level-description: done
   docs-installation-instructions: done
   docs-removal-instructions: done
@@ -25,9 +33,7 @@ rules:
   unique-config-entry: done
 
   # Silver
-  action-exceptions:
-    status: exempt
-    comment: No service actions or button handlers that raise exceptions on failure.
+  action-exceptions: done
   config-entry-unloading: done
   docs-configuration-parameters: done
   docs-installation-parameters: done
@@ -54,16 +60,20 @@ rules:
   docs-supported-functions: done
   docs-troubleshooting: done
   docs-use-cases: done
-  dynamic-devices: done
+  dynamic-devices:
+    status: exempt
+    comment:
+      No device tracker; static single-device architecture with 8 fixed entities. No HA
+      device/entity instances are created after initial setup.
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default: done
   entity-translations: done
   exception-translations:
-    status: exempt
+    status: todo
     comment:
-      Config flow errors use translation keys via strings.json. No service actions
-      exist, so no HomeAssistantError messages require translation.
+      Hardcoded HomeAssistantError strings in button.py (async_press) and __init__.py
+      (service handler). Should use translation keys backed by strings.json.
   icon-translations: done
   reconfiguration-flow: done
   repair-issues: done
