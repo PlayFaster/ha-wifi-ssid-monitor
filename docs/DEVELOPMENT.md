@@ -18,7 +18,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **`number.py`**: Provides UI control over the scan interval with persistent storage.
 - **`config_flow.py`**: Manages initial setup and reconfiguration via `OptionsFlow`.
 
-## 3. Success Patterns
+## 3. Success Patterns (v1.5.0-dev1 additions in this section)
 
 - **High Test Coverage**: The project maintains 99% test coverage across all core modules and the test suite itself.
 - **Coordinator Logic**: Centralizing SSID deduplication and filtering in the `DataUpdateCoordinator` ensures that all entities share a consistent and optimized data set.
@@ -38,6 +38,12 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Reauthentication & Reconfiguration (v1.4.3-dev3)**: Added UI-driven flows for token recovery and setting updates, significantly improving UX and reducing the need for integration re-installs.
 - **`entry.runtime_data` Pattern (v1.4.4-dev2)**: The coordinator is stored on `entry.runtime_data` rather than `hass.data[DOMAIN]`. HA manages the lifecycle automatically — `async_unload_entry` needs no manual cleanup beyond unloading platforms. Platform files access it with `coordinator: WifiScanCoordinator = entry.runtime_data`. Update listeners (`async_reload_entry`) also read it directly. Tests set `mock_config_entry.runtime_data = mock_coordinator` before calling `async_forward_entry_setups`.
 - **Repair Issues (v1.4.4-dev2)**: Persistent API failures surface in the HA Repairs panel via `ir.async_create_issue(hass, DOMAIN, "supervisor_unavailable", ...)`. The issue is cleared with `ir.async_delete_issue()` on the next successful scan. Issue title/description strings live under the `"issues"` key in `strings.json` and `translations/en.json`, keyed by the issue id (`supervisor_unavailable`).
+- **Button Platform (v1.5.0-dev1)**: The `button` entity has no state value — it exists solely for its `async_press()` action. The implementation simply calls `await self._coordinator.async_refresh()`. No `CoordinatorEntity` inheritance is needed because buttons don't display coordinator data; they just trigger it. This is the lightest possible HA entity pattern.
+- **`fnmatch` Pattern Matching (v1.5.0-dev1)**: Replaced exact-string known SSID comparisons with `fnmatch.fnmatch(ssid, pattern)`. This is backward-compatible — existing strings without wildcards behave as exact matches. Case-sensitive by design (SSIDs are case-sensitive byte strings). The check is a simple `any(fnmatch.fnmatch(ssid, p) for p in known_patterns)` per SSID.
+- **Channel-to-Band Helper (v1.5.0-dev1)**: `_channel_to_band(channel)` maps channel integers to band strings (`"2.4 GHz"`, `"5 GHz"`). Channel data comes from the Supervisor API's `channel` field on each access point. Channels 1–14 = 2.4 GHz; 36–177 = 5 GHz. Returns `None` for out-of-range values or missing channel data. Band is stored in `network_map` alongside `rssi` and `channel`.
+- **In-Memory Last Seen Tracking (v1.5.0-dev1)**: `self._last_seen: dict[str, datetime]` on the coordinator accumulates the datetime each SSID was last detected. It persists across polls (in-memory only — resets on HA restart). The full dict is included in `coordinator.data["last_seen"]` each refresh cycle. Entities that want "last seen" data read it from `coordinator.data`, not from `self._last_seen` directly. Old SSIDs that disappear from scans are not pruned — they remain in `_last_seen` indefinitely.
+- **Domain Service Registration Pattern (v1.5.0-dev1)**: Domain-scoped services (not entity services) are registered in `async_setup_entry` using a `hass.services.has_service(DOMAIN, name)` guard so that multiple config entries don't duplicate the registration. The handler dynamically reads `hass.config_entries.async_entries(DOMAIN)` at call time, so it always targets live entries. No unregistration is performed on entry unload — the service gracefully no-ops when no entries exist. This avoids complex reference-counting at the cost of a stale service registration if all entries are removed (harmless and cleaned up on HA restart).
+- **`services.yaml` (v1.5.0-dev1)**: Service descriptions for the HA Developer Tools UI live in `custom_components/wifi_ssid_monitor/services.yaml`. The `selector: config_entry: integration: wifi_ssid_monitor` selector renders a dropdown in the UI scoped to this integration's entries.
 
 ## 4. Technical Pitfalls & Fixes
 
@@ -66,3 +72,4 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **v1.0.1** (2026-04-01) - Created.
 - **v1.0.2** (2026-05-06) - Updated with diagnostics and flow management patterns.
 - **v1.0.3** (2026-05-13) - Added `entry.runtime_data` pattern, repair issues pattern, and `runtime_data` test pitfall (v1.4.4-dev2).
+- **v1.0.4** (2026-06-02) - Added button platform, fnmatch matching, channel-to-band helper, in-memory last seen tracking, and domain service registration patterns (v1.5.0-dev1).

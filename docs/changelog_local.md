@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.5.0-dev1] - 2026-06-02 - Unreleased
+
+### Added
+
+- **Manual Scan Button**: New `button` platform with a `scan_now` entity. Pressing it calls `coordinator.async_refresh()` for an immediate on-demand scan without waiting for the next scheduled interval.
+- **Proximity Alert Binary Sensor**: New `binary_sensor.proximity_alert` entity — fires when the strongest unknown SSID signal meets or exceeds a configurable RSSI threshold (default −60 dBm). Exposes `strongest_unknown_rssi` and `threshold` as state attributes.
+- **`add_known_ssid` Service**: New `wifi_ssid_monitor.add_known_ssid` HA service. Appends an SSID to the known list and triggers an immediate re-scan via the existing update listener. Accepts optional `config_entry_id` to target a specific entry; if omitted, updates all entries. Documented in `services.yaml`.
+- **Include Hidden Networks Toggle** (`CONF_INCLUDE_HIDDEN`): New boolean option in the options flow (default: `True`). When disabled, APs without a broadcasted SSID are filtered out entirely before processing — they no longer appear in counts or attributes.
+- **Proximity Alert Threshold** (`CONF_PROXIMITY_RSSI_THRESHOLD`): New integer option in the options flow (range: −100 to −30 dBm, default: −60 dBm). Controls the signal strength at which the Proximity Alert sensor fires.
+
+### Changed
+
+- **Pattern Matching for Known SSIDs**: Replaced exact-string comparison with `fnmatch.fnmatch()` for known SSID matching. Existing comma-separated exact-match lists continue to work unchanged; wildcards (`Guest_*`, `IoT_?`) are now also supported.
+- **Band Identification**: `coordinator.py` now computes the WiFi band for each network via `_channel_to_band()` helper (channels 1–14 → `"2.4 GHz"`, 36–177 → `"5 GHz"`). Band is stored in `network_map` and exposed in sensor attributes.
+- **Signal Strength Attributes**: `signal_strengths` (RSSI per SSID) and `bands` (band per SSID) dicts added to `count` and `unknown_count` sensor `extra_state_attributes`.
+- **Last Seen Timestamps**: In-memory `_last_seen` dict tracks the datetime each SSID was last detected. ISO-format timestamps are exposed in the `unknown_count` sensor's `last_seen` attribute. Resets on HA restart (no cross-restart persistence by design).
+- **Coordinator Data Keys**: `coordinator.data` now includes `band` per network entry, `last_seen` (dict of SSID → datetime), and `strongest_unknown_rssi` (int | None).
+- **`__init__.py`**: Added `"button"` to PLATFORMS; registered `add_known_ssid` service with `has_service` guard to avoid duplicate registration on multi-entry setups.
+- **Version**: Bumped to `1.5.0-dev1` (minor version increment; reflects significant feature additions).
+
+---
+
 ## [1.4.4-dev3] - 2026-06-02 - Unreleased
 
 ### Changed
