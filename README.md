@@ -19,13 +19,16 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 ## 🔧 Compatibility & Requirements
 
 **💻 Tested Hardware:**
+
 - **Fully Tested**: Home Assistant OS (HAOS) on **Raspberry Pi 4** and **Intel (standard x86) Mini PC** with compatible WiFi hardware.
 
 **🌐 Network & System:**
+
 - Local network access and a **Home Assistant OS (HAOS)** or **Supervised** installation is required to access the Supervisor Network API.
 - WiFi must be enabled under **Settings > System > Network**.
 
 **🏠 Home Assistant Version:**
+
 - Minimum: Home Assistant **2024.1.0**
 - Minimum Python: **3.12+**
 
@@ -58,6 +61,7 @@ This integration provides **6 entities** (all enabled by default) organized unde
 | `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
 
 **Attributes:** The total and unknown count sensors include SSID attributes:
+
 - `ssids`: List of all detected (`total`) or unknown (`unknown`) network names.
 
 ### Binary Sensors
@@ -68,8 +72,8 @@ This integration provides **6 entities** (all enabled by default) organized unde
 
 ### Number Entities
 
-| Entity | Description |
-| --- | --- |
+| Entity                                   | Description                               |
+| ---------------------------------------- | ----------------------------------------- |
 | `number.wifi_ssid_monitor_scan_interval` | Adjustable scan frequency (1–180 minutes) |
 
 ### 📊 Long Term Statistics (LTS)
@@ -82,6 +86,7 @@ Home Assistant stores Long Term Statistics for numeric sensors that have a `stat
 | `sensor.wifi_ssid_monitor_unknown_ssid_count` | Monitor for unrecognized network spikes in your environment |
 
 The following diagnostic sensors have **no LTS** to avoid unnecessary database growth:
+
 - `sensor.wifi_ssid_monitor_interface` (Text diagnostic)
 - `sensor.wifi_ssid_monitor_last_updated` (Timestamp diagnostic)
 
@@ -222,7 +227,7 @@ actions:
 Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**.
 
 | Parameter | Required | Description |
-| :--- | :--- | :--- |
+| :-- | :-- | :-- |
 | **WiFi Interface** | **Yes** | The network interface to monitor (e.g., `wlan0`). Autopopulated where available. |
 | **Known SSIDs** | No | Comma-separated list of WiFi networks to treat as known (e.g., `Home-WiFi, Guest-Network`). |
 | **Integration Name** | No | Display name shown in the UI for this integration instance (default: `WiFi SSID Monitor`). |
@@ -232,7 +237,7 @@ Setup is handled entirely via the UI under **Settings > Devices & Services > Add
 After setup, settings can be updated by clicking **Configure** on the integration card:
 
 | Parameter | Default | Range | Description |
-| :--- | :--- | :--- | :--- |
+| :-- | :-- | :-- | :-- |
 | **Known SSIDs** | — | String | Update the comma-separated list of known networks. |
 | **Scan Interval** | `600` | 60–10800s | Adjust polling frequency (in seconds; equivalent to 1–180 minutes). |
 | **WiFi Interface** | `wlan0` | String | Change which WiFi interface is monitored. |
@@ -250,6 +255,7 @@ After setup, settings can be updated by clicking **Configure** on the integratio
 ### 🔄 Polling & 3-Strike Resilience 🩹
 
 The integration utilizes a custom polling mechanism designed to interact with the Home Assistant Supervisor Network API:
+
 - **Supervisor Endpoint**: Polls the endpoint `/network/interface/{interface}/accesspoints` to gather access point configurations.
 - **3-Strike Logic**: To prevent entities flickering to `Unavailable` due to temporary network congestion or Supervisor latency, the integration holds its last known values for up to 3 consecutive failures. If the 4th consecutive poll fails, the entities are marked `Unavailable` and an issue is raised in the Home Assistant repairs center.
 - **Immediate Refresh**: Updating the **Known SSIDs** list via the configuration options menu triggers an immediate background scan, bypassing the scheduled timer. (Changing the scan interval only updates the timer, it does not trigger an immediate scan).
@@ -262,13 +268,16 @@ The integration utilizes a custom polling mechanism designed to interact with th
 ## ❓ FAQ & Troubleshooting
 
 ### Integration Fails to Load
+
 **Issue:** "Failed to connect to Supervisor API" or similar errors.
 
 **Causes & Solutions:**
+
 - **WiFi hardware unavailable**: Verify your Home Assistant system has physical WiFi capabilities enabled under **Settings > System > Network**.
 - **Invalid interface**: Ensure the interface name is correct and configured on your host OS.
 
 ### No Networks Detected
+
 - Verify the interface name is correct for your system.
 - Ensure WiFi is enabled in **Settings > System > Network**.
 - Check that networks are actively broadcasting in range of the system.
