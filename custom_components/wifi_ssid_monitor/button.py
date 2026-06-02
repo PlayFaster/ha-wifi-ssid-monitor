@@ -3,6 +3,7 @@
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -47,6 +48,10 @@ class WifiScanButton(ButtonEntity):
     async def async_press(self) -> None:
         """Trigger an immediate WiFi scan."""
         await self._coordinator.async_refresh()
+        if not self._coordinator.last_update_success:
+            raise HomeAssistantError(
+                "WiFi scan failed — check Home Assistant Repairs for details"
+            )
 
     @property
     def device_info(self) -> DeviceInfo | None:

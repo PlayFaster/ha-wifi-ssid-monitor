@@ -9,6 +9,8 @@ from aiohttp import ClientTimeout
 
 _LOGGER = logging.getLogger(__name__)
 
+_SUPERVISOR_BASE_URL = "http://supervisor"
+
 
 class WifiScanError(Exception):
     """Raised when the WiFi SSID Monitor fails."""
@@ -36,7 +38,7 @@ class WifiScanAPI:
             _LOGGER.error("SUPERVISOR_TOKEN not found in environment")
             raise WifiScanError("SUPERVISOR_TOKEN not found")
 
-        url = f"http://supervisor/network/interface/{self.interface}/accesspoints"
+        url = f"{_SUPERVISOR_BASE_URL}/network/interface/{self.interface}/accesspoints"
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
@@ -78,7 +80,7 @@ class WifiScanAPI:
             _LOGGER.error("SUPERVISOR_TOKEN not found in environment")
             raise WifiScanError("SUPERVISOR_TOKEN not found")
 
-        url = "http://supervisor/network/info"
+        url = f"{_SUPERVISOR_BASE_URL}/network/info"
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
