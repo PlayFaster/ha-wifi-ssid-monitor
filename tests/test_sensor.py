@@ -173,3 +173,30 @@ async def test_sensors_non_numeric_handling(
     assert state.state == "wlan0"  # Confirms it passed through the guard logic
 
     await mock_coordinator.async_shutdown()
+
+
+@pytest.mark.asyncio
+async def test_sensor_last_seen_attributes(
+    hass: HomeAssistant, mock_config_entry, mock_coordinator
+):
+    """Test unknown_count sensor includes last_seen in extra_state_attributes."""
+    from homeassistant.util import dt as dt_util
+
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
+
+    now = dt_util.now()
+    mock_coordinator.data["last_seen"] = {"UnknownNet": now}
+    mock_config_entry.runtime_data = mock_coordinator
+
+    await hass.config_entries.async_forward_entry_setups(mock_config_entry, ["sensor"])
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.wifi_ssid_monitor_unknown_ssid_count")
+    assert state is not None
+    assert state.state == "1"
+    assert "last_seen" in state.attributes
+    assert isinstance(state.attributes["last_seen"], dict)
+    assert "UnknownNet" in state.attributes["last_seen"]
+
+    await mock_coordinator.async_shutdown()

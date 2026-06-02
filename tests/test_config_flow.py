@@ -748,3 +748,29 @@ async def test_options_flow_name_change(hass: HomeAssistant, mock_config_entry):
 
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert mock_config_entry.title == "New Name"
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_flow_current_missing_from_api(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test reconfigure flow when current interface not in API list."""
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.config_flow._get_wifi_interfaces",
+        return_value=["wlan1"],
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": mock_config_entry.entry_id,
+            },
+        )
+
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+    schema = result["data_schema"].schema
+    interface_key = next(k for k in schema if k == "wifi_interface")
+    assert "wlan0" in schema[interface_key].container

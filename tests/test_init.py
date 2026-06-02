@@ -301,3 +301,30 @@ async def test_setup_entry_failure(hass: HomeAssistant, mock_config_entry):
         await hass.async_block_till_done()
 
     assert getattr(mock_config_entry, "runtime_data", None) is None
+
+
+@pytest.mark.asyncio
+async def test_add_known_ssid_service_invalid_entry_id(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test add_known_ssid service raises HomeAssistantError with bogus entry_id."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    with pytest.raises(HomeAssistantError, match=r"No .* entry found with ID"):
+        await hass.services.async_call(
+            DOMAIN,
+            "add_known_ssid",
+            {"ssid": "NewSSID", "config_entry_id": "nonexistent_id"},
+            blocking=True,
+        )

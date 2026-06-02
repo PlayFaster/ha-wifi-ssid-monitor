@@ -1,5 +1,7 @@
 """Tests for WiFi SSID Monitor number platform."""
 
+import asyncio
+from contextlib import suppress
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -120,3 +122,33 @@ def test_number_device_info(mock_config_entry, mock_coordinator):
     info = number.device_info
     assert info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
     assert info["manufacturer"] == "PlayFaster"
+
+
+@pytest.mark.asyncio
+async def test_number_debounce_cancelled(hass, mock_config_entry, mock_coordinator):
+    """Test CancelledError during debounce sleep is handled gracefully."""
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
+    mock_config_entry.runtime_data = mock_coordinator
+
+    number = WifiScanIntervalNumber(
+        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
+    )
+    number.hass = hass
+    number.async_write_ha_state = MagicMock()
+
+    with (
+        patch("asyncio.sleep", side_effect=asyncio.CancelledError()),
+        patch(
+            "custom_components.wifi_ssid_monitor.number._LOGGER.debug"
+        ) as mock_log_debug,
+    ):
+        await number.async_set_native_value(30)
+        if number._refresh_task:
+            with suppress(asyncio.CancelledError):
+                await number._refresh_task
+
+        mock_log_debug.assert_called_once()
+        assert "cancelled" in mock_log_debug.call_args[0][0].lower()
+
+    assert number._attr_native_value == 30
