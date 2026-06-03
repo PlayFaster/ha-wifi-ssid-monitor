@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 
 from .api import WifiScanAPI
 from .const import (
@@ -23,6 +24,8 @@ from .coordinator import WifiScanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 PLATFORMS: list[str] = ["sensor", "binary_sensor", "number", "button"]
 
 SERVICE_ADD_KNOWN_SSID = "add_known_ssid"
@@ -32,6 +35,42 @@ SERVICE_SCHEMA_ADD_KNOWN_SSID = vol.Schema(
         vol.Optional("config_entry_id"): cv.string,
     }
 )
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the WiFi SSID Monitor domain."""
+
+    async def _handle_add_known_ssid(call: ServiceCall) -> None:
+        ssid = call.data["ssid"].strip()
+        target_entry_id: str | None = call.data.get("config_entry_id")
+        entries = hass.config_entries.async_entries(DOMAIN)
+        if target_entry_id:
+            entries = [e for e in entries if e.entry_id == target_entry_id]
+            if not entries:
+                raise HomeAssistantError(
+                    f"No {DOMAIN} entry found with ID '{target_entry_id}'",
+                    translation_domain=DOMAIN,
+                    translation_key="entry_not_found",
+                    translation_placeholders={"entry_id": target_entry_id},
+                )
+        for target_entry in entries:
+            current = target_entry.options.get(CONF_KNOWN_SSIDS, "")
+            existing = [x.strip() for x in current.split(",") if x.strip()]
+            if ssid in existing:
+                continue
+            existing.append(ssid)
+            new_options = dict(target_entry.options)
+            new_options[CONF_KNOWN_SSIDS] = ", ".join(existing)
+            hass.config_entries.async_update_entry(target_entry, options=new_options)
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ADD_KNOWN_SSID,
+        _handle_add_known_ssid,
+        schema=SERVICE_SCHEMA_ADD_KNOWN_SSID,
+    )
+
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -72,58 +111,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
-    if not hass.services.has_service(DOMAIN, SERVICE_ADD_KNOWN_SSID):
-
-        async def _handle_add_known_ssid(call: ServiceCall) -> None:
-            ssid = call.data["ssid"].strip()
-            target_entry_id: str | None = call.data.get("config_entry_id")
-            entries = hass.config_entries.async_entries(DOMAIN)
-            if target_entry_id:
-                entries = [e for e in entries if e.entry_id == target_entry_id]
-                if not entries:
-                    raise HomeAssistantError(
-                        f"No {DOMAIN} entry found with ID '{target_entry_id}'"
-                    )
-            for target_entry in entries:
-                current = target_entry.options.get(CONF_KNOWN_SSIDS, "")
-                existing = [x.strip() for x in current.split(",") if x.strip()]
-                if ssid in existing:
-                    continue
-                existing.append(ssid)
-                new_options = dict(target_entry.options)
-                new_options[CONF_KNOWN_SSIDS] = ", ".join(existing)
-                hass.config_entries.async_update_entry(
-                    target_entry, options=new_options
-                )
-
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_ADD_KNOWN_SSID,
-            _handle_add_known_ssid,
-            schema=SERVICE_SCHEMA_ADD_KNOWN_SSID,
-        )
-
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry and release resources."""
-    unloaded = bool(await hass.config_entries.async_unload_platforms(entry, PLATFORMS))
-    # Remove the domain service when the last config entry is unloaded.
-    # Exclude the current entry from the remaining list (it is still in the
-    # registry during unload but is no longer active).
-    remaining = [
-        e
-        for e in hass.config_entries.async_entries(DOMAIN)
-        if e.entry_id != entry.entry_id
-    ]
-    if (
-        unloaded
-        and not remaining
-        and hass.services.has_service(DOMAIN, SERVICE_ADD_KNOWN_SSID)
-    ):
-        hass.services.async_remove(DOMAIN, SERVICE_ADD_KNOWN_SSID)
-    return unloaded
+    return bool(await hass.config_entries.async_unload_platforms(entry, PLATFORMS))
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:

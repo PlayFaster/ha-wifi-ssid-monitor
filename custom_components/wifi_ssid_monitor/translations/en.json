@@ -58,6 +58,14 @@
       "scan_now": { "name": "Scan Now" }
     }
   },
+  "exceptions": {
+    "scan_failed": {
+      "message": "WiFi scan failed — check Home Assistant Repairs for details"
+    },
+    "entry_not_found": {
+      "message": "No wifi_ssid_monitor entry found with ID {entry_id}"
+    }
+  },
   "issues": {
     "supervisor_unavailable": {
       "title": "WiFi SSID Monitor cannot reach the Supervisor API",

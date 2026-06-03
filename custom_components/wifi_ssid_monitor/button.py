@@ -50,7 +50,9 @@ class WifiScanButton(ButtonEntity):
         await self._coordinator.async_refresh()
         if not self._coordinator.last_update_success:
             raise HomeAssistantError(
-                "WiFi scan failed — check Home Assistant Repairs for details"
+                "WiFi scan failed — check Home Assistant Repairs for details",
+                translation_domain=DOMAIN,
+                translation_key="scan_failed",
             )
 
     @property

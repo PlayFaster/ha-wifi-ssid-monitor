@@ -186,14 +186,9 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if current_interface not in available_interfaces:
             available_interfaces.append(current_interface)
 
-        if available_interfaces:
-            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
-                vol.In(available_interfaces)
-            )
-        else:
-            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
-                cv.string
-            )
+        data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = vol.In(
+            available_interfaces
+        )
 
         return self.async_show_form(
             step_id="reconfigure",
@@ -286,14 +281,9 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
             ): vol.All(vol.Coerce(int), vol.Range(min=-100, max=-30)),
         }
 
-        if available_interfaces:
-            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
-                vol.In(available_interfaces)
-            )
-        else:
-            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
-                cv.string
-            )
+        data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = vol.In(
+            available_interfaces
+        )
 
         return self.async_show_form(
             step_id="init",

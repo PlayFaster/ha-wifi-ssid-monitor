@@ -4,20 +4,11 @@
 # Updated: 2026-06-03 v1.2.0
 rules:
   # Bronze
-  action-setup:
-    status: todo
-    comment:
-      Service add_known_ssid is registered in async_setup_entry (guarded with
-      has_service) instead of async_setup. Add a proper async_setup function and move
-      registration there.
+  action-setup: done
   appropriate-polling: done
   brands: done
   common-modules: done
-  config-flow-test-coverage:
-    status: todo
-    comment:
-      98% coverage; lines 194 and 294 uncovered (cv.string fallback in
-      async_step_reconfigure and async_step_init when no interfaces are available).
+  config-flow-test-coverage: done
   config-flow: done
   dependency-transparency: done
   docs-actions: done
@@ -69,11 +60,7 @@ rules:
   entity-device-class: done
   entity-disabled-by-default: done
   entity-translations: done
-  exception-translations:
-    status: todo
-    comment:
-      Hardcoded HomeAssistantError strings in button.py (async_press) and __init__.py
-      (service handler). Should use translation keys backed by strings.json.
+  exception-translations: done
   icon-translations: done
   reconfiguration-flow: done
   repair-issues: done

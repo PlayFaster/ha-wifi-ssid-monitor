@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.5.0-dev4] - 2026-06-03 - Unreleased
+
+### Changed
+
+- **`action-setup` fix**: `add_known_ssid` service registration moved from `async_setup_entry` (with `has_service` guard) to `async_setup`. Service is now domain-lifecycle-managed — active for the domain's loaded state, no per-entry guard or cleanup needed. `async_unload_entry` simplified accordingly (service cleanup logic removed).
+- **Config flow dead code removal**: Removed two unreachable `else: cv.string` branches from `async_step_reconfigure` and `WifiScanOptionsFlowHandler.async_step_init` in `config_flow.py`. The `current_interface` fallback guard that runs immediately before the conditional guarantees `available_interfaces` is always non-empty, making the `else` branches dead code. `config_flow.py` coverage is now 100%.
+- **Exception translations**: `HomeAssistantError` raises in `button.py` (`async_press`) and `__init__.py` (service handler) now include `translation_domain`, `translation_key`, and `translation_placeholders` for UI-translatable error messages. `exceptions` section added to `strings.json` and `translations/en.json` (`scan_failed`, `entry_not_found` keys).
+
+---
+
 ## [1.5.0-dev3] - 2026-06-03 - Unreleased
 
 ### Fixed
