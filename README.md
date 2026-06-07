@@ -192,7 +192,7 @@ actions:
       message: "WiFi network count has dropped — a home network may be offline"
 ```
 
-### ⏯️ Dynamic Polling Control
+### 🔁 Dynamic Polling Control
 
 Automatically adjust the scan frequency between day and evening hours.
 
@@ -293,7 +293,7 @@ actions:
 3. Restart Home Assistant
 4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
 ### 🔧 Initial Setup
 
@@ -305,7 +305,7 @@ Setup is handled entirely via the UI under **Settings > Devices & Services > Add
 | **Known SSIDs** | No | Comma-separated list of WiFi networks to treat as known (e.g., `Home-WiFi, Guest-Network`). |
 | **Integration Name** | No | Display name shown in the UI for this integration instance (default: `WiFi SSID Monitor`). |
 
-### 🛠️ Runtime Options
+### 🔩 Runtime Options
 
 After setup, settings can be updated by clicking **Configure** on the integration card:
 
@@ -325,7 +325,7 @@ After setup, settings can be updated by clicking **Configure** on the integratio
 > 2. Check **Configure network interfaces**.
 > 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar.
 
-## 🏗️ Under the Hood - Technical Architecture
+## 🔨 Under the Hood - Technical Architecture
 
 ### 🔄 Polling & 3-Strike Resilience 🩹
 
@@ -383,7 +383,7 @@ The integration utilizes a custom polling mechanism designed to interact with th
 
 **Cause:** `last_seen` data is held in memory only and resets every time Home Assistant restarts. This is expected behaviour — the timestamps track the current session, not historical data. If persistence across restarts is important for your use case, consider using a template sensor backed by an `input_datetime` helper.
 
-## 🗑️ Removal
+## ❌ Removal
 
 To remove the integration from Home Assistant:
 
@@ -399,7 +399,7 @@ To fully uninstall (HACS):
 3. Click the **three dots** (⋮) at the top right and select **Remove**.
 4. Restart Home Assistant.
 
-## ⚠️ Known Limitations /❔ What's Missing?
+## ❗ Known Limitations /❔ What's Missing?
 
 - **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data. You can disable hidden network tracking entirely via the **Include Hidden Networks** option.
 - **Last Seen Timestamps Reset on Restart**: The `last_seen` timestamps in the unknown SSID count sensor attributes are held in memory and reset every time Home Assistant restarts. They reflect the current HA session only and are not persisted to disk.
@@ -414,7 +414,9 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 
 - This project was developed with the assistance of AI to ensure code quality and adherence to best practices.
 
-## 📄 License [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+## 📄 License
+
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 This project is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
