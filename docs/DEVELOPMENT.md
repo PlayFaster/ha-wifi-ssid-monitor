@@ -61,6 +61,9 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **Windows WiFi Access**: Containers on Windows (via Docker Desktop/WSL2) cannot directly access physical WiFi hardware for scanning. The `mock_supervisor` service provides a reliable alternative for UI and logic validation.
 - **Hidden Network Deduplication**: All APs without a broadcasted SSID are normalised to the key `"[hidden]"` in both `all_ssids` (set deduplication) and `network_map`. If three hidden APs are visible, the total count shows 1 and `network_map["[hidden]"]` stores only the last AP's RSSI/channel (overwritten each pass). This is intentional — hidden networks are indistinguishable by name — but means the count will not match tools like `nmcli` that report each hidden AP separately. BSSID-based tracking (see `FUTURE.md`) would resolve this.
 
+- **VS16 Compound Emoji in README Headings (2026-06-08)**: Using VS16 compound emoji (e.g., `⚙️`, `🏗️`, `⚠️`, `🗑️`) in README headings causes Table of Contents links to silently 404. GitHub's anchor generator strips VS16 bytes (U+FE0F) when computing heading slugs, but Markdown tooling includes them in `href` values. The mismatch is completely invisible in source editors — the heading renders fine and GitHub preview looks correct, but clicking a ToC link jumps nowhere.
+  - _Fix_: Replace all VS16 compound emoji in headings and their corresponding ToC `href` values with always-colour single-codepoint alternatives (e.g., 🔧 🔩 ❌ ❗ 🔄 💬). See root `CLAUDE.md` → "Shared Markdown Notes" for the full replacement table and detection script.
+
 ## 5. Environment Constraints
 
 - **Native Async API**: The integration uses `aiohttp` for all network communication, aligning with the Home Assistant event loop.
@@ -78,3 +81,4 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **v1.0.4** (2026-06-02) - Added button platform, fnmatch matching, channel-to-band helper, in-memory last seen tracking, and domain service registration patterns (v1.5.0-dev1).
 - **v1.0.5** (2026-06-03) - Added button error propagation, service lifecycle cleanup, and HomeAssistantError-in-handler patterns (v1.5.0-dev3).
 - **v1.0.6** (2026-06-03) - Updated domain service registration pattern to `async_setup` approach; replaced stale service-lifecycle-cleanup pitfall; added exception-translations pattern (v1.5.0-dev4).
+- **[2026-06-08]** — Added VS16 compound emoji in README headings pitfall entry.
