@@ -44,10 +44,12 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 - **Real-time SSID Scanning**: Count all detectable WiFi networks in range and view full SSID lists with signal strength and frequency band in sensor attributes.
 - **Unknown Network Detection**: Identify networks not in your known list, with wildcard pattern matching (e.g., `Guest_*`) for flexible filtering.
 - **Proximity Alert**: A binary sensor fires when an unknown network's signal strength exceeds a configurable threshold, indicating a nearby rogue AP.
-- **On-Demand Scan**: Trigger an immediate scan at any time using the **Scan Now** button entity or the `add_known_ssid` service — no need to wait for the next interval.
+- **On-Demand Scan**: Trigger an immediate scan at any time using the **Scan Now** button entity or the `wifi_ssid_monitor.scan_now` service — no need to wait for the next interval.
 - **Add to Known Service**: Whitelist a detected SSID instantly from an automation or Developer Tools, with an immediate re-scan to confirm.
-- **Last Seen Tracking**: Each unknown SSID records when it was last detected, surfaced as a timestamp attribute on the unknown count sensor.
+- **Last Seen Tracking**: Each unknown SSID records when it was last detected, first detected, and how many times it has appeared — all persisted across Home Assistant restarts with a configurable TTL.
 - **Dynamic Polling Control**: Adjust the scan frequency (1–180 minutes) from the HA UI or via automations.
+- **Band Filter**: Restrict scanning to 2.4 GHz only, 5 GHz only, or all bands to reduce noise from neighbouring networks.
+- **SSID Denylist**: Mark specific SSID patterns as permanently unknown — useful for neighbour networks that should never be whitelisted.
 - **Hidden Network Control**: Toggle whether unbroadcasted (hidden) SSIDs are counted or silently ignored.
 - **Auto-detected Interface**: WiFi interfaces (e.g., `wlan0`) are automatically populated during setup where available.
 
@@ -122,6 +124,7 @@ Home Assistant stores Long Term Statistics for numeric sensors that have a `stat
 | :-- | :-- |
 | `sensor.wifi_ssid_monitor_total_ssid_count` | Track WiFi network density trends over time |
 | `sensor.wifi_ssid_monitor_unknown_ssid_count` | Monitor for unrecognized network spikes in your environment |
+| `sensor.wifi_ssid_monitor_strongest_unknown_rssi` | Monitor signal strength trends of nearby unknown networks |
 
 The following diagnostic sensors have **no LTS** to avoid unnecessary database growth:
 
@@ -161,7 +164,7 @@ conditions:
     alias: Check If Unknown SSID Is a Known Smart Device
     value_template: |
       {% set ssids = state_attr('sensor.wifi_ssid_monitor_unknown_ssid_count', 'ssids') | string | lower %}
-      {% set device_aps = ['mfg1_new', 'mfg2_resets', 'mfg3'] | lower %}
+      {% set device_aps = ['mfg1_new', 'mfg2_resets', 'mfg3'] | map('lower') | list %}
       {{ device_aps | select('in', ssids) | list | length > 0 }}
 actions:
   - action: notify.mobile_app_phone
@@ -295,7 +298,7 @@ actions:
 
 ## 🔧 Configuration
 
-### 🔧 Initial Setup
+### 🔩 Initial Setup
 
 Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**.
 
@@ -333,7 +336,7 @@ The integration utilizes a custom polling mechanism designed to interact with th
 
 - **Supervisor Endpoint**: Polls the endpoint `/network/interface/{interface}/accesspoints` to gather access point configurations.
 - **3-Strike Logic**: To prevent entities flickering to `Unavailable` due to temporary network congestion or Supervisor latency, the integration holds its last known values for up to 3 consecutive failures. If the 4th consecutive poll fails, the entities are marked `Unavailable` and an issue is raised in the Home Assistant repairs center.
-- **Immediate Refresh**: Updating the **Known SSIDs** list via the configuration options menu triggers an immediate background scan, bypassing the scheduled timer. You can also trigger an immediate scan at any time by pressing the **Scan Now** button entity or by calling the `wifi_ssid_monitor.add_known_ssid` service. (Changing the scan interval only updates the timer — it does not trigger an immediate scan.)
+- **Immediate Refresh**: Updating the **Known SSIDs** list via the configuration options menu triggers an immediate background scan, bypassing the scheduled timer. You can also trigger an immediate scan at any time by pressing the **Scan Now** button entity or by calling the `wifi_ssid_monitor.scan_now` service. (Changing the scan interval only updates the timer — it does not trigger an immediate scan.)
 
 ### 🆔 Stable Entities & Reconfiguration
 
@@ -377,11 +380,14 @@ The integration utilizes a custom polling mechanism designed to interact with th
 - **Missing wildcard**: A plain string is treated as an exact match. Use `Guest_*` or `*guest*` for partial matches.
 - **Trailing spaces**: The Known SSIDs field strips leading/trailing whitespace from each entry, but double-check there are no invisible characters.
 
-### `last_seen` Timestamps Are Missing or Show Old Data
+### `last_seen` History Contains Stale or Unexpected Entries
 
-**Issue:** The `last_seen` attribute on `sensor.wifi_ssid_monitor_unknown_ssid_count` is empty or shows timestamps from a previous day.
+**Issue:** The `last_seen`, `first_seen`, or `visit_counts` attributes on `sensor.wifi_ssid_monitor_unknown_ssid_count` contain entries for SSIDs that have not been seen recently, or history is larger than expected.
 
-**Cause:** `last_seen` data is held in memory only and resets every time Home Assistant restarts. This is expected behaviour — the timestamps track the current session, not historical data. If persistence across restarts is important for your use case, consider using a template sensor backed by an `input_datetime` helper.
+**Cause & Solutions:**
+
+- **Automatic TTL pruning**: The integration automatically removes entries older than the **Last Seen History TTL** setting (default: 90 days). Entries for SSIDs not seen within that window are pruned on the next scan. To change the retention window, open **Configure** on the integration card and adjust the **Last Seen History TTL** value. Set it to `0` to keep all entries indefinitely.
+- **Manual reset**: To immediately clear all `last_seen`, `first_seen`, and `visit_counts` history, call the `wifi_ssid_monitor.clear_last_seen` service from **Developer Tools > Services**. This resets all three history stores for the targeted entry (or all entries if `config_entry_id` is omitted).
 
 ## ❌ Removal
 
