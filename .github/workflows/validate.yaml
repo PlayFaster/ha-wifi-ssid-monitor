@@ -24,8 +24,8 @@ jobs:
     permissions:
       contents: write # Required by test_val for coverage badge gist update
       pull-requests: write # Required by test_val for PR comments
-    # Branch @main v1.0.4
-    uses: PlayFaster/.github/.github/workflows/validate.yaml@48a56341fe6d575def0f9162742cf60342b0b759
+    # Branch @main v1.0.8
+    uses: PlayFaster/.github/.github/workflows/validate.yaml@ddb23280981992a44fbba00fe6a12ad41e502332
     with:
       component_name: wifi_ssid_monitor
       gist_id: 6d1d30e996dd53f04d2c2fc6b6cddece

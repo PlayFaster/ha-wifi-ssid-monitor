@@ -8,16 +8,20 @@
       "type": "boolean"
     },
     "country": {
-      "description": "Two-character country code in ISO 3166-1 alpha-2 format.",
-      "pattern": "^[A-Z]{2}$",
-      "type": "string"
-    },
-    "domains": {
-      "description": "A list of domains that the integration provides.",
-      "items": {
-        "type": "string"
-      },
-      "type": "array"
+      "description": "Two-character ISO 3166-1 alpha-2 country code(s). Can be a single code or a list of codes.",
+      "oneOf": [
+        {
+          "pattern": "^[A-Z]{2}$",
+          "type": "string"
+        },
+        {
+          "items": {
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
     },
     "filename": {
       "description": "Name of the file HACS should look for. Applies to single-item types like themes.",
@@ -33,17 +37,6 @@
     },
     "homeassistant": {
       "description": "The minimum required Home Assistant version (e.g., '2024.1.0').",
-      "type": "string"
-    },
-    "iot_class": {
-      "description": "The IoT class of the integration.",
-      "enum": [
-        "assumed_state",
-        "cloud_polling",
-        "cloud_push",
-        "local_polling",
-        "local_push"
-      ],
       "type": "string"
     },
     "name": {

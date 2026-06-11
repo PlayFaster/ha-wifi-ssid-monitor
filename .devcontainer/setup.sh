@@ -8,27 +8,31 @@ LOG_FILE=".reports/devcontainer/post_setup.log"
 (
     echo "--- Starting Post-Create Setup ---"
     
-    echo "Configuring Git..."
-    git config --global core.fileMode false
-    git config --global core.autocrlf input
-
     echo "Environment: ha-dev-base:latest"
-    echo "Gemini CLI: $(which gemini || echo 'Not found in path')"
 
-    echo "Refreshing .validate/ config files from shared..."
-    if [ -d ".shared/validate-configs" ]; then
-        cp .shared/validate-configs/.yamllint .validate/
-        cp .shared/validate-configs/.markdownlint.json .validate/
-        cp .shared/validate-configs/.prettierrc.js .validate/
-        cp .shared/validate-configs/ha_manifest_schema.json .validate/
-        cp .shared/validate-configs/hacs_schema.json .validate/
-        echo ".validate/ refreshed."
+    echo "Refreshing shared config files..."
+    if [ -f ".shared/validate-configs/sync_shared_files.sh" ]; then
+        RUNNING_FROM_SETUP=1 sh .shared/validate-configs/sync_shared_files.sh
     else
-        echo "Warning: .shared/validate-configs not found — .validate/ not updated."
+        echo "Warning: sync_shared_files.sh not found — shared files not updated."
     fi
 
-    echo "Pre-warming pre-commit hook environments..."
-    pre-commit install-hooks
+    if [ -f ".pre-commit-config.yaml" ]; then
+        echo "Pre-warming pre-commit hook environments..."
+        pre-commit install-hooks
+    else
+        echo "No .pre-commit-config.yaml found — skipping pre-commit pre-warm."
+    fi
 
-    echo "--- Setup Complete ---"
+    # Highly visible success banner
+    GREEN='\033[1;32m'
+    NC='\033[0m' # No Color
+    echo ""
+    echo -e "${GREEN}######################################################${NC}"
+    echo -e "${GREEN}#                                                    #${NC}"
+    echo -e "${GREEN}#   THE DEVCONTAINER IS FULLY SET-UP AND RUNNING!    #${NC}"
+    echo -e "${GREEN}#                                                    #${NC}"
+    echo -e "${GREEN}######################################################${NC}"
+    echo ""
 ) 2>&1 | tee "$LOG_FILE"
+

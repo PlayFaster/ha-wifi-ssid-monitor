@@ -1,328 +1,327 @@
 {
   "tasks": [
     {
-      "label": "YAML: Lint Project",
-      "type": "shell",
       "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint -c .shared/validate-configs/.yamllint | tee .reports/yaml_lint.txt",
-      "problemMatcher": [],
+      "label": "YAML: Lint Project",
       "presentation": {
-        "reveal": "always",
+        "clear": true,
         "panel": "dedicated",
-        "clear": true
-      }
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "JSON: Verify All Files",
-      "type": "shell",
       "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt",
+      "label": "JSON: Verify All Files",
       "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
+        "panel": "dedicated",
+        "reveal": "always"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "HA: Verify Manifest",
-      "type": "shell",
       "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .shared/validate-configs/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt",
+      "label": "HA: Verify Manifest",
       "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
+        "panel": "dedicated",
+        "reveal": "always"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "HA: Hassfest Validation",
-      "type": "shell",
       "command": "mkdir -p .reports && HOST_PATH=$(docker inspect $(hostname) | python3 -c \"import json,sys,re; binds=json.load(sys.stdin)[0]['HostConfig']['Binds']; cw='/workspaces/${workspaceFolderBasename}'; result=next((p[0].replace(chr(92),'/') for b in binds for p in [re.split(r'(?<=[^:]):/',b, maxsplit=1)] if len(p)==2 and ('/'+p[1]).split(':')[0]==cw),None); print(result) if result else exit(1)\") && docker run --rm -v \"$HOST_PATH:/github/workspace\" ghcr.io/home-assistant/hassfest:latest | tee .reports/hassfest.txt",
+      "label": "HA: Hassfest Validation",
       "presentation": {
-        "reveal": "always",
+        "clear": true,
         "panel": "dedicated",
-        "clear": true
+        "reveal": "always"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "HACS: Verify Manifest",
-      "type": "shell",
       "command": "mkdir -p .reports && check-jsonschema --schemafile .shared/validate-configs/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt",
+      "label": "HACS: Verify Manifest",
       "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
+        "panel": "dedicated",
+        "reveal": "always"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "HA: Check Config",
-      "type": "shell",
       "command": "mkdir -p .reports && hass --script check_config --config /config | tee .reports/ha_check_config.txt",
+      "label": "HA: Check Config",
       "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
+        "panel": "dedicated",
+        "reveal": "always"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "Ruff: Check (Lint Only)",
-      "type": "shell",
       "command": "mkdir -p .reports && ruff check . | tee .reports/ruff_lint.txt",
-      "problemMatcher": [],
+      "label": "Ruff: Check (Lint Only)",
       "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "Ruff: Format Check (View Only)",
-      "type": "shell",
       "command": "mkdir -p .reports && ruff format --check . | tee .reports/ruff_format_status.txt",
-      "problemMatcher": [],
+      "label": "Ruff: Format Check (View Only)",
       "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "Ruff: Format Fix (Auto-Repair)",
-      "type": "shell",
       "command": "ruff format . || true",
-      "problemMatcher": [],
+      "label": "Ruff: Format Fix (Auto-Repair)",
       "presentation": {
-        "reveal": "always",
+        "close": false,
         "panel": "dedicated",
-        "close": false
-      }
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "Ruff: Check Fix (Auto-Repair Lint)",
-      "type": "shell",
       "command": "ruff check --fix . || true",
+      "label": "Ruff: Check Fix (Auto-Repair Lint)",
       "presentation": {
-        "reveal": "always",
+        "close": false,
         "panel": "dedicated",
-        "close": false
+        "reveal": "always"
       },
-      "problemMatcher": []
-    },
-    {
-      "label": "Markdown: Check Links",
-      "type": "shell",
-      "command": "mkdir -p .reports && markdown-link-check README.md | tee .reports/markdown_link_check.txt",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Markdown: Lint (View Only)",
-      "type": "shell",
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .shared/validate-configs/.markdownlint.json | tee .reports/markdown_lint.txt",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Markdown: Lint (Auto-Fix)",
-      "type": "shell",
-      "command": "git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .shared/validate-configs/.markdownlint.json --fix || true",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Codespell: Check (View Only)",
-      "type": "shell",
-      "command": "mkdir -p .reports && codespell . | tee .reports/codespell.txt",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Codespell: Fix (Auto-Repair)",
-      "type": "shell",
-      "command": "codespell . -w || true",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prettier: Check (View Only)",
-      "type": "shell",
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .shared/validate-configs/.prettierrc.js --check | tee .reports/prettier_check.txt",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prettier: Format (Auto-Fix)",
-      "type": "shell",
-      "command": "git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .shared/validate-configs/.prettierrc.js --write || true",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prettier: Fix Notes",
-      "type": "shell",
-      "command": "prettier --config .shared/validate-configs/.prettierrc.js --ignore-path /dev/null --write \".notes/**/*.{md,json,yaml,yml}\" || true",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prettier: Fix Shared",
-      "type": "shell",
-      "command": "prettier --config .shared/validate-configs/.prettierrc.js --ignore-path /dev/null --write \".shared/**/*.{md,json,yaml,yml}\" || true",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Mypy: Check (Standard)",
-      "type": "shell",
-      "command": "mkdir -p .reports && mypy custom_components/ | tee .reports/mypy_check.txt",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Mypy: Strict Check",
-      "type": "shell",
-      "command": "mkdir -p .reports && mypy custom_components/ --strict | tee .reports/mypy_strict.txt",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Zizmor: GitHub Actions Audit",
-      "type": "shell",
-      "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run zizmor --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/zizmor_audit.txt)",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Zizmor: Fix (Safe Auto-Fix)",
-      "type": "shell",
-      "command": "zizmor --fix .github/ || true",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Python: Update Typing Syntax (Maintenance)",
-      "type": "shell",
-      "command": "python-typing-update --py311-plus --force --keep-updates custom_components/${config:project.componentName}/ || true",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "HA: Verify Version (AwesomeVersion)",
-      "type": "shell",
-      "command": "mkdir -p .reports && uv run --with awesomeversion python3 -c \"import json; from awesomeversion import AwesomeVersion; v = json.load(open('custom_components/${config:project.componentName}/manifest.json'))['version']; av = AwesomeVersion(v); print(f'Version {v} detected strategy: {av.strategy}'); exit(1 if av.strategy == 'unknown' else 0)\" | tee .reports/version_validation.txt",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Pytest: Run All Tests",
-      "type": "shell",
-      "command": "mkdir -p .reports && PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --color=yes --junitxml=.reports/pytest_results.xml | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_results.txt)",
       "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && markdown-link-check README.md | tee .reports/markdown_link_check.txt",
+      "label": "Markdown: Check Links",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .shared/validate-configs/.markdownlint.json | tee .reports/markdown_lint.txt",
+      "label": "Markdown: Lint (View Only)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .shared/validate-configs/.markdownlint.json --fix || true",
+      "label": "Markdown: Lint (Auto-Fix)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && codespell . | tee .reports/codespell.txt",
+      "label": "Codespell: Check (View Only)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "codespell . -w || true",
+      "label": "Codespell: Fix (Auto-Repair)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .shared/validate-configs/.prettierrc.js --check | tee .reports/prettier_check.txt",
+      "label": "Prettier: Check (View Only)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .shared/validate-configs/.prettierrc.js --write || true",
+      "label": "Prettier: Format (Auto-Fix)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "prettier --config .shared/validate-configs/.prettierrc.js --ignore-path /dev/null --write \".notes/**/*.{md,json,yaml,yml}\" || true",
+      "label": "Prettier: Fix Notes",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "prettier --config .shared/validate-configs/.prettierrc.js --ignore-path /dev/null --write \".shared/**/*.{md,json,yaml,yml}\" || true",
+      "label": "Prettier: Fix Shared",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && mypy custom_components/ | tee .reports/mypy_check.txt",
+      "label": "Mypy: Check (Standard)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && mypy custom_components/ --strict | tee .reports/mypy_strict.txt",
+      "label": "Mypy: Strict Check",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run zizmor --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/zizmor_audit.txt)",
+      "label": "Zizmor: GitHub Actions Audit",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "zizmor --fix .github/ || true",
+      "label": "Zizmor: Fix (Safe Auto-Fix)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "python-typing-update --py311-plus --force --keep-updates custom_components/${config:project.componentName}/ || true",
+      "label": "Python: Update Typing Syntax (Maintenance)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && uv run --with awesomeversion python3 -c \"import json; from awesomeversion import AwesomeVersion; v = json.load(open('custom_components/${config:project.componentName}/manifest.json'))['version']; av = AwesomeVersion(v); print(f'Version {v} detected strategy: {av.strategy}'); exit(1 if av.strategy == 'unknown' else 0)\" | tee .reports/version_validation.txt",
+      "label": "HA: Verify Version (AwesomeVersion)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --color=yes --junitxml=.reports/pytest_results.xml | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_results.txt)",
       "group": {
-        "kind": "test",
-        "isDefault": true
+        "isDefault": true,
+        "kind": "test"
       },
+      "label": "Pytest: Run All Tests",
       "presentation": {
-        "reveal": "always",
+        "clear": true,
         "panel": "dedicated",
-        "clear": true
-      }
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "Pytest: Check Test Coverage",
-      "type": "shell",
       "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov --cov-report=term-missing --cov-report=html:.reports/coverage --color=yes tests/ | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_coverage.txt)",
+      "label": "Pytest: Check Test Coverage",
       "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
+        "panel": "dedicated",
+        "reveal": "always"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "Pre-commit: Fix + Check All",
-      "type": "shell",
       "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/precommit_all.txt)",
+      "label": "Pre-commit: Fix + Check All",
       "presentation": {
-        "reveal": "always",
+        "clear": true,
         "panel": "dedicated",
-        "clear": true
+        "reveal": "always"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "Pre-commit: Fix + Check Staged",
-      "type": "shell",
       "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/precommit_staged.txt)",
+      "label": "Pre-commit: Fix + Check Staged",
       "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Pre-commit: Autoupdate Hooks",
-      "type": "shell",
-      "command": "pre-commit autoupdate",
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Initialize Reports",
-      "type": "shell",
-      "command": "mkdir -p .reports",
-      "presentation": {
-        "reveal": "always",
         "panel": "dedicated",
-        "close": true
+        "reveal": "always"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
-      "label": "Validate All",
+      "command": "pre-commit autoupdate",
+      "label": "Env: Autoupdate Pre-commit Hooks",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports",
+      "label": "Initialize Reports",
+      "presentation": {
+        "close": true,
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
       "dependsOn": [
         "Initialize Reports",
         "HA: Hassfest Validation",
@@ -345,17 +344,17 @@
       ],
       "dependsOrder": "sequence",
       "group": {
-        "kind": "test",
-        "isDefault": true
+        "isDefault": true,
+        "kind": "test"
       },
+      "label": "Validate All",
       "presentation": {
-        "reveal": "always",
+        "clear": true,
         "panel": "dedicated",
-        "clear": true
+        "reveal": "always"
       }
     },
     {
-      "label": "Fix All",
       "dependsOn": [
         "Ruff: Check Fix (Auto-Repair Lint)",
         "Ruff: Format Fix (Auto-Repair)",
@@ -367,11 +366,114 @@
         "Pre-commit: Fix + Check All"
       ],
       "dependsOrder": "sequence",
-      "problemMatcher": [],
+      "label": "Fix All",
       "presentation": {
-        "reveal": "always",
+        "close": false,
         "panel": "dedicated",
-        "close": false
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "command": "mkdir -p .reports && sh .shared/validate-configs/sync_shared_files.sh | tee .reports/sync_shared_files.txt",
+      "label": "Env: Sync Shared Files",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && python3 .shared/validate-configs/check_tool_drift.py | tee .reports/tool_drift_raw.txt && sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' .reports/tool_drift_raw.txt > .reports/tool_drift.txt && rm .reports/tool_drift_raw.txt",
+      "label": "Env: Audit Version Drift",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "python3 .shared/validate-configs/check_tool_drift.py --apply",
+      "label": "Env: Apply Version Matrix Targets",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "python3 .shared/validate-configs/check_tool_drift.py --absorb",
+      "label": "Env: Absorb Pre-commit Bumps",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "mkdir -p .reports && (echo 'Fetching latest upstream commits...' && rm -rf /tmp/ha_core_fetch && git -c init.defaultBranch=master init --bare /tmp/ha_core_fetch >/dev/null && mkdir -p /tmp/ha_core_fetch/objects/info && echo '/ha_core/.git/objects' > /tmp/ha_core_fetch/objects/info/alternates && git -C /tmp/ha_core_fetch fetch --quiet https://github.com/home-assistant/core.git dev && echo '=== Local HA Core dev Commit ===' && git -C /ha_core log -1 --format='%cd (%h) - %s' dev && echo '=== Upstream HA Core dev Commit ===' && git -C /tmp/ha_core_fetch log -1 --format='%cd (%h) - %s' FETCH_HEAD) | tee .reports/ha_core_staleness.txt",
+      "label": "Env: Check HA Core Stub Staleness",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "echo '=== HA Core is Mounted Read-Only inside the Dev Container ===' && echo 'To pull latest, please run the following command in a host terminal:' && echo '  git -C C:/Local/Code/ha_core/core pull https://github.com/home-assistant/core.git dev'",
+      "label": "Env: Show HA Core Stub Pull Commands",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "dependsOn": [
+        "Env: Sync Shared Files",
+        "Env: Audit Version Drift",
+        "Env: Check HA Core Stub Staleness"
+      ],
+      "dependsOrder": "sequence",
+      "label": "Env: [Workflow] Sync & Audit",
+      "presentation": {
+        "clear": true,
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "dependsOn": [
+        "Env: Apply Version Matrix Targets",
+        "Env: Sync Shared Files",
+        "Env: Audit Version Drift"
+      ],
+      "dependsOrder": "sequence",
+      "label": "Env: [Workflow] Apply & Propagate Changes",
+      "presentation": {
+        "clear": true,
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "dependsOn": [
+        "Env: Absorb Pre-commit Bumps",
+        "Env: Sync Shared Files",
+        "Env: Audit Version Drift"
+      ],
+      "dependsOrder": "sequence",
+      "label": "Env: [Workflow] Absorb & Propagate Bumps",
+      "presentation": {
+        "clear": true,
+        "panel": "dedicated",
+        "reveal": "always"
       }
     }
   ],

@@ -47,6 +47,8 @@ uv.lock
 .comp/
 .notes
 .shared
+.obsidian
+.obsidian/
 .notes/
 .shared/
 loc_only/

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.5.0-dev6] - 2026-06-11 - Unreleased
+
+### Changed
+
+- **Validation Sync**: Moved to a better system and process to keep validation (lint/format/test) tools in sync, across PlayFaster projects and between the projects and what Home Assistant uses.
+  - .validate/version_matrix.json added as the definitive source of tool version use.
+  - Several Env: entries added to .vscode/tasks.json for tool sync and checking.
+  - .validate/requirements_test.txt pulled as generic, with all tools pinned to versions, and requirements_custom.txt used to add project specific items.
+  - As part of the sync, docker-compose.yml and devcontainer.json are now generic, with a .env file holding project specific info and a docker-compose.override.yml holding additional, project specific steps.
+  - HA Manifest and HACS schema files updated.
+  - Ruff updated from 0.15.12 to 0.15.15
+
 ## [1.5.0-dev5] - 2026-06-07 - Unreleased
 
 ### Changed
