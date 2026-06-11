@@ -454,3 +454,257 @@ async def test_async_remove_entry(hass: HomeAssistant, mock_config_entry):
     # Remove the entry, which triggers async_remove_entry
     await hass.config_entries.async_remove(mock_config_entry.entry_id)
     await hass.async_block_till_done()
+
+
+@pytest.mark.asyncio
+async def test_scan_now_service(hass: HomeAssistant, mock_config_entry):
+    """Test the scan_now service triggers a coordinator refresh."""
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+            return_value=[],
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_refresh"
+        ) as mock_refresh,
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+        mock_refresh.reset_mock()
+
+        await hass.services.async_call(DOMAIN, "scan_now", {}, blocking=True)
+        await hass.async_block_till_done()
+
+        mock_refresh.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_scan_now_service_with_entry_id(hass: HomeAssistant, mock_config_entry):
+    """Test the scan_now service with a specific config_entry_id."""
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+            return_value=[],
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_refresh"
+        ) as mock_refresh,
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+        mock_refresh.reset_mock()
+
+        await hass.services.async_call(
+            DOMAIN,
+            "scan_now",
+            {"config_entry_id": mock_config_entry.entry_id},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+        mock_refresh.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_scan_now_service_invalid_entry_id(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test scan_now service raises HomeAssistantError with bogus entry_id."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    with pytest.raises(HomeAssistantError, match=r"No .* entry found with ID"):
+        await hass.services.async_call(
+            DOMAIN,
+            "scan_now",
+            {"config_entry_id": "nonexistent_id"},
+            blocking=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_clear_last_seen_service(hass: HomeAssistant, mock_config_entry):
+    """Test the clear_last_seen service clears coordinator history."""
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+            return_value=[],
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_clear_history"
+        ) as mock_clear,
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        await hass.services.async_call(DOMAIN, "clear_last_seen", {}, blocking=True)
+        await hass.async_block_till_done()
+
+        mock_clear.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_clear_last_seen_service_with_entry_id(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test the clear_last_seen service with a specific config_entry_id."""
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+            return_value=[],
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_clear_history"
+        ) as mock_clear,
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        await hass.services.async_call(
+            DOMAIN,
+            "clear_last_seen",
+            {"config_entry_id": mock_config_entry.entry_id},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+        mock_clear.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_clear_last_seen_service_invalid_entry_id(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test clear_last_seen service raises HomeAssistantError with bogus entry_id."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    with pytest.raises(HomeAssistantError, match=r"No .* entry found with ID"):
+        await hass.services.async_call(
+            DOMAIN,
+            "clear_last_seen",
+            {"config_entry_id": "nonexistent_id"},
+            blocking=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_set_known_ssids_service(hass: HomeAssistant, mock_config_entry):
+    """Test the set_known_ssids service."""
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.services.async_call(
+        DOMAIN,
+        "set_known_ssids",
+        {"known_ssids": "ReplacedNet1,ReplacedNet2"},
+        blocking=True,
+        return_response=True,
+    )
+
+    assert (
+        mock_config_entry.options.get(CONF_KNOWN_SSIDS) == "ReplacedNet1,ReplacedNet2"
+    )
+    assert result["entries"][mock_config_entry.entry_id] == "MyNetwork1,MyNetwork2"
+
+
+@pytest.mark.asyncio
+async def test_set_known_ssids_service_with_entry_id(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test the set_known_ssids service with a specific config_entry_id."""
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.services.async_call(
+        DOMAIN,
+        "set_known_ssids",
+        {
+            "known_ssids": "ReplacedNet",
+            "config_entry_id": mock_config_entry.entry_id,
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+    assert mock_config_entry.options.get(CONF_KNOWN_SSIDS) == "ReplacedNet"
+    assert result["entries"][mock_config_entry.entry_id] == "MyNetwork1,MyNetwork2"
+
+
+@pytest.mark.asyncio
+async def test_set_known_ssids_service_invalid_entry_id(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test set_known_ssids service raises HomeAssistantError with bogus entry_id."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    with pytest.raises(HomeAssistantError, match=r"No .* entry found with ID"):
+        await hass.services.async_call(
+            DOMAIN,
+            "set_known_ssids",
+            {"known_ssids": "Test", "config_entry_id": "nonexistent_id"},
+            blocking=True,
+        )

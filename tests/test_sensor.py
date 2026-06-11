@@ -256,3 +256,66 @@ async def test_sensor_value_fn_error_data_type(hass: HomeAssistant, mock_config_
     assert state.state == "unknown"
 
     await coordinator.async_shutdown()
+
+
+@pytest.mark.asyncio
+async def test_sensor_first_seen_attributes(
+    hass: HomeAssistant, mock_config_entry, data_initial
+):
+    """Test unknown_count sensor includes first_seen in extra_state_attributes."""
+    from homeassistant.util import dt as dt_util
+
+    mock_config_entry.add_to_hass(hass)
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    now = dt_util.now()
+    data_initial["first_seen"] = {"UnknownNet": now}
+    coordinator.data = data_initial
+    coordinator.last_update_success = True
+    coordinator.async_update_listeners()
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.wifi_ssid_monitor_unknown_ssid_count")
+    assert state is not None
+    assert state.state == "1"
+    assert "first_seen" in state.attributes
+    assert isinstance(state.attributes["first_seen"], dict)
+    assert "UnknownNet" in state.attributes["first_seen"]
+
+    await coordinator.async_shutdown()
+
+
+@pytest.mark.asyncio
+async def test_sensor_visit_counts_attributes(
+    hass: HomeAssistant, mock_config_entry, data_initial
+):
+    """Test unknown_count sensor includes visit_counts in extra_state_attributes."""
+    mock_config_entry.add_to_hass(hass)
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    data_initial["visit_counts"] = {"UnknownNet": 3}
+    coordinator.data = data_initial
+    coordinator.last_update_success = True
+    coordinator.async_update_listeners()
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.wifi_ssid_monitor_unknown_ssid_count")
+    assert state is not None
+    assert state.state == "1"
+    assert "visit_counts" in state.attributes
+    assert isinstance(state.attributes["visit_counts"], dict)
+    assert state.attributes["visit_counts"]["UnknownNet"] == 3
+
+    await coordinator.async_shutdown()

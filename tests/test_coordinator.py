@@ -326,13 +326,16 @@ async def test_coordinator_async_initialize_with_stored_data(
 async def test_coordinator_async_initialize_with_corrupt_data(
     hass, mock_config_entry, mock_wifi_api
 ):
-    """Test async_initialize gracefully handles corrupt stored data."""
+    """Test async_initialize gracefully handles store load exceptions."""
+    from unittest.mock import AsyncMock
+
     coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
 
-    # Save invalid ISO format data
-    await coordinator.store.async_save({"Net1": "not-a-valid-date"})
+    # Mock store async_load to raise to trigger BaseException path
+    coordinator.store.async_load = AsyncMock(side_effect=Exception("Storage error"))
+    coordinator.store_first_seen.async_load = AsyncMock(return_value=None)
+    coordinator.store_visit_counts.async_load = AsyncMock(return_value=None)
 
-    # Should not raise - warning logged and empty history used
     await coordinator.async_initialize()
 
     assert coordinator._last_seen == {}
@@ -383,3 +386,125 @@ async def test_coordinator_band_filtering_5ghz(hass, mock_config_entry, mock_wif
 
     assert data["ssids"] == ["Net5G"]
     assert data["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_coordinator_async_initialize_with_all_stores(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Test async_initialize loads data from all three stores."""
+    from homeassistant.util import dt as dt_util
+
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+    now = dt_util.now()
+
+    await coordinator.store.async_save({"NetA": now.isoformat()})
+    await coordinator.store_first_seen.async_save({"NetB": now.isoformat()})
+    await coordinator.store_visit_counts.async_save({"NetC": 5})
+
+    await coordinator.async_initialize()
+
+    assert coordinator._last_seen == {"NetA": now}
+    assert coordinator._first_seen == {"NetB": now}
+    assert coordinator._visit_counts == {"NetC": 5}
+
+
+@pytest.mark.asyncio
+async def test_coordinator_async_initialize_first_seen_error(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Test async_initialize handles first_seen store load exception."""
+    from unittest.mock import AsyncMock
+
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    coordinator.store.async_load = AsyncMock(return_value=None)
+    coordinator.store_first_seen.async_load = AsyncMock(
+        side_effect=Exception("First seen error")
+    )
+    coordinator.store_visit_counts.async_load = AsyncMock(return_value=None)
+
+    await coordinator.async_initialize()
+
+    assert coordinator._first_seen == {}
+
+
+@pytest.mark.asyncio
+async def test_coordinator_async_initialize_visit_counts_error(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Test async_initialize handles visit_counts store load exception."""
+    from unittest.mock import AsyncMock
+
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    coordinator.store.async_load = AsyncMock(return_value=None)
+    coordinator.store_first_seen.async_load = AsyncMock(return_value=None)
+    coordinator.store_visit_counts.async_load = AsyncMock(
+        side_effect=Exception("Visit counts error")
+    )
+
+    await coordinator.async_initialize()
+
+    assert coordinator._visit_counts == {}
+
+
+@pytest.mark.asyncio
+async def test_coordinator_async_clear_history(hass, mock_config_entry, mock_wifi_api):
+    """Test async_clear_history clears all tracked data and saves empty."""
+    from homeassistant.util import dt as dt_util
+
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    coordinator._last_seen = {"Net1": dt_util.now()}
+    coordinator._first_seen = {"Net1": dt_util.now()}
+    coordinator._visit_counts = {"Net1": 3}
+
+    await coordinator.async_clear_history()
+
+    assert coordinator._last_seen == {}
+    assert coordinator._first_seen == {}
+    assert coordinator._visit_counts == {}
+
+
+@pytest.mark.asyncio
+async def test_coordinator_ttl_expiry_filters_all_history(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Test TTL expiry filters last_seen, first_seen, and visit_counts."""
+    from datetime import timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.wifi_ssid_monitor.const import CONF_LAST_SEEN_TTL_DAYS
+
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_LAST_SEEN_TTL_DAYS: 30},
+    )
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    now = dt_util.now()
+    old = now - timedelta(days=100)
+
+    # OldNet will NOT be in the scan results, so its old last_seen persists
+    # NewNet WILL be in the scan results, last_seen updated to now
+    coordinator._last_seen = {"OldNet": old, "NewNet": old}
+    coordinator._first_seen = {"OldNet": old, "NewNet": old}
+    coordinator._visit_counts = {"OldNet": 1, "NewNet": 5}
+
+    # Only NewNet appears in the scan
+    mock_wifi_api.get_access_points.return_value = [
+        {"ssid": "NewNet"},
+    ]
+    await coordinator._async_update_data()
+
+    # OldNet: not in scan, last_seen is old (expired) → filtered out
+    assert "OldNet" not in coordinator._last_seen
+    assert "OldNet" not in coordinator._first_seen
+    assert "OldNet" not in coordinator._visit_counts
+    # NewNet: in scan, last_seen updated to now (not expired) → survives
+    assert "NewNet" in coordinator._last_seen
+    assert "NewNet" in coordinator._first_seen
+    assert coordinator._visit_counts["NewNet"] == 6
