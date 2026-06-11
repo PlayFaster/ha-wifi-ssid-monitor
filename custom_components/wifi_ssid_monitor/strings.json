@@ -96,7 +96,7 @@
           "include_hidden": "When enabled, networks that do not broadcast their SSID are counted as a single '[hidden]' entry. Disable to ignore them entirely.",
           "proximity_rssi_threshold": "Signal strength threshold (dBm) for the Proximity Alert sensor. The alert triggers when an unknown network's signal is at or above this value (e.g., -60 dBm indicates a nearby device). Range: -100 to -30.",
           "scan_bands": "Restrict scanning to a specific WiFi band. Applies to all results including counts and known-network matching — not just band attributes. APs with an undetermined band are excluded when a filter is active. Select 'all' to scan all bands.",
-          "denylist_ssids": "Comma-separated list of SSIDs or patterns that are always counted as unknown, even if they match the known list. Wildcards supported (e.g., Guest_Rogue). The denylist overrides the known list — adding an SSID to both lists will still show it as unknown.",
+          "denylist_ssids": "Comma-separated list of SSIDs or patterns that are always counted as unknown, even if they also appear in the known list. Wildcards supported (e.g., Guest_*). This list takes priority over the known list — an SSID matching both will always be flagged as unknown.",
           "last_seen_ttl_days": "How many days to retain last-seen history for networks that are no longer visible. Set to 0 to keep history forever. Range: 0–366 days. Default is 90 days."
         }
       }
