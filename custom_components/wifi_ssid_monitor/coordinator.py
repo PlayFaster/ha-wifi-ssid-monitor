@@ -90,7 +90,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
 
         last_seen_data, first_seen_data, visit_counts_data = results
 
-        if isinstance(last_seen_data, Exception):
+        if isinstance(last_seen_data, BaseException):
             _LOGGER.warning(
                 "Failed to load last_seen data; starting with empty history"
             )
@@ -99,7 +99,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 ssid: datetime.fromisoformat(ts) for ssid, ts in last_seen_data.items()
             }
 
-        if isinstance(first_seen_data, Exception):
+        if isinstance(first_seen_data, BaseException):
             _LOGGER.warning(
                 "Failed to load first_seen data; starting with empty history"
             )
@@ -108,7 +108,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 ssid: datetime.fromisoformat(ts) for ssid, ts in first_seen_data.items()
             }
 
-        if isinstance(visit_counts_data, Exception):
+        if isinstance(visit_counts_data, BaseException):
             _LOGGER.warning(
                 "Failed to load visit_counts data; starting with empty history"
             )

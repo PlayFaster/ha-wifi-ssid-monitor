@@ -1,10 +1,10 @@
 # Future Roadmap: WiFi SSID Monitor
 
-This document tracks what was planned, what has been delivered, and what new directions are available now that v1.6.0 is in place.
+This document tracks what was planned, what has been delivered, and what new directions are available.
 
 ---
 
-## ✅ Delivered in v1.5.0
+## ✅ Delivered with v1.6.0, Part 1 (was v1.5.0)
 
 All of the following items were on the original roadmap and have been implemented.
 
@@ -21,9 +21,7 @@ All of the following items were on the original roadmap and have been implemente
 
 ---
 
-## ✅ Delivered in v1.6.0
-
-All of the following items were on the v1.5.0 new-opportunities list and have been implemented.
+## ✅ Delivered with v1.6.0, Part 2 (was v1.6.0)
 
 | Feature | Where it landed |
 | :-- | :-- |
@@ -33,6 +31,19 @@ All of the following items were on the v1.5.0 new-opportunities list and have be
 | **Auto-Expire Stale "Last Seen" Entries** | Configurable TTL in the options flow (0–366 days; 0 = keep forever; default 90 days). Applied on each successful scan before saving to the Store. |
 | **Band Filter Option** | `scan_bands` option (`all` / `2.4` / `5`) in the options flow. Filters all scan results — counts, attributes, and known-network matching — not just band display. APs with an undetermined band are excluded when a filter is active (strict mode). |
 | **SSID Denylist** | `denylist_ssids` option in the options flow. Comma-separated list of SSIDs or `fnmatch` patterns that are always counted as unknown even if they match the known list. The denylist overrides the known list. |
+
+---
+
+## ✅ Delivered with v1.5.0, Part 3 (was v1.7.0)
+
+| Feature | Where it landed |
+| :-- | :-- |
+| **"First Seen" Persistent Timestamps** | `_first_seen` dict backed by `Store` (`.storage/wifi_ssid_monitor.<entry_id>.first_seen`). Written once on first detection; never overwritten. Exposed as `first_seen` ISO-timestamp attribute on `unknown_count`. TTL expiry prunes `first_seen` alongside `last_seen`. |
+| **Unknown SSID Visit Count** | `_visit_counts` dict backed by `Store` (`.storage/wifi_ssid_monitor.<entry_id>.visit_counts`). Incremented each scan cycle the SSID is present. Exposed as `visit_counts` attribute on `unknown_count`. |
+| **Dedicated Strongest Unknown RSSI Sensor** | `sensor.strongest_unknown_rssi` — `SensorDeviceClass.SIGNAL_STRENGTH`, `native_unit_of_measurement="dBm"`. Allows native HA history graphing and numeric automation conditions without attribute extraction. |
+| **`scan_now` Service** | `wifi_ssid_monitor.scan_now` — triggers `coordinator.async_refresh()` for one or all entries. Cleaner than pressing `button.scan_now` from an automation; consistent with the other services. |
+| **Clear Last Seen History Service** | `wifi_ssid_monitor.clear_last_seen` — silently clears `_last_seen`, `_first_seen`, and `_visit_counts` and saves empty state to all three Stores. Next scheduled scan repopulates from scratch. |
+| **Set Known SSIDs Service** | `wifi_ssid_monitor.set_known_ssids` — replaces the entire known list in a single call and returns the previous list per entry as `SupportsResponse.OPTIONAL` service response data. Enables backup/restore automation patterns. |
 
 ---
 
@@ -60,7 +71,7 @@ These items were on the original list but have not yet been implemented.
 
 **Original idea:** Fire a specific HA event the very first time a new hardware BSSID is detected.
 
-**Assessment (updated for v1.6.0):** The original framing required BSSID tracking (still unresolved). However, now that persistent `Store` storage is in place, the simpler SSID-level variant — "fire an event the first time this SSID name has ever been seen across all restarts" — is directly feasible without BSSID. See "First Seen Timestamps" in the v1.6.0 opportunities section below, which is a prerequisite. The BSSID-level variant (detecting the same physical device under a renamed SSID) remains blocked on the API question.
+**Assessment (updated for v1.5.0):** The original BSSID-level framing remains blocked on API uncertainty. However, the simpler SSID-level variant is now trivially feasible: `first_seen` timestamps are persistently stored, so the coordinator can fire `wifi_ssid_monitor.ssid_first_detected` whenever it encounters an SSID with no existing `first_seen` record. The only work required is the `hass.bus.async_fire` call at scan time. See "First Detected Events" in the future options section below.
 
 ---
 
@@ -88,9 +99,21 @@ These items were on the original list but have not yet been implemented.
 
 ---
 
-## 💡 New Opportunities Unlocked by v1.5.0
+## 💡 New Opportunities — Future Options
 
-These items were identified after v1.5.0 and have not yet been implemented.
+Now that `first_seen`, `visit_counts`, and the full service suite are in place, a new tier of features is feasible.
+
+---
+
+### "First Detected" Events — `wifi_ssid_monitor.ssid_first_detected`
+
+**Difficulty:** Easy **Benefit:** High — fire an HA event when an SSID is encountered for the first time across all restarts. The `first_seen` Store is already in place; the only addition is a `hass.bus.async_fire` call when the coordinator detects an SSID with no prior `first_seen` record. Users can automate directly on this event (e.g., send a notification, log to a spreadsheet, turn on a warning light). This completes the SSID-level variant of the "First Seen Events" original roadmap item.
+
+---
+
+### Visit Count Threshold Filter
+
+**Difficulty:** Easy **Benefit:** Medium-high — add a configurable options-flow setting (e.g., `min_visit_count`, default 0 = disabled) that excludes SSIDs from the `unknown_count` and all attributes unless they have been seen at least N times. Filters out drive-by hotspots and one-off scan artefacts without requiring the user to write template automation conditions.
 
 ---
 
@@ -114,62 +137,10 @@ These items were identified after v1.5.0 and have not yet been implemented.
 
 ---
 
-## 💡 New Opportunities Unlocked by v1.6.0
-
-Now that persistent storage, band filtering, the denylist, and the remove service are all in place, another tier of useful features has become feasible.
-
----
-
-### "First Seen" Persistent Timestamps
-
-**Difficulty:** Easy **Benefit:** High — track the date each SSID was _first ever_ detected across all restarts. Stored in the same `Store` as `last_seen` (as a second dict or a combined record per SSID). Exposed as a `first_seen` attribute on `unknown_count` alongside the existing `last_seen` attribute.
-
-**Why it matters:** "Last seen 2 minutes ago" tells you something is nearby now. "First seen 3 weeks ago" tells you it has been parked in range for weeks — a very different threat profile. Together, `first_seen` and `last_seen` give the user a full timeline without requiring BSSID support.
-
-**Note:** This directly enables the SSID-level variant of the "First Seen Events" original roadmap item (see above). If `first_seen` is stored, firing `wifi_ssid_monitor.ssid_first_detected` when an SSID has no prior `first_seen` record is a trivial addition.
-
----
-
-### Unknown SSID Visit Count
-
-**Difficulty:** Easy **Benefit:** Medium-high — track how many scan cycles each SSID has been observed (total, not consecutive). Stored persistently alongside `last_seen`. Exposed as a `visit_counts` attribute on `unknown_count`.
-
-**Why it matters:** Signal strength tells you proximity; visit count tells you persistence. A network at −70 dBm seen 200 times is more significant than one at −50 dBm seen once. This lets users write automations like "alert only if an unknown network has been seen more than 5 times" — filtering out drive-by hotspots without requiring a complex time-window calculation.
-
-**Implementation:** Increment `_visit_counts[ssid]` for each SSID present in a successful scan. Persist in the same Store as `last_seen`, or in a second Store key.
-
----
-
-### Dedicated Strongest Unknown RSSI Sensor
-
-**Difficulty:** Easy **Benefit:** Medium — `strongest_unknown_rssi` is currently exposed only as an attribute of `binary_sensor.proximity_alert`. A dedicated `sensor.strongest_unknown_rssi` with `SensorDeviceClass.SIGNAL_STRENGTH` and `unit_of_measurement=dBm` would allow users to plot the value on HA history graphs natively and use it in numeric conditions in automations without attribute extraction.
-
-**Implementation:** Add a new `WifiSensorEntityDescription` entry with `key="strongest_unknown_rssi"`, `device_class=SensorDeviceClass.SIGNAL_STRENGTH`, `native_unit_of_measurement="dBm"`, and `value_fn=lambda data: data.get("strongest_unknown_rssi")`.
-
----
-
-### `scan_now` Service — `wifi_ssid_monitor.scan_now`
-
-**Difficulty:** Easy **Benefit:** Medium — the existing `button.scan_now` triggers an immediate scan but buttons are UI-first. Calling a button from an automation requires `homeassistant.press` on a specific entity ID. A dedicated `wifi_ssid_monitor.scan_now` service with an optional `config_entry_id` field makes automation-triggered scans cleaner and consistent with the other services in this integration.
-
-**Implementation:** Register in `async_setup` alongside the other services. Handler calls `coordinator.async_refresh()` for the target entry or all entries.
-
----
-
-### Clear Last Seen History Service — `wifi_ssid_monitor.clear_last_seen`
-
-**Difficulty:** Easy **Benefit:** Medium — clears `_last_seen` (and, if implemented, `first_seen` and `visit_counts`) for one or all entries and saves the empty state to the Store. Useful when relocating, after a significant network change, or for a deliberate monitoring reset without removing and re-adding the integration entry. Optional `config_entry_id` target.
-
----
-
-### Set Known SSIDs Service — `wifi_ssid_monitor.set_known_ssids`
-
-**Difficulty:** Easy **Benefit:** Medium — replaces the entire known list for an entry in a single call, rather than building it up through individual `add_known_ssid` calls. Enables backup/restore patterns (store the list in an input_text helper, restore it via automation) and bulk management from scripts. Should return the previous list as service response data to enable round-trip backup.
-
----
-
 ## Version Control
 
 - **v1.0.1** (2026-04-01) - Created.
 - **v1.1.0** (2026-06-02) - Major rewrite. Marked v1.5.0 delivered items. Reassessed remaining original items. Added new opportunity section based on v1.5.0 capabilities.
-- **v1.2.0** (2026-06-11) - Marked v1.6.0 delivered items. Updated "First Seen Events" assessment to reflect that SSID-level first_seen is now feasible with persistent storage. Added new opportunity section based on v1.6.0 capabilities.
+- **v1.2.0** (2026-06-11) - Marked v1.6.0 delivered items. Updated "First Seen Events" assessment. Added new opportunity section based on v1.6.0 capabilities.
+- **v1.3.0** (2026-06-11) - Marked v1.7.0 delivered items. Updated "First Seen Events" assessment to reflect first_seen Store is now live. Replaced v1.6.0 opportunity section with v1.7.0 opportunities.
+- **v1.4.0** (2026-06-11) - Rebundled: v1.5.0/v1.6.0/v1.7.0 features all ship together as v1.6.0. Renamed delivered sections to Part 1/2/3. Renamed opportunity section to "Future Options".
