@@ -8,6 +8,12 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Documentation**: All relevent documents, READEME.md, FUTURE.md, DEVELOPMENT.md etc. updated.
+
+## [1.6.0-dev6] - 2026-06-11 - Unreleased
+
+### Changed
+
 - **Test Coverage**: `__init__.py` coverage increased from 88% to 100% (overall 96% → 100%) with new tests for `scan_now`, `clear_last_seen`, and `set_known_ssids` service paths.
 
 ### Fixed

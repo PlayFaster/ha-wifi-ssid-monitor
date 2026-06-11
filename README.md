@@ -45,7 +45,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 - **Unknown Network Detection**: Identify networks not in your known list, with wildcard pattern matching (e.g., `Guest_*`) for flexible filtering.
 - **Proximity Alert**: A binary sensor fires when an unknown network's signal strength exceeds a configurable threshold, indicating a nearby rogue AP.
 - **On-Demand Scan**: Trigger an immediate scan at any time using the **Scan Now** button entity or the `wifi_ssid_monitor.scan_now` service — no need to wait for the next interval.
-- **Add to Known Service**: Whitelist a detected SSID instantly from an automation or Developer Tools, with an immediate re-scan to confirm.
+- **Service API**: Five callable services cover the full management lifecycle — add, remove, or replace the known list, trigger on-demand scans, and clear history.
 - **Last Seen Tracking**: Each unknown SSID records when it was last detected, first detected, and how many times it has appeared — all persisted across Home Assistant restarts with a configurable TTL.
 - **Dynamic Polling Control**: Adjust the scan frequency (1–180 minutes) from the HA UI or via automations.
 - **Band Filter**: Restrict scanning to 2.4 GHz only, 5 GHz only, or all bands to reduce noise from neighbouring networks.
@@ -55,7 +55,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 ## 🔍 What You Get
 
-This integration provides **8 entities** (all enabled by default) organized under a single WiFi SSID Monitor device.
+This integration provides **10 entities** (all enabled by default) organized under a single WiFi SSID Monitor device.
 
 ### Sensors
 
@@ -65,15 +65,19 @@ This integration provides **8 entities** (all enabled by default) organized unde
 | `sensor.wifi_ssid_monitor_unknown_ssid_count` | Measurement | Count of networks not in your known list |
 | `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
 | `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
+| `sensor.wifi_ssid_monitor_strongest_unknown_ssid` | Diagnostic | SSID name of the closest unknown network (highest signal strength); `unavailable` when no unknown networks are visible |
+| `sensor.wifi_ssid_monitor_strongest_unknown_rssi` | Measurement | Signal strength of the closest unknown network (dBm); `unavailable` when no unknown networks are visible |
 
-**Attributes:** Both count sensors expose rich per-SSID data in their state attributes:
+**Attributes:** The count sensors expose per-SSID data in their state attributes; see the "On Sensor" column for which attributes apply to each:
 
 | Attribute | On Sensor | Description |
 | :-- | :-- | :-- |
 | `ssids` | Both | List of detected (`total`) or unknown (`unknown`) SSID names |
 | `signal_strengths` | Both | `{ssid: dBm}` — signal strength per network where data is available |
 | `bands` | Both | `{ssid: "2.4 GHz" / "5 GHz"}` — frequency band where channel data is available |
-| `last_seen` | Unknown only | `{ssid: ISO-timestamp}` — when each unknown SSID was last detected (in-memory; resets on HA restart) |
+| `last_seen` | Unknown only | `{ssid: ISO-timestamp}` — when each unknown SSID was last detected (persistent; pruned after configured TTL) |
+| `first_seen` | Unknown only | `{ssid: ISO-timestamp}` — when each unknown SSID was first detected (persistent) |
+| `visit_counts` | Unknown only | `{ssid: int}` — scan cycles in which each unknown SSID has appeared (persistent) |
 
 ### Binary Sensors
 
@@ -82,7 +86,7 @@ This integration provides **8 entities** (all enabled by default) organized unde
 | `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known |
 | `binary_sensor.wifi_ssid_monitor_proximity_alert` | On when an unknown network's signal meets or exceeds the configured RSSI threshold |
 
-The `proximity_alert` sensor exposes `strongest_unknown_rssi` (dBm of the closest unknown network) and `threshold` (the configured limit) as state attributes.
+The `proximity_alert` sensor exposes `strongest_unknown_rssi` (dBm of the closest unknown network — also available as a dedicated sensor entity for dashboards and long-term statistics) and `threshold` (the configured limit) as state attributes.
 
 ### Number Entities
 
@@ -98,22 +102,86 @@ The `proximity_alert` sensor exposes `strongest_unknown_rssi` (dBm of the closes
 
 ### 🔌 Services
 
+All services accept an optional `config_entry_id` to target a specific integration entry. Leave it blank to apply to all configured entries.
+
 | Service | Description |
 | :-- | :-- |
-| `wifi_ssid_monitor.add_known_ssid` | Adds an SSID to the known networks list and triggers an immediate re-scan |
+| `wifi_ssid_monitor.add_known_ssid` | Adds an SSID to the known list; triggers an immediate re-scan |
+| `wifi_ssid_monitor.remove_known_ssid` | Removes an SSID or pattern from the known list; triggers a re-scan if the list changes |
+| `wifi_ssid_monitor.scan_now` | Triggers an immediate WiFi scan |
+| `wifi_ssid_monitor.clear_last_seen` | Clears all `last_seen`, `first_seen`, and `visit_counts` history |
+| `wifi_ssid_monitor.set_known_ssids` | Replaces the entire known list; returns the previous list as response data |
 
-**Parameters:**
+#### `add_known_ssid`
 
 | Parameter | Required | Description |
 | :-- | :-- | :-- |
-| `ssid` | **Yes** | The network name (SSID) to add to the known list |
-| `config_entry_id` | No | Target a specific integration entry. Leave blank to update all configured entries. |
+| `ssid` | **Yes** | SSID to add to the known list |
+| `config_entry_id` | No | Target a specific entry; blank = all entries |
 
 ```yaml
-service: wifi_ssid_monitor.add_known_ssid
+action: wifi_ssid_monitor.add_known_ssid
 data:
   ssid: "MyHomeNetwork"
-  # config_entry_id: "abc123"  # Optional — omit to update all entries
+  # config_entry_id: "abc123"  # Optional
+```
+
+#### `remove_known_ssid`
+
+| Parameter | Required | Description |
+| :-- | :-- | :-- |
+| `ssid` | **Yes** | Exact SSID or pattern to remove — must match a list entry exactly; wildcards are not expanded |
+| `config_entry_id` | No | Target a specific entry; blank = all entries |
+
+```yaml
+action: wifi_ssid_monitor.remove_known_ssid
+data:
+  ssid: "MyHomeNetwork"
+```
+
+#### `scan_now`
+
+| Parameter | Required | Description |
+| :-- | :-- | :-- |
+| `config_entry_id` | No | Target a specific entry; blank = all entries |
+
+```yaml
+action: wifi_ssid_monitor.scan_now
+```
+
+#### `clear_last_seen`
+
+Clears all three history stores (`last_seen`, `first_seen`, `visit_counts`). The next scan repopulates history from that point forward.
+
+| Parameter | Required | Description |
+| :-- | :-- | :-- |
+| `config_entry_id` | No | Target a specific entry; blank = all entries |
+
+```yaml
+action: wifi_ssid_monitor.clear_last_seen
+```
+
+#### `set_known_ssids`
+
+Replaces the entire known networks list in a single call. Returns the previous list for each affected entry as service response data. Useful for syncing an external source of truth into the integration.
+
+| Parameter | Required | Description |
+| :-- | :-- | :-- |
+| `known_ssids` | **Yes** | Comma-separated SSIDs and patterns — replaces the existing list entirely |
+| `config_entry_id` | No | Target a specific entry; blank = all entries |
+
+```yaml
+action: wifi_ssid_monitor.set_known_ssids
+response_variable: result
+data:
+  known_ssids: "Home-WiFi, Guest_*"
+```
+
+Response (`result`):
+
+```yaml
+entries:
+  abc123def456: "OldNetwork1, OldNetwork2"
 ```
 
 ### 📊 Long Term Statistics (LTS)
@@ -130,6 +198,7 @@ The following diagnostic sensors have **no LTS** to avoid unnecessary database g
 
 - `sensor.wifi_ssid_monitor_interface` (Text diagnostic)
 - `sensor.wifi_ssid_monitor_last_updated` (Timestamp diagnostic)
+- `sensor.wifi_ssid_monitor_strongest_unknown_ssid` (Text diagnostic)
 
 ## 💡 Example Automations
 
@@ -298,7 +367,7 @@ actions:
 
 ## 🔧 Configuration
 
-### 🔩 Initial Setup
+### 🔧 Initial Setup
 
 Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**.
 
@@ -315,10 +384,13 @@ After setup, settings can be updated by clicking **Configure** on the integratio
 | Parameter | Default | Range | Description |
 | :-- | :-- | :-- | :-- |
 | **Known SSIDs** | — | String | Comma-separated list of known networks. Wildcards supported (e.g., `Guest_*`). Case-sensitive. |
+| **Always-Unknown SSIDs** | — | String | Comma-separated fnmatch patterns permanently treated as unknown, even if they also match an entry in the known list. Useful for flagging neighbour networks that should never be whitelisted. |
 | **Scan Interval** | `600` | 60–10800s | Polling frequency (in seconds; equivalent to 1–180 minutes). |
+| **Band Filter** | `all` | `all` / `2.4` / `5` | Restrict scanning to a specific frequency band. Networks on other bands are excluded from all counts and attributes. |
 | **WiFi Interface** | `wlan0` | String | Change which WiFi interface is monitored. |
 | **Include Hidden Networks** | On | Toggle | When off, networks without a broadcasted SSID are ignored entirely and do not appear in any count or attribute. |
 | **Proximity Alert Threshold** | `-60` | −100 to −30 dBm | Signal strength at which the Proximity Alert sensor fires. **dBm values are negative** — −40 dBm means the device must be very close; −80 dBm allows distant signals to trigger the alert. |
+| **Last Seen History TTL** | `90` | 0–366 days | Number of days to retain `last_seen`, `first_seen`, and `visit_counts` history entries. Set to `0` to keep all history indefinitely. |
 
 > [!TIP]
 >
@@ -328,7 +400,7 @@ After setup, settings can be updated by clicking **Configure** on the integratio
 > 2. Check **Configure network interfaces**.
 > 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar.
 
-## 🔨 Under the Hood - Technical Architecture
+## 🔨 Under the Hood — Technical Architecture
 
 ### 🔄 Polling & 3-Strike Resilience 🩹
 
@@ -342,6 +414,16 @@ The integration utilizes a custom polling mechanism designed to interact with th
 
 - **Interface-Based Identity**: The integration registers its unique ID based on `wifi_ssid_monitor_{interface}`. This prevents duplicate configurations for the same interface and ensures entity history remains stable.
 - **Data Validation**: Values retrieved from the Supervisor API are run through guard validations. Out-of-bounds metrics (e.g., total count exceeding 256) are filtered to prevent database corruption.
+
+### 💾 Persistent History
+
+The integration persists three history stores across Home Assistant restarts using `homeassistant.helpers.storage`:
+
+- **`last_seen`**: ISO timestamp of the most recent scan cycle in which each unknown SSID was detected.
+- **`first_seen`**: ISO timestamp of the scan cycle in which each unknown SSID was first detected.
+- **`visit_counts`**: Count of scan cycles in which each unknown SSID has appeared.
+
+Entries older than the **Last Seen History TTL** (default: 90 days) are pruned automatically on the next scan. Set TTL to `0` to retain all entries indefinitely. Call `wifi_ssid_monitor.clear_last_seen` to reset all three stores immediately.
 
 ## ❓ FAQ & Troubleshooting
 
@@ -408,7 +490,7 @@ To fully uninstall (HACS):
 ## ❗ Known Limitations /❔ What's Missing?
 
 - **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data. You can disable hidden network tracking entirely via the **Include Hidden Networks** option.
-- **Last Seen Timestamps Reset on Restart**: The `last_seen` timestamps in the unknown SSID count sensor attributes are held in memory and reset every time Home Assistant restarts. They reflect the current HA session only and are not persisted to disk.
+- **Strongest Unknown Sensors Unavailable Between Scans**: `sensor.wifi_ssid_monitor_strongest_unknown_ssid` and `sensor.wifi_ssid_monitor_strongest_unknown_rssi` return `unavailable` when no unknown networks are currently visible. They only hold a value immediately after a scan that detected at least one unknown SSID.
 - **Pattern Matching is Case-Sensitive**: Known SSID patterns (including wildcards like `Guest_*`) are matched case-sensitively. `homewifi` and `HomeWiFi` are treated as different networks — make sure your patterns match the exact casing of the SSIDs you want to filter.
 - **Proximity Alert Threshold Direction**: The threshold is a dBm value, which is always negative. A less-negative value (e.g., −40 dBm) requires the unknown device to be very close before the alert fires. A more-negative value (e.g., −80 dBm) lets distant signals trigger it. If the alert fires constantly in a dense urban area, raise the threshold closer to −40.
 
