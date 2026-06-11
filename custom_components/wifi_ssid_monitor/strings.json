@@ -45,7 +45,8 @@
       "total_count": { "name": "Total SSID Count" },
       "unknown_count": { "name": "Unknown SSID Count" },
       "interface": { "name": "Interface" },
-      "last_updated": { "name": "Last Updated" }
+      "last_updated": { "name": "Last Updated" },
+      "strongest_unknown_ssid": { "name": "Strongest Unknown SSID" }
     },
     "binary_sensor": {
       "new_network": { "name": "New Network Alert" },
@@ -82,7 +83,10 @@
           "known_wifi_ids": "Known SSIDs (comma separated)",
           "scan_interval": "Scan Interval (seconds, minimum 60)",
           "include_hidden": "Include Hidden Networks",
-          "proximity_rssi_threshold": "Proximity Alert Threshold (dBm)"
+          "proximity_rssi_threshold": "Proximity Alert Threshold (dBm)",
+          "scan_bands": "Band Filter",
+          "denylist_ssids": "Always-Unknown SSIDs (denylist)",
+          "last_seen_ttl_days": "Last Seen History (days)"
         },
         "data_description": {
           "name": "Display name shown in the Home Assistant UI for this integration instance.",
@@ -90,7 +94,10 @@
           "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Wildcards supported (e.g., Guest_*). Networks not matching this list are counted as unknown.",
           "scan_interval": "How often to poll for WiFi networks, in seconds. Minimum 60 seconds. Default is 600 seconds (10 minutes).",
           "include_hidden": "When enabled, networks that do not broadcast their SSID are counted as a single '[hidden]' entry. Disable to ignore them entirely.",
-          "proximity_rssi_threshold": "Signal strength threshold (dBm) for the Proximity Alert sensor. The alert triggers when an unknown network's signal is at or above this value (e.g., -60 dBm indicates a nearby device). Range: -100 to -30."
+          "proximity_rssi_threshold": "Signal strength threshold (dBm) for the Proximity Alert sensor. The alert triggers when an unknown network's signal is at or above this value (e.g., -60 dBm indicates a nearby device). Range: -100 to -30.",
+          "scan_bands": "Restrict scanning to a specific WiFi band. Applies to all results including counts and known-network matching — not just band attributes. APs with an undetermined band are excluded when a filter is active. Select 'all' to scan all bands.",
+          "denylist_ssids": "Comma-separated list of SSIDs or patterns that are always counted as unknown, even if they match the known list. Wildcards supported (e.g., Guest_Rogue). The denylist overrides the known list — adding an SSID to both lists will still show it as unknown.",
+          "last_seen_ttl_days": "How many days to retain last-seen history for networks that are no longer visible. Set to 0 to keep history forever. Range: 0–366 days. Default is 90 days."
         }
       }
     },

@@ -65,6 +65,11 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: None,  # Handled in native_value
     ),
+    WifiSensorEntityDescription(
+        key="strongest_unknown_ssid",
+        translation_key="strongest_unknown_ssid",
+        value_fn=lambda data: data.get("strongest_unknown_ssid"),
+    ),
 )
 
 

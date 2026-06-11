@@ -9,15 +9,21 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .api import WifiScanAPI, WifiScanError
 from .const import (
+    CONF_DENYLIST_SSIDS,
     CONF_INCLUDE_HIDDEN,
     CONF_KNOWN_SSIDS,
+    CONF_LAST_SEEN_TTL_DAYS,
+    CONF_SCAN_BANDS,
     CONF_SCAN_INTERVAL,
     DEFAULT_INCLUDE_HIDDEN,
+    DEFAULT_LAST_SEEN_TTL_DAYS,
+    DEFAULT_SCAN_BANDS,
     DOMAIN,
 )
 
@@ -52,6 +58,9 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         self.last_update_success_time = None
         self._failure_count = 0
         self._last_seen: dict[str, datetime] = {}
+        self.store: Store = Store(
+            hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.last_seen"
+        )
 
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, 600)
 
@@ -61,6 +70,19 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             name=f"{entry.title} Data",
             update_interval=timedelta(seconds=scan_interval),
         )
+
+    async def async_initialize(self) -> None:
+        """Load persisted last_seen data from storage."""
+        try:
+            stored = await self.store.async_load()
+            if stored:
+                self._last_seen = {
+                    ssid: datetime.fromisoformat(ts) for ssid, ts in stored.items()
+                }
+        except Exception:
+            _LOGGER.warning(
+                "Failed to load persisted last_seen data; starting with empty history"
+            )
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API with resilience and timeout."""
@@ -78,7 +100,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             self.last_update_success_time = now
             ir.async_delete_issue(self.hass, DOMAIN, "supervisor_unavailable")
 
-            # Optionally filter out hidden networks (APs without an ssid key)
+            # Filter out hidden networks if configured
             include_hidden = self.entry.options.get(
                 CONF_INCLUDE_HIDDEN, DEFAULT_INCLUDE_HIDDEN
             )
@@ -88,6 +110,16 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 hidden_count = sum(1 for ap in access_points if "ssid" not in ap)
                 if hidden_count > 0:
                     _LOGGER.debug("Found %d hidden WiFi networks", hidden_count)
+
+            # Filter by band if configured (strict: unknown-band APs are excluded)
+            scan_bands = self.entry.options.get(CONF_SCAN_BANDS, DEFAULT_SCAN_BANDS)
+            if scan_bands != "all":
+                target_band = "2.4 GHz" if scan_bands == "2.4" else "5 GHz"
+                access_points = [
+                    ap
+                    for ap in access_points
+                    if _channel_to_band(ap.get("channel")) == target_band
+                ]
 
             all_ssids = sorted(
                 list({ap.get("ssid", "[hidden]") for ap in access_points})
@@ -104,7 +136,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     "band": _channel_to_band(channel),
                 }
 
-            # Track last-seen timestamps (in-memory; resets on HA restart)
+            # Update last-seen timestamps
             for ssid in all_ssids:
                 self._last_seen[ssid] = now
 
@@ -113,22 +145,46 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             known_patterns = [
                 x.strip() for x in known_networks_str.split(",") if x.strip()
             ]
+
+            denylist_str = self.entry.options.get(CONF_DENYLIST_SSIDS, "")
+            denylist_patterns = [
+                x.strip() for x in denylist_str.split(",") if x.strip()
+            ]
+
+            # Denylist overrides known: an SSID matching both is always unknown
             unknown_ssids = sorted(
                 [
                     ssid
                     for ssid in all_ssids
                     if not any(fnmatch.fnmatch(ssid, p) for p in known_patterns)
+                    or any(fnmatch.fnmatch(ssid, p) for p in denylist_patterns)
                 ]
             )
 
-            # Strongest RSSI among unknown networks (least-negative = closest)
-            unknown_rssi_values = [
-                network_map[ssid]["rssi"]
-                for ssid in unknown_ssids
-                if network_map.get(ssid, {}).get("rssi") is not None
-            ]
-            strongest_unknown_rssi: int | None = (
-                max(unknown_rssi_values) if unknown_rssi_values else None
+            # Strongest RSSI and name among unknown networks
+            strongest_unknown_ssid: str | None = None
+            strongest_unknown_rssi: int | None = None
+            for ssid in unknown_ssids:
+                rssi = network_map.get(ssid, {}).get("rssi")
+                if rssi is not None and (
+                    strongest_unknown_rssi is None or rssi > strongest_unknown_rssi
+                ):
+                    strongest_unknown_rssi = rssi
+                    strongest_unknown_ssid = ssid
+
+            # Apply TTL expiry to last_seen (0 = keep forever)
+            ttl_days = self.entry.options.get(
+                CONF_LAST_SEEN_TTL_DAYS, DEFAULT_LAST_SEEN_TTL_DAYS
+            )
+            if ttl_days > 0:
+                cutoff = now - timedelta(days=ttl_days)
+                self._last_seen = {
+                    s: t for s, t in self._last_seen.items() if t > cutoff
+                }
+
+            # Persist last_seen to storage
+            await self.store.async_save(
+                {ssid: dt.isoformat() for ssid, dt in self._last_seen.items()}
             )
 
             return {
@@ -140,6 +196,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 "networks": network_map,
                 "last_seen": dict(self._last_seen),
                 "strongest_unknown_rssi": strongest_unknown_rssi,
+                "strongest_unknown_ssid": strongest_unknown_ssid,
             }
 
         except Exception as err:

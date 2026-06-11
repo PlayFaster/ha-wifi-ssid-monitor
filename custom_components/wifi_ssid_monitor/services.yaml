@@ -22,3 +22,30 @@ add_known_ssid:
       selector:
         config_entry:
           integration: wifi_ssid_monitor
+
+remove_known_ssid:
+  name: Remove Known SSID
+  description: >
+    Removes an SSID or pattern from the known networks list for one or all integration
+    entries. If the SSID is not in the list the call succeeds silently. Triggers an
+    immediate re-scan when the list changes.
+  fields:
+    ssid:
+      name: SSID
+      description: >
+        The exact SSID or pattern to remove from the known list (e.g., "MyHomeNetwork"
+        or "Guest_*"). Must match a list entry exactly — this does not expand wildcards.
+      required: true
+      example: "MyHomeNetwork"
+      selector:
+        text:
+    config_entry_id:
+      name: Config Entry ID
+      description: >
+        Target a specific integration entry by its ID. Leave blank to update all
+        configured entries.
+      required: false
+      example: "abc123def456"
+      selector:
+        config_entry:
+          integration: wifi_ssid_monitor

@@ -12,15 +12,20 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import WifiScanAPI, WifiScanError
 from .const import (
+    CONF_DENYLIST_SSIDS,
     CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
+    CONF_LAST_SEEN_TTL_DAYS,
     CONF_NAME,
     CONF_PROXIMITY_RSSI_THRESHOLD,
+    CONF_SCAN_BANDS,
     CONF_SCAN_INTERVAL,
     DEFAULT_INCLUDE_HIDDEN,
+    DEFAULT_LAST_SEEN_TTL_DAYS,
     DEFAULT_NAME,
     DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+    DEFAULT_SCAN_BANDS,
     DOMAIN,
 )
 
@@ -279,6 +284,22 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
                 ),
             ): vol.All(vol.Coerce(int), vol.Range(min=-100, max=-30)),
+            vol.Required(
+                CONF_SCAN_BANDS,
+                default=self._config_entry.options.get(
+                    CONF_SCAN_BANDS, DEFAULT_SCAN_BANDS
+                ),
+            ): vol.In(["all", "2.4", "5"]),
+            vol.Optional(
+                CONF_DENYLIST_SSIDS,
+                default=self._config_entry.options.get(CONF_DENYLIST_SSIDS, ""),
+            ): cv.string,
+            vol.Optional(
+                CONF_LAST_SEEN_TTL_DAYS,
+                default=self._config_entry.options.get(
+                    CONF_LAST_SEEN_TTL_DAYS, DEFAULT_LAST_SEEN_TTL_DAYS
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=366)),
         }
 
         data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = vol.In(
