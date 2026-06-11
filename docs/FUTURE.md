@@ -96,8 +96,7 @@ These items were identified after v1.5.0 and have not yet been implemented.
 
 ### SSID Appearance / Disappearance Events
 
-**Difficulty:** Medium
-**Benefit:** High — fire `wifi_ssid_monitor.ssid_appeared` and `wifi_ssid_monitor.ssid_disappeared` HA events by diffing the current scan against the previous one. Users can automate on these directly without needing a binary sensor. Especially useful for presence-detection use cases (e.g., "notify me when the IoT device hotspot disappears — it may have been stolen").
+**Difficulty:** Medium **Benefit:** High — fire `wifi_ssid_monitor.ssid_appeared` and `wifi_ssid_monitor.ssid_disappeared` HA events by diffing the current scan against the previous one. Users can automate on these directly without needing a binary sensor. Especially useful for presence-detection use cases (e.g., "notify me when the IoT device hotspot disappears — it may have been stolen").
 
 **Implementation:** Compare `set(current_ssids)` with `set(previous_ssids)` in the coordinator after each scan; fire events for diffs via `hass.bus.async_fire`. The previous scan set can be derived from `coordinator.data` at the start of each `_async_update_data` call before the new data is returned.
 
@@ -105,15 +104,13 @@ These items were identified after v1.5.0 and have not yet been implemented.
 
 ### Proximity Alert Hysteresis
 
-**Difficulty:** Medium
-**Benefit:** Medium — if a mobile device sits right at the threshold (e.g., −61/−59 dBm alternating), the proximity sensor will flap on every scan. A configurable hysteresis band (e.g., "must drop 5 dBm below threshold to turn off") prevents this. Requires tracking the previous `is_on` state and applying upper/lower bounds separately.
+**Difficulty:** Medium **Benefit:** Medium — if a mobile device sits right at the threshold (e.g., −61/−59 dBm alternating), the proximity sensor will flap on every scan. A configurable hysteresis band (e.g., "must drop 5 dBm below threshold to turn off") prevents this. Requires tracking the previous `is_on` state and applying upper/lower bounds separately.
 
 ---
 
 ### Per-SSID Presence Binary Sensors
 
-**Difficulty:** Hard
-**Benefit:** High (for the right users) — auto-create a binary sensor for each SSID in the known list, showing whether it is currently visible. Enables direct "is my work laptop nearby?" automations without template sensors. Requires dynamic entity creation and teardown when the known list changes, which is significantly more complex than the current static entity model.
+**Difficulty:** Hard **Benefit:** High (for the right users) — auto-create a binary sensor for each SSID in the known list, showing whether it is currently visible. Enables direct "is my work laptop nearby?" automations without template sensors. Requires dynamic entity creation and teardown when the known list changes, which is significantly more complex than the current static entity model.
 
 ---
 
@@ -125,8 +122,7 @@ Now that persistent storage, band filtering, the denylist, and the remove servic
 
 ### "First Seen" Persistent Timestamps
 
-**Difficulty:** Easy
-**Benefit:** High — track the date each SSID was _first ever_ detected across all restarts. Stored in the same `Store` as `last_seen` (as a second dict or a combined record per SSID). Exposed as a `first_seen` attribute on `unknown_count` alongside the existing `last_seen` attribute.
+**Difficulty:** Easy **Benefit:** High — track the date each SSID was _first ever_ detected across all restarts. Stored in the same `Store` as `last_seen` (as a second dict or a combined record per SSID). Exposed as a `first_seen` attribute on `unknown_count` alongside the existing `last_seen` attribute.
 
 **Why it matters:** "Last seen 2 minutes ago" tells you something is nearby now. "First seen 3 weeks ago" tells you it has been parked in range for weeks — a very different threat profile. Together, `first_seen` and `last_seen` give the user a full timeline without requiring BSSID support.
 
@@ -136,8 +132,7 @@ Now that persistent storage, band filtering, the denylist, and the remove servic
 
 ### Unknown SSID Visit Count
 
-**Difficulty:** Easy
-**Benefit:** Medium-high — track how many scan cycles each SSID has been observed (total, not consecutive). Stored persistently alongside `last_seen`. Exposed as a `visit_counts` attribute on `unknown_count`.
+**Difficulty:** Easy **Benefit:** Medium-high — track how many scan cycles each SSID has been observed (total, not consecutive). Stored persistently alongside `last_seen`. Exposed as a `visit_counts` attribute on `unknown_count`.
 
 **Why it matters:** Signal strength tells you proximity; visit count tells you persistence. A network at −70 dBm seen 200 times is more significant than one at −50 dBm seen once. This lets users write automations like "alert only if an unknown network has been seen more than 5 times" — filtering out drive-by hotspots without requiring a complex time-window calculation.
 
@@ -147,8 +142,7 @@ Now that persistent storage, band filtering, the denylist, and the remove servic
 
 ### Dedicated Strongest Unknown RSSI Sensor
 
-**Difficulty:** Easy
-**Benefit:** Medium — `strongest_unknown_rssi` is currently exposed only as an attribute of `binary_sensor.proximity_alert`. A dedicated `sensor.strongest_unknown_rssi` with `SensorDeviceClass.SIGNAL_STRENGTH` and `unit_of_measurement=dBm` would allow users to plot the value on HA history graphs natively and use it in numeric conditions in automations without attribute extraction.
+**Difficulty:** Easy **Benefit:** Medium — `strongest_unknown_rssi` is currently exposed only as an attribute of `binary_sensor.proximity_alert`. A dedicated `sensor.strongest_unknown_rssi` with `SensorDeviceClass.SIGNAL_STRENGTH` and `unit_of_measurement=dBm` would allow users to plot the value on HA history graphs natively and use it in numeric conditions in automations without attribute extraction.
 
 **Implementation:** Add a new `WifiSensorEntityDescription` entry with `key="strongest_unknown_rssi"`, `device_class=SensorDeviceClass.SIGNAL_STRENGTH`, `native_unit_of_measurement="dBm"`, and `value_fn=lambda data: data.get("strongest_unknown_rssi")`.
 
@@ -156,8 +150,7 @@ Now that persistent storage, band filtering, the denylist, and the remove servic
 
 ### `scan_now` Service — `wifi_ssid_monitor.scan_now`
 
-**Difficulty:** Easy
-**Benefit:** Medium — the existing `button.scan_now` triggers an immediate scan but buttons are UI-first. Calling a button from an automation requires `homeassistant.press` on a specific entity ID. A dedicated `wifi_ssid_monitor.scan_now` service with an optional `config_entry_id` field makes automation-triggered scans cleaner and consistent with the other services in this integration.
+**Difficulty:** Easy **Benefit:** Medium — the existing `button.scan_now` triggers an immediate scan but buttons are UI-first. Calling a button from an automation requires `homeassistant.press` on a specific entity ID. A dedicated `wifi_ssid_monitor.scan_now` service with an optional `config_entry_id` field makes automation-triggered scans cleaner and consistent with the other services in this integration.
 
 **Implementation:** Register in `async_setup` alongside the other services. Handler calls `coordinator.async_refresh()` for the target entry or all entries.
 
@@ -165,15 +158,13 @@ Now that persistent storage, band filtering, the denylist, and the remove servic
 
 ### Clear Last Seen History Service — `wifi_ssid_monitor.clear_last_seen`
 
-**Difficulty:** Easy
-**Benefit:** Medium — clears `_last_seen` (and, if implemented, `first_seen` and `visit_counts`) for one or all entries and saves the empty state to the Store. Useful when relocating, after a significant network change, or for a deliberate monitoring reset without removing and re-adding the integration entry. Optional `config_entry_id` target.
+**Difficulty:** Easy **Benefit:** Medium — clears `_last_seen` (and, if implemented, `first_seen` and `visit_counts`) for one or all entries and saves the empty state to the Store. Useful when relocating, after a significant network change, or for a deliberate monitoring reset without removing and re-adding the integration entry. Optional `config_entry_id` target.
 
 ---
 
 ### Set Known SSIDs Service — `wifi_ssid_monitor.set_known_ssids`
 
-**Difficulty:** Easy
-**Benefit:** Medium — replaces the entire known list for an entry in a single call, rather than building it up through individual `add_known_ssid` calls. Enables backup/restore patterns (store the list in an input_text helper, restore it via automation) and bulk management from scripts. Should return the previous list as service response data to enable round-trip backup.
+**Difficulty:** Easy **Benefit:** Medium — replaces the entire known list for an entry in a single call, rather than building it up through individual `add_known_ssid` calls. Enables backup/restore patterns (store the list in an input_text helper, restore it via automation) and bulk management from scripts. Should return the previous list as service response data to enable round-trip backup.
 
 ---
 

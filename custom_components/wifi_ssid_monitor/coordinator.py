@@ -91,11 +91,12 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         last_seen_data, first_seen_data, visit_counts_data = results
 
         if isinstance(last_seen_data, Exception):
-            _LOGGER.warning("Failed to load last_seen data; starting with empty history")
+            _LOGGER.warning(
+                "Failed to load last_seen data; starting with empty history"
+            )
         elif last_seen_data:
             self._last_seen = {
-                ssid: datetime.fromisoformat(ts)
-                for ssid, ts in last_seen_data.items()
+                ssid: datetime.fromisoformat(ts) for ssid, ts in last_seen_data.items()
             }
 
         if isinstance(first_seen_data, Exception):
@@ -104,8 +105,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             )
         elif first_seen_data:
             self._first_seen = {
-                ssid: datetime.fromisoformat(ts)
-                for ssid, ts in first_seen_data.items()
+                ssid: datetime.fromisoformat(ts) for ssid, ts in first_seen_data.items()
             }
 
         if isinstance(visit_counts_data, Exception):
@@ -232,9 +232,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                         s: t for s, t in self._first_seen.items() if s not in expired
                     }
                     self._visit_counts = {
-                        s: c
-                        for s, c in self._visit_counts.items()
-                        if s not in expired
+                        s: c for s, c in self._visit_counts.items() if s not in expired
                     }
 
             # Persist all history to storage in parallel

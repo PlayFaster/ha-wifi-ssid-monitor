@@ -48,9 +48,7 @@ SERVICE_SCHEMA_REMOVE_KNOWN_SSID = vol.Schema(
 )
 
 SERVICE_SCAN_NOW = "scan_now"
-SERVICE_SCHEMA_SCAN_NOW = vol.Schema(
-    {vol.Optional("config_entry_id"): cv.string}
-)
+SERVICE_SCHEMA_SCAN_NOW = vol.Schema({vol.Optional("config_entry_id"): cv.string})
 
 SERVICE_CLEAR_LAST_SEEN = "clear_last_seen"
 SERVICE_SCHEMA_CLEAR_LAST_SEEN = vol.Schema(

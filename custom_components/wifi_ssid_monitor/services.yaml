@@ -26,8 +26,8 @@ add_known_ssid:
 scan_now:
   name: Scan Now
   description: >
-    Triggers an immediate WiFi scan for one or all integration entries. Equivalent
-    to pressing the Scan Now button, but callable from automations and scripts.
+    Triggers an immediate WiFi scan for one or all integration entries. Equivalent to
+    pressing the Scan Now button, but callable from automations and scripts.
   fields:
     config_entry_id:
       name: Config Entry ID
@@ -43,9 +43,9 @@ scan_now:
 clear_last_seen:
   name: Clear Last Seen History
   description: >
-    Clears all persisted last-seen, first-seen, and visit-count history for one or
-    all integration entries. The next scheduled scan will begin repopulating history
-    from that point forward.
+    Clears all persisted last-seen, first-seen, and visit-count history for one or all
+    integration entries. The next scheduled scan will begin repopulating history from
+    that point forward.
   fields:
     config_entry_id:
       name: Config Entry ID
@@ -70,8 +70,8 @@ set_known_ssids:
     known_ssids:
       name: Known SSIDs
       description: >
-        The new comma-separated list of SSIDs and patterns to treat as known
-        (e.g., "Home-WiFi, Guest_*"). Replaces the existing list entirely.
+        The new comma-separated list of SSIDs and patterns to treat as known (e.g.,
+        "Home-WiFi, Guest_*"). Replaces the existing list entirely.
       required: true
       example: "Home-WiFi, Guest_*"
       selector:
