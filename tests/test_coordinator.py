@@ -299,3 +299,87 @@ async def test_coordinator_resilience_resets_on_success(
     mock_wifi_api.get_access_points.return_value = [{"ssid": "Net1", "signal": -50}]
     await coordinator._async_update_data()
     assert coordinator._failure_count == 0
+
+
+@pytest.mark.asyncio
+async def test_coordinator_async_initialize_with_stored_data(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Test async_initialize loads persisted last_seen data."""
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    # Pre-populate the store with data
+    from homeassistant.util import dt as dt_util
+
+    now = dt_util.now()
+    await coordinator.store.async_save(
+        {"Net1": now.isoformat(), "Net2": now.isoformat()}
+    )
+
+    await coordinator.async_initialize()
+
+    assert "Net1" in coordinator._last_seen
+    assert isinstance(coordinator._last_seen["Net1"], type(now))
+
+
+@pytest.mark.asyncio
+async def test_coordinator_async_initialize_with_corrupt_data(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Test async_initialize gracefully handles corrupt stored data."""
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    # Save invalid ISO format data
+    await coordinator.store.async_save({"Net1": "not-a-valid-date"})
+
+    # Should not raise - warning logged and empty history used
+    await coordinator.async_initialize()
+
+    assert coordinator._last_seen == {}
+
+
+@pytest.mark.asyncio
+async def test_coordinator_band_filtering_2ghz(hass, mock_config_entry, mock_wifi_api):
+    """Test band filtering restricts to 2.4 GHz only."""
+    from custom_components.wifi_ssid_monitor.const import CONF_SCAN_BANDS
+
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_SCAN_BANDS: "2.4"},
+    )
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    mock_wifi_api.get_access_points.return_value = [
+        {"ssid": "Net2G", "channel": 6},  # 2.4 GHz
+        {"ssid": "Net5G", "channel": 36},  # 5 GHz
+        {"ssid": "NetUnknown", "channel": 99},  # Unknown band
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert data["ssids"] == ["Net2G"]
+    assert data["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_coordinator_band_filtering_5ghz(hass, mock_config_entry, mock_wifi_api):
+    """Test band filtering restricts to 5 GHz only."""
+    from custom_components.wifi_ssid_monitor.const import CONF_SCAN_BANDS
+
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_SCAN_BANDS: "5"},
+    )
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    mock_wifi_api.get_access_points.return_value = [
+        {"ssid": "Net2G", "channel": 6},  # 2.4 GHz
+        {"ssid": "Net5G", "channel": 36},  # 5 GHz
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert data["ssids"] == ["Net5G"]
+    assert data["count"] == 1

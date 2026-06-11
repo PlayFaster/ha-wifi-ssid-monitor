@@ -328,3 +328,129 @@ async def test_add_known_ssid_service_invalid_entry_id(
             {"ssid": "NewSSID", "config_entry_id": "nonexistent_id"},
             blocking=True,
         )
+
+
+@pytest.mark.asyncio
+async def test_remove_known_ssid_service(hass: HomeAssistant, mock_config_entry):
+    """Test the remove_known_ssid service."""
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert "MyNetwork1" in mock_config_entry.options.get(CONF_KNOWN_SSIDS, "")
+
+    await hass.services.async_call(
+        DOMAIN,
+        "remove_known_ssid",
+        {"ssid": "MyNetwork1"},
+        blocking=True,
+    )
+
+    current = mock_config_entry.options.get(CONF_KNOWN_SSIDS, "")
+    assert "MyNetwork1" not in current
+
+
+@pytest.mark.asyncio
+async def test_remove_known_ssid_service_not_present(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test remove_known_ssid when SSID is not present (silent success)."""
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    original = mock_config_entry.options.get(CONF_KNOWN_SSIDS, "")
+
+    await hass.services.async_call(
+        DOMAIN,
+        "remove_known_ssid",
+        {"ssid": "NonExistentSSID"},
+        blocking=True,
+    )
+
+    assert mock_config_entry.options.get(CONF_KNOWN_SSIDS, "") == original
+
+
+@pytest.mark.asyncio
+async def test_remove_known_ssid_service_with_entry_id(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test the remove_known_ssid service with a specific config_entry_id."""
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "remove_known_ssid",
+        {"ssid": "MyNetwork1", "config_entry_id": mock_config_entry.entry_id},
+        blocking=True,
+    )
+
+    current = mock_config_entry.options.get(CONF_KNOWN_SSIDS, "")
+    assert "MyNetwork1" not in current
+
+
+@pytest.mark.asyncio
+async def test_remove_known_ssid_service_invalid_entry_id(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test remove_known_ssid service raises HomeAssistantError with bogus entry_id."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    with pytest.raises(HomeAssistantError, match=r"No .* entry found with ID"):
+        await hass.services.async_call(
+            DOMAIN,
+            "remove_known_ssid",
+            {"ssid": "MyNetwork1", "config_entry_id": "nonexistent_id"},
+            blocking=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_async_remove_entry(hass: HomeAssistant, mock_config_entry):
+    """Test async_remove_entry removes stored data."""
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Remove the entry, which triggers async_remove_entry
+    await hass.config_entries.async_remove(mock_config_entry.entry_id)
+    await hass.async_block_till_done()

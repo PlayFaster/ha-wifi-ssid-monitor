@@ -58,7 +58,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         self.last_update_success_time = None
         self._failure_count = 0
         self._last_seen: dict[str, datetime] = {}
-        self.store: Store = Store(
+        self.store: Store[dict[str, str]] = Store(
             hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.last_seen"
         )
 

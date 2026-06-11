@@ -231,3 +231,28 @@ async def test_sensor_last_seen_attributes(
     assert "UnknownNet" in state.attributes["last_seen"]
 
     await coordinator.async_shutdown()
+
+
+@pytest.mark.asyncio
+async def test_sensor_value_fn_error_data_type(hass: HomeAssistant, mock_config_entry):
+    """Test sensor native_value handles value_fn exceptions from wrong data types."""
+    mock_config_entry.add_to_hass(hass)
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    # Set data to a list (no .get() method) to trigger AttributeError in value_fn
+    coordinator.data = [1, 2, 3]
+    coordinator.async_update_listeners()
+    await hass.async_block_till_done()
+
+    # Sensor state should be unknown due to the caught exception
+    state = hass.states.get("sensor.wifi_ssid_monitor_total_ssid_count")
+    assert state
+    assert state.state == "unknown"
+
+    await coordinator.async_shutdown()

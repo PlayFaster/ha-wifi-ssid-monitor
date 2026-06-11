@@ -10,13 +10,18 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.wifi_ssid_monitor.api import WifiScanError
 from custom_components.wifi_ssid_monitor.const import (
+    CONF_DENYLIST_SSIDS,
     CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
+    CONF_LAST_SEEN_TTL_DAYS,
     CONF_PROXIMITY_RSSI_THRESHOLD,
+    CONF_SCAN_BANDS,
     CONF_SCAN_INTERVAL,
     DEFAULT_INCLUDE_HIDDEN,
+    DEFAULT_LAST_SEEN_TTL_DAYS,
     DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+    DEFAULT_SCAN_BANDS,
     DOMAIN,
 )
 
@@ -244,6 +249,11 @@ async def test_options_flow(hass: HomeAssistant, mock_config_entry):
                 CONF_INTERFACE: "wlan1",
                 CONF_KNOWN_SSIDS: "NewNet1",
                 CONF_SCAN_INTERVAL: 60,
+                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+                CONF_DENYLIST_SSIDS: "",
+                CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
         )
 
@@ -255,6 +265,9 @@ async def test_options_flow(hass: HomeAssistant, mock_config_entry):
         CONF_SCAN_INTERVAL: 60,
         CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
         CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+        CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+        CONF_DENYLIST_SSIDS: "",
+        CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
     }
 
 
@@ -288,6 +301,11 @@ async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entr
                 CONF_INTERFACE: "wlan1",  # Changed interface to trigger validation
                 CONF_KNOWN_SSIDS: "NewNet1",
                 CONF_SCAN_INTERVAL: 60,
+                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+                CONF_DENYLIST_SSIDS: "",
+                CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
         )
 
@@ -325,6 +343,11 @@ async def test_options_flow_unknown_exception(hass: HomeAssistant, mock_config_e
                 CONF_INTERFACE: "wlan1",
                 CONF_KNOWN_SSIDS: "NewNet1",
                 CONF_SCAN_INTERVAL: 60,
+                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+                CONF_DENYLIST_SSIDS: "",
+                CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
         )
 
@@ -743,6 +766,11 @@ async def test_options_flow_name_change(hass: HomeAssistant, mock_config_entry):
                 CONF_INTERFACE: "wlan0",
                 CONF_KNOWN_SSIDS: "NewNet1",
                 CONF_SCAN_INTERVAL: 60,
+                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+                CONF_DENYLIST_SSIDS: "",
+                CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
         )
 

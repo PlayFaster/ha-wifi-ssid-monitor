@@ -165,7 +165,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Remove stored data when the config entry is deleted."""
-    store = Store(hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.last_seen")
+    store: Store[dict[str, str]] = Store(
+        hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.last_seen"
+    )
     await store.async_remove()
 
 
