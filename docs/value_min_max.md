@@ -21,6 +21,7 @@ We use a **Declarative Validation** approach. Limits are defined directly within
 | :-- | :-- | :-- | :-- | :-- |
 | **Network Counters** | Total WiFi Networks | 0 | 256 | Set to `Unavailable` |
 |  | Unknown WiFi Networks | 0 | 256 | Set to `Unavailable` |
+| **Signal Strength** | Strongest Unknown RSSI | −100 dBm | 0 dBm | Set to `Unavailable` |
 | **Diagnostics** | Scan Interval | 1 | 180 | Enforced by UI (1-180 min) |
 
 ---
@@ -57,7 +58,6 @@ if isinstance(value, int | float):
 
 While the core counters are now protected, future updates may include:
 
-- **Signal Strength**: If individual AP signal levels are exposed as sensors, guard bands will be applied to dBm values (typically -100 to -10).
 - **Channel Validation**: Guarding against invalid WiFi channel numbers (e.g., >14 for 2.4GHz).
 
 ---
@@ -65,3 +65,4 @@ While the core counters are now protected, future updates may include:
 ## Version Control
 
 - **v1.0.1** (2026-05-05) - Created.
+- **v1.0.2** (2026-06-11) - Added `Strongest Unknown RSSI` guard band entry (−100 to 0 dBm). Removed stale "Future Extensions" note — signal strength sensor is now implemented (v1.6.0-dev4).
