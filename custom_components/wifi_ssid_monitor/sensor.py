@@ -70,6 +70,16 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
         translation_key="strongest_unknown_ssid",
         value_fn=lambda data: data.get("strongest_unknown_ssid"),
     ),
+    WifiSensorEntityDescription(
+        key="strongest_unknown_rssi",
+        translation_key="strongest_unknown_rssi",
+        device_class=SensorDeviceClass.SIGNAL_STRENGTH,
+        native_unit_of_measurement="dBm",
+        state_class=SensorStateClass.MEASUREMENT,
+        min_limit=-100,
+        max_limit=0,
+        value_fn=lambda data: data.get("strongest_unknown_rssi"),
+    ),
 )
 
 
@@ -164,6 +174,8 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
         if self.entity_description.key == "unknown_count":
             unknown_ssids: list[str] = self.coordinator.data.get("unknown_ssids") or []
             last_seen: dict[str, Any] = self.coordinator.data.get("last_seen", {})
+            first_seen: dict[str, Any] = self.coordinator.data.get("first_seen", {})
+            visit_counts: dict[str, Any] = self.coordinator.data.get("visit_counts", {})
             u_attrs: dict[str, Any] = {"ssids": unknown_ssids}
             u_signal = {
                 ssid: networks[ssid]["rssi"]
@@ -186,6 +198,20 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
             }
             if u_last_seen:
                 u_attrs["last_seen"] = u_last_seen
+            u_first_seen = {
+                ssid: first_seen[ssid].isoformat()
+                for ssid in unknown_ssids
+                if ssid in first_seen
+            }
+            if u_first_seen:
+                u_attrs["first_seen"] = u_first_seen
+            u_visit_counts = {
+                ssid: visit_counts[ssid]
+                for ssid in unknown_ssids
+                if ssid in visit_counts
+            }
+            if u_visit_counts:
+                u_attrs["visit_counts"] = u_visit_counts
             return u_attrs
 
         return {}

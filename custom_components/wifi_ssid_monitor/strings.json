@@ -46,7 +46,8 @@
       "unknown_count": { "name": "Unknown SSID Count" },
       "interface": { "name": "Interface" },
       "last_updated": { "name": "Last Updated" },
-      "strongest_unknown_ssid": { "name": "Strongest Unknown SSID" }
+      "strongest_unknown_ssid": { "name": "Strongest Unknown SSID" },
+      "strongest_unknown_rssi": { "name": "Strongest Unknown RSSI" }
     },
     "binary_sensor": {
       "new_network": { "name": "New Network Alert" },

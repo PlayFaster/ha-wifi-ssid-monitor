@@ -58,8 +58,16 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         self.last_update_success_time = None
         self._failure_count = 0
         self._last_seen: dict[str, datetime] = {}
+        self._first_seen: dict[str, datetime] = {}
+        self._visit_counts: dict[str, int] = {}
         self.store: Store[dict[str, str]] = Store(
             hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.last_seen"
+        )
+        self.store_first_seen: Store[dict[str, str]] = Store(
+            hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.first_seen"
+        )
+        self.store_visit_counts: Store[dict[str, int]] = Store(
+            hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.visit_counts"
         )
 
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, 600)
@@ -72,17 +80,51 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         )
 
     async def async_initialize(self) -> None:
-        """Load persisted last_seen data from storage."""
-        try:
-            stored = await self.store.async_load()
-            if stored:
-                self._last_seen = {
-                    ssid: datetime.fromisoformat(ts) for ssid, ts in stored.items()
-                }
-        except Exception:
+        """Load all persisted SSID history data from storage."""
+        results = await asyncio.gather(
+            self.store.async_load(),
+            self.store_first_seen.async_load(),
+            self.store_visit_counts.async_load(),
+            return_exceptions=True,
+        )
+
+        last_seen_data, first_seen_data, visit_counts_data = results
+
+        if isinstance(last_seen_data, Exception):
+            _LOGGER.warning("Failed to load last_seen data; starting with empty history")
+        elif last_seen_data:
+            self._last_seen = {
+                ssid: datetime.fromisoformat(ts)
+                for ssid, ts in last_seen_data.items()
+            }
+
+        if isinstance(first_seen_data, Exception):
             _LOGGER.warning(
-                "Failed to load persisted last_seen data; starting with empty history"
+                "Failed to load first_seen data; starting with empty history"
             )
+        elif first_seen_data:
+            self._first_seen = {
+                ssid: datetime.fromisoformat(ts)
+                for ssid, ts in first_seen_data.items()
+            }
+
+        if isinstance(visit_counts_data, Exception):
+            _LOGGER.warning(
+                "Failed to load visit_counts data; starting with empty history"
+            )
+        elif visit_counts_data:
+            self._visit_counts = dict(visit_counts_data)
+
+    async def async_clear_history(self) -> None:
+        """Clear all persisted SSID history and save empty state to storage."""
+        self._last_seen = {}
+        self._first_seen = {}
+        self._visit_counts = {}
+        await asyncio.gather(
+            self.store.async_save({}),
+            self.store_first_seen.async_save({}),
+            self.store_visit_counts.async_save({}),
+        )
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API with resilience and timeout."""
@@ -136,9 +178,12 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     "band": _channel_to_band(channel),
                 }
 
-            # Update last-seen timestamps
+            # Update last-seen, first-seen (never overwrite), and visit counts
             for ssid in all_ssids:
                 self._last_seen[ssid] = now
+                if ssid not in self._first_seen:
+                    self._first_seen[ssid] = now
+                self._visit_counts[ssid] = self._visit_counts.get(ssid, 0) + 1
 
             known_networks_str = self.entry.options.get(CONF_KNOWN_SSIDS, "")
             self.last_known_ssids = known_networks_str
@@ -172,19 +217,35 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     strongest_unknown_rssi = rssi
                     strongest_unknown_ssid = ssid
 
-            # Apply TTL expiry to last_seen (0 = keep forever)
+            # Apply TTL expiry to all history (0 = keep forever)
             ttl_days = self.entry.options.get(
                 CONF_LAST_SEEN_TTL_DAYS, DEFAULT_LAST_SEEN_TTL_DAYS
             )
             if ttl_days > 0:
                 cutoff = now - timedelta(days=ttl_days)
-                self._last_seen = {
-                    s: t for s, t in self._last_seen.items() if t > cutoff
-                }
+                expired = {s for s, t in self._last_seen.items() if t <= cutoff}
+                if expired:
+                    self._last_seen = {
+                        s: t for s, t in self._last_seen.items() if s not in expired
+                    }
+                    self._first_seen = {
+                        s: t for s, t in self._first_seen.items() if s not in expired
+                    }
+                    self._visit_counts = {
+                        s: c
+                        for s, c in self._visit_counts.items()
+                        if s not in expired
+                    }
 
-            # Persist last_seen to storage
-            await self.store.async_save(
-                {ssid: dt.isoformat() for ssid, dt in self._last_seen.items()}
+            # Persist all history to storage in parallel
+            await asyncio.gather(
+                self.store.async_save(
+                    {ssid: dt.isoformat() for ssid, dt in self._last_seen.items()}
+                ),
+                self.store_first_seen.async_save(
+                    {ssid: dt.isoformat() for ssid, dt in self._first_seen.items()}
+                ),
+                self.store_visit_counts.async_save(dict(self._visit_counts)),
             )
 
             return {
@@ -195,6 +256,8 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 "interface": self.api.interface,
                 "networks": network_map,
                 "last_seen": dict(self._last_seen),
+                "first_seen": dict(self._first_seen),
+                "visit_counts": dict(self._visit_counts),
                 "strongest_unknown_rssi": strongest_unknown_rssi,
                 "strongest_unknown_ssid": strongest_unknown_ssid,
             }
