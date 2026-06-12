@@ -62,8 +62,8 @@ set_known_ssids:
   name: Set Known SSIDs
   description: >
     Replaces the entire known networks list for one or all integration entries in a
-    single call. Returns the previous list for each affected entry as service response
-    data. Triggers an immediate re-scan when the list changes.
+    single call. Returns new_entries (the applied list) and old_entries (the previous
+    list, useful for undo) per affected entry. Triggers an immediate re-scan.
   fields:
     known_ssids:
       name: Known SSIDs

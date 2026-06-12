@@ -649,7 +649,10 @@ async def test_set_known_ssids_service(hass: HomeAssistant, mock_config_entry):
     assert (
         mock_config_entry.options.get(CONF_KNOWN_SSIDS) == "ReplacedNet1,ReplacedNet2"
     )
-    assert result["entries"][mock_config_entry.entry_id] == "MyNetwork1,MyNetwork2"
+    assert (
+        result["new_entries"][mock_config_entry.entry_id] == "ReplacedNet1,ReplacedNet2"
+    )
+    assert result["old_entries"][mock_config_entry.entry_id] == "MyNetwork1,MyNetwork2"
 
 
 @pytest.mark.asyncio
@@ -680,7 +683,8 @@ async def test_set_known_ssids_service_with_entry_id(
     )
 
     assert mock_config_entry.options.get(CONF_KNOWN_SSIDS) == "ReplacedNet"
-    assert result["entries"][mock_config_entry.entry_id] == "MyNetwork1,MyNetwork2"
+    assert result["new_entries"][mock_config_entry.entry_id] == "ReplacedNet"
+    assert result["old_entries"][mock_config_entry.entry_id] == "MyNetwork1,MyNetwork2"
 
 
 @pytest.mark.asyncio

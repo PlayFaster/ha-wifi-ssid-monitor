@@ -120,15 +120,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async def _handle_set_known_ssids(call: ServiceCall) -> dict[str, Any]:
         new_ssids_str = call.data["known_ssids"].strip()
-        previous: dict[str, str] = {}
+        old_entries: dict[str, str] = {}
+        new_entries: dict[str, str] = {}
         for target_entry in _resolve_entries(hass, call.data.get("config_entry_id")):
-            previous[target_entry.entry_id] = target_entry.options.get(
+            old_entries[target_entry.entry_id] = target_entry.options.get(
                 CONF_KNOWN_SSIDS, ""
             )
             new_options = dict(target_entry.options)
             new_options[CONF_KNOWN_SSIDS] = new_ssids_str
             hass.config_entries.async_update_entry(target_entry, options=new_options)
-        return {"entries": previous}
+            new_entries[target_entry.entry_id] = new_ssids_str
+        return {"new_entries": new_entries, "old_entries": old_entries}
 
     hass.services.async_register(
         DOMAIN,

@@ -130,7 +130,7 @@ All services accept an optional `config_entry_id` to target a specific integrati
 | `wifi_ssid_monitor.remove_known_ssid` | Removes an SSID or pattern from the known list; triggers a re-scan if the list changes |
 | `wifi_ssid_monitor.scan_now` | Triggers an immediate WiFi scan |
 | `wifi_ssid_monitor.clear_last_seen` | Clears all `last_seen`, `first_seen`, and `visit_counts` history |
-| `wifi_ssid_monitor.set_known_ssids` | Replaces the entire known list; returns the previous list as response data |
+| `wifi_ssid_monitor.set_known_ssids` | Replaces the entire known list; returns the new and previous lists as response data |
 
 #### `add_known_ssid`
 
@@ -183,7 +183,7 @@ action: wifi_ssid_monitor.clear_last_seen
 
 #### `set_known_ssids`
 
-Replaces the entire known networks list in a single call. Returns the previous list for each affected entry as service response data. Useful for syncing an external source of truth into the integration.
+Replaces the entire known networks list in a single call. Returns both the newly set list and the previous list for each affected entry as service response data. Useful for syncing and auditing changes from an external source of truth.
 
 | Parameter | Required | Description |
 | :-- | :-- | :-- |
@@ -200,7 +200,9 @@ data:
 Response (`result`):
 
 ```yaml
-entries:
+new_entries:
+  abc123def456: "Home-WiFi, Guest_*"
+old_entries:
   abc123def456: "OldNetwork1, OldNetwork2"
 ```
 
@@ -214,7 +216,7 @@ Home Assistant stores Long Term Statistics for numeric sensors that have a `stat
 | `sensor.wifi_ssid_monitor_unknown_ssid_count` | Monitor for unrecognized network spikes in your environment |
 | `sensor.wifi_ssid_monitor_strongest_unknown_rssi` | Monitor signal strength trends of nearby unknown networks |
 
-The remaining sensors (text, timestamp, non-measurement) do not get added to LTS based on Home Assistant desgin.
+The remaining sensors (text, timestamp, non-measurement) do not get added to LTS based on Home Assistant design.
 
 ## 💡 Example Automations
 
