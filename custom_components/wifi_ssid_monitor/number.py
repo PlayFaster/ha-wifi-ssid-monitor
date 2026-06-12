@@ -82,6 +82,11 @@ class WifiScanIntervalNumber(NumberEntity):
             self._async_debounced_apply(value)
         )
 
+    async def async_will_remove_from_hass(self) -> None:
+        """Cancel any pending debounced update tasks on removal."""
+        if self._refresh_task:
+            self._refresh_task.cancel()
+
     async def _async_debounced_apply(self, value: float) -> None:
         """Apply the new interval with a debounce."""
         try:
