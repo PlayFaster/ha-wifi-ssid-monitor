@@ -1,13 +1,17 @@
 ---
 # IQS Quality Scale Assessment for WiFi SSID Monitor
-# Generated: 2026-05-06 v1.0.1
+# Generated: 2026-05-13 v1.1.0
+# Updated: 2026-06-03 v1.2.0
 rules:
-  # Bronze Tier
+  # Bronze
   action-setup: done
+  appropriate-polling: done
+  brands: done
   common-modules: done
-  config-flow: done
   config-flow-test-coverage: done
+  config-flow: done
   dependency-transparency: done
+  docs-actions: done
   docs-high-level-description: done
   docs-installation-instructions: done
   docs-removal-instructions: done
@@ -19,38 +23,54 @@ rules:
   test-before-setup: done
   unique-config-entry: done
 
-  # Silver Tier
+  # Silver
+  action-exceptions: done
   config-entry-unloading: done
   docs-configuration-parameters: done
   docs-installation-parameters: done
   entity-unavailable: done
+  integration-owner: done
   log-when-unavailable: done
   parallel-updates: done
   reauthentication-flow: done
-  test-coverage:
-    status: todo
-    comment:
-      Increase sensor.py (92%), __init__.py (96%), and config_flow.py (97%) to 100%
+  test-coverage: done
 
-  # Gold Tier
+  # Gold
   devices: done
   diagnostics: done
-  docs-data-update: todo
+  discovery-update-info:
+    status: exempt
+    comment: Depends on discovery, which is exempt for this integration.
+  discovery:
+    status: exempt
+    comment: Fixed HA Supervisor API endpoint; no mDNS or SSDP discovery needed.
+  docs-data-update: done
   docs-examples: done
   docs-known-limitations: done
   docs-supported-devices: done
   docs-supported-functions: done
   docs-troubleshooting: done
   docs-use-cases: done
-  dynamic-devices: done
+  dynamic-devices:
+    status: exempt
+    comment:
+      No device tracker; static single-device architecture with 8 fixed entities. No HA
+      device/entity instances are created after initial setup.
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default: done
   entity-translations: done
-  exception-translations: todo
+  exception-translations: done
   icon-translations: done
   reconfiguration-flow: done
-  repair-issues: todo
+  repair-issues: done
+  stale-devices:
+    status: exempt
+    comment:
+      Network counts and SSID lists are static entities. No dynamic device instances to
+      remove.
 
-  # Platinum Tier
-  strict-typing: todo
+  # Platinum
+  async-dependency: done
+  inject-websession: done
+  strict-typing: done

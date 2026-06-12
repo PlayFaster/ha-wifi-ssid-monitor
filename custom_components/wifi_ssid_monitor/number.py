@@ -5,10 +5,9 @@ import logging
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTime
+from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_NAME, CONF_SCAN_INTERVAL, DOMAIN
@@ -16,10 +15,11 @@ from .coordinator import WifiScanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+PARALLEL_UPDATES = 0
+
 SCAN_INTERVAL_DESCRIPTION = NumberEntityDescription(
     key="scan_interval",
     translation_key="scan_interval",
-    icon="mdi:timer-cog-outline",
     native_min_value=1,
     native_max_value=180,
     native_step=1,
@@ -32,7 +32,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the number platform."""
-    coordinator: WifiScanCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: WifiScanCoordinator = entry.runtime_data
 
     # Read initial value from entry options (in minutes)
     # Default to 10 if not set (600 seconds).
@@ -68,7 +68,7 @@ class WifiScanIntervalNumber(NumberEntity):
         self.entity_description = description
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
         self._attr_native_value = initial_value
-        self._refresh_task: asyncio.Task | None = None
+        self._refresh_task: asyncio.Task[None] | None = None
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the scan interval."""

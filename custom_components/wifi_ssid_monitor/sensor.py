@@ -12,9 +12,9 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -22,6 +22,8 @@ from .const import CONF_NAME, DOMAIN
 from .coordinator import WifiScanCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 0
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -37,7 +39,6 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
     WifiSensorEntityDescription(
         key="count",
         translation_key="total_count",
-        icon="mdi:wifi",
         state_class=SensorStateClass.MEASUREMENT,
         min_limit=0,
         max_limit=256,
@@ -46,7 +47,6 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
     WifiSensorEntityDescription(
         key="unknown_count",
         translation_key="unknown_count",
-        icon="mdi:wifi-off",
         state_class=SensorStateClass.MEASUREMENT,
         min_limit=0,
         max_limit=256,
@@ -55,17 +55,30 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
     WifiSensorEntityDescription(
         key="interface",
         translation_key="interface",
-        icon="mdi:lan",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.get("interface"),
     ),
     WifiSensorEntityDescription(
         key="last_updated",
         translation_key="last_updated",
-        icon="mdi:update",
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: None,  # Handled in native_value
+    ),
+    WifiSensorEntityDescription(
+        key="strongest_unknown_ssid",
+        translation_key="strongest_unknown_ssid",
+        value_fn=lambda data: data.get("strongest_unknown_ssid"),
+    ),
+    WifiSensorEntityDescription(
+        key="strongest_unknown_rssi",
+        translation_key="strongest_unknown_rssi",
+        device_class=SensorDeviceClass.SIGNAL_STRENGTH,
+        native_unit_of_measurement="dBm",
+        state_class=SensorStateClass.MEASUREMENT,
+        min_limit=-100,
+        max_limit=0,
+        value_fn=lambda data: data.get("strongest_unknown_rssi"),
     ),
 )
 
@@ -76,7 +89,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    coordinator: WifiScanCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: WifiScanCoordinator = entry.runtime_data
     entities = [
         WifiScanSensor(coordinator, entry, description) for description in SENSOR_TYPES
     ]
@@ -116,7 +129,7 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
 
         try:
             value = description.value_fn(self.coordinator.data)
-        except KeyError, AttributeError:
+        except (KeyError, AttributeError):
             return None
 
         if value is None:
@@ -133,13 +146,74 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return SSIDs as attributes."""
+        """Return SSIDs with signal and band data as attributes."""
         if not self.coordinator.data or not isinstance(self.coordinator.data, dict):
             return {}
+
+        networks: dict[str, Any] = self.coordinator.data.get("networks", {})
+
         if self.entity_description.key == "count":
-            return {"ssids": self.coordinator.data.get("ssids")}
+            ssids: list[str] = self.coordinator.data.get("ssids") or []
+            attrs: dict[str, Any] = {"ssids": ssids}
+            signal_data = {
+                ssid: networks[ssid]["rssi"]
+                for ssid in ssids
+                if ssid in networks and networks[ssid].get("rssi") is not None
+            }
+            if signal_data:
+                attrs["signal_strengths"] = signal_data
+            band_data = {
+                ssid: networks[ssid]["band"]
+                for ssid in ssids
+                if ssid in networks and networks[ssid].get("band")
+            }
+            if band_data:
+                attrs["bands"] = band_data
+            return attrs
+
         if self.entity_description.key == "unknown_count":
-            return {"ssids": self.coordinator.data.get("unknown_ssids")}
+            unknown_ssids: list[str] = self.coordinator.data.get("unknown_ssids") or []
+            last_seen: dict[str, Any] = self.coordinator.data.get("last_seen", {})
+            first_seen: dict[str, Any] = self.coordinator.data.get("first_seen", {})
+            visit_counts: dict[str, Any] = self.coordinator.data.get("visit_counts", {})
+            u_attrs: dict[str, Any] = {"ssids": unknown_ssids}
+            u_signal = {
+                ssid: networks[ssid]["rssi"]
+                for ssid in unknown_ssids
+                if ssid in networks and networks[ssid].get("rssi") is not None
+            }
+            if u_signal:
+                u_attrs["signal_strengths"] = u_signal
+            u_bands = {
+                ssid: networks[ssid]["band"]
+                for ssid in unknown_ssids
+                if ssid in networks and networks[ssid].get("band")
+            }
+            if u_bands:
+                u_attrs["bands"] = u_bands
+            u_last_seen = {
+                ssid: last_seen[ssid].isoformat()
+                for ssid in unknown_ssids
+                if ssid in last_seen
+            }
+            if u_last_seen:
+                u_attrs["last_seen"] = u_last_seen
+            u_first_seen = {
+                ssid: first_seen[ssid].isoformat()
+                for ssid in unknown_ssids
+                if ssid in first_seen
+            }
+            if u_first_seen:
+                u_attrs["first_seen"] = u_first_seen
+            u_visit_counts = {
+                ssid: visit_counts[ssid]
+                for ssid in unknown_ssids
+                if ssid in visit_counts
+            }
+            if u_visit_counts:
+                u_attrs["visit_counts"] = u_visit_counts
+            return u_attrs
+
         return {}
 
     @property

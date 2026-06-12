@@ -10,9 +10,18 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.wifi_ssid_monitor.api import WifiScanError
 from custom_components.wifi_ssid_monitor.const import (
+    CONF_DENYLIST_SSIDS,
+    CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
+    CONF_LAST_SEEN_TTL_DAYS,
+    CONF_PROXIMITY_RSSI_THRESHOLD,
+    CONF_SCAN_BANDS,
     CONF_SCAN_INTERVAL,
+    DEFAULT_INCLUDE_HIDDEN,
+    DEFAULT_LAST_SEEN_TTL_DAYS,
+    DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+    DEFAULT_SCAN_BANDS,
     DOMAIN,
 )
 
@@ -240,6 +249,11 @@ async def test_options_flow(hass: HomeAssistant, mock_config_entry):
                 CONF_INTERFACE: "wlan1",
                 CONF_KNOWN_SSIDS: "NewNet1",
                 CONF_SCAN_INTERVAL: 60,
+                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+                CONF_DENYLIST_SSIDS: "",
+                CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
         )
 
@@ -249,6 +263,11 @@ async def test_options_flow(hass: HomeAssistant, mock_config_entry):
         CONF_INTERFACE: "wlan1",
         CONF_KNOWN_SSIDS: "NewNet1",
         CONF_SCAN_INTERVAL: 60,
+        CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+        CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+        CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+        CONF_DENYLIST_SSIDS: "",
+        CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
     }
 
 
@@ -282,6 +301,11 @@ async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entr
                 CONF_INTERFACE: "wlan1",  # Changed interface to trigger validation
                 CONF_KNOWN_SSIDS: "NewNet1",
                 CONF_SCAN_INTERVAL: 60,
+                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+                CONF_DENYLIST_SSIDS: "",
+                CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
         )
 
@@ -319,6 +343,11 @@ async def test_options_flow_unknown_exception(hass: HomeAssistant, mock_config_e
                 CONF_INTERFACE: "wlan1",
                 CONF_KNOWN_SSIDS: "NewNet1",
                 CONF_SCAN_INTERVAL: 60,
+                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+                CONF_DENYLIST_SSIDS: "",
+                CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
         )
 
@@ -737,8 +766,39 @@ async def test_options_flow_name_change(hass: HomeAssistant, mock_config_entry):
                 CONF_INTERFACE: "wlan0",
                 CONF_KNOWN_SSIDS: "NewNet1",
                 CONF_SCAN_INTERVAL: 60,
+                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
+                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
+                CONF_DENYLIST_SSIDS: "",
+                CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
         )
 
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert mock_config_entry.title == "New Name"
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_flow_current_missing_from_api(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Test reconfigure flow when current interface not in API list."""
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.config_flow._get_wifi_interfaces",
+        return_value=["wlan1"],
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": mock_config_entry.entry_id,
+            },
+        )
+
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+    schema = result["data_schema"].schema
+    interface_key = next(k for k in schema if k == "wifi_interface")
+    assert "wlan0" in schema[interface_key].container

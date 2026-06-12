@@ -1,0 +1,113 @@
+---
+add_known_ssid:
+  name: Add Known SSID
+  description: >
+    Adds an SSID to the known networks list for one or all integration entries. Triggers
+    an immediate re-scan after the list is updated.
+  fields:
+    ssid:
+      name: SSID
+      description: The network name (SSID) to add to the known list.
+      required: true
+      example: "MyHomeNetwork"
+      selector:
+        text:
+    config_entry_id:
+      name: Config Entry ID
+      description: >
+        Target a specific integration entry by its ID. Leave blank to update all
+        configured entries.
+      required: false
+      example: "abc123def456"
+      selector:
+        config_entry:
+          integration: wifi_ssid_monitor
+
+scan_now:
+  name: Scan Now
+  description: >
+    Triggers an immediate WiFi scan for one or all integration entries. Equivalent to
+    pressing the Scan Now button, but callable from automations and scripts.
+  fields:
+    config_entry_id:
+      name: Config Entry ID
+      description: >
+        Target a specific integration entry by its ID. Leave blank to scan all
+        configured entries.
+      required: false
+      example: "abc123def456"
+      selector:
+        config_entry:
+          integration: wifi_ssid_monitor
+
+clear_last_seen:
+  name: Clear Last Seen History
+  description: >
+    Clears all persisted last-seen, first-seen, and visit-count history for one or all
+    integration entries. The next scheduled scan will begin repopulating history from
+    that point forward.
+  fields:
+    config_entry_id:
+      name: Config Entry ID
+      description: >
+        Target a specific integration entry by its ID. Leave blank to clear all
+        configured entries.
+      required: false
+      example: "abc123def456"
+      selector:
+        config_entry:
+          integration: wifi_ssid_monitor
+
+set_known_ssids:
+  name: Set Known SSIDs
+  description: >
+    Replaces the entire known networks list for one or all integration entries in a
+    single call. Returns new_entries (the applied list) and old_entries (the previous
+    list, useful for undo) per affected entry. Triggers an immediate re-scan.
+  fields:
+    known_ssids:
+      name: Known SSIDs
+      description: >
+        The new comma-separated list of SSIDs and patterns to treat as known (e.g.,
+        "Home-WiFi, Guest_*"). Replaces the existing list entirely.
+      required: true
+      example: "Home-WiFi, Guest_*"
+      selector:
+        text:
+    config_entry_id:
+      name: Config Entry ID
+      description: >
+        Target a specific integration entry by its ID. Leave blank to update all
+        configured entries.
+      required: false
+      example: "abc123def456"
+      selector:
+        config_entry:
+          integration: wifi_ssid_monitor
+
+remove_known_ssid:
+  name: Remove Known SSID
+  description: >
+    Removes an SSID or pattern from the known networks list for one or all integration
+    entries. If the SSID is not in the list the call succeeds silently. Triggers an
+    immediate re-scan when the list changes.
+  fields:
+    ssid:
+      name: SSID
+      description: >
+        The exact SSID or pattern to remove from the known list (e.g., "MyHomeNetwork"
+        or "Guest_*"). Must match a list entry exactly — this does not expand wildcards.
+      required: true
+      example: "MyHomeNetwork"
+      selector:
+        text:
+    config_entry_id:
+      name: Config Entry ID
+      description: >
+        Target a specific integration entry by its ID. Leave blank to update all
+        configured entries.
+      required: false
+      example: "abc123def456"
+      selector:
+        config_entry:
+          integration: wifi_ssid_monitor

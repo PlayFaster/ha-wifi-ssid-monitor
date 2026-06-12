@@ -1,7 +1,7 @@
 ---
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.12
+    rev: v0.15.15
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -13,7 +13,7 @@ repos:
       - id: codespell
 
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.24.1
+    rev: v1.25.2
     hooks:
       - id: zizmor
         args: [--pedantic]
@@ -46,7 +46,7 @@ repos:
         args: [--config, .shared/validate-configs/.prettierrc.js]
 
   - repo: https://github.com/cdce8p/python-typing-update
-    rev: v0.6.0
+    rev: v0.8.1
     hooks:
       - id: python-typing-update
         stages: [manual]

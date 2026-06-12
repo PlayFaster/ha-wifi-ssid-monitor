@@ -12,11 +12,20 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import WifiScanAPI, WifiScanError
 from .const import (
+    CONF_DENYLIST_SSIDS,
+    CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
+    CONF_LAST_SEEN_TTL_DAYS,
     CONF_NAME,
+    CONF_PROXIMITY_RSSI_THRESHOLD,
+    CONF_SCAN_BANDS,
     CONF_SCAN_INTERVAL,
+    DEFAULT_INCLUDE_HIDDEN,
+    DEFAULT_LAST_SEEN_TTL_DAYS,
     DEFAULT_NAME,
+    DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+    DEFAULT_SCAN_BANDS,
     DOMAIN,
 )
 
@@ -45,7 +54,7 @@ async def _get_wifi_interfaces(hass: HomeAssistant) -> list[str]:
         return []
 
 
-class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg, unused-ignore]  # type: ignore[call-arg]
+class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for WiFi SSID Monitor."""
 
     VERSION = 1
@@ -182,14 +191,9 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ign
         if current_interface not in available_interfaces:
             available_interfaces.append(current_interface)
 
-        if available_interfaces:
-            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
-                vol.In(available_interfaces)
-            )
-        else:
-            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
-                cv.string
-            )
+        data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = vol.In(
+            available_interfaces
+        )
 
         return self.async_show_form(
             step_id="reconfigure",
@@ -201,7 +205,7 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ign
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> WifiScanOptionsFlowHandler:
+    ) -> "WifiScanOptionsFlowHandler":
         """Get the options flow for this handler."""
         return WifiScanOptionsFlowHandler(config_entry)
 
@@ -268,16 +272,39 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
                 CONF_SCAN_INTERVAL,
                 default=self._config_entry.options.get(CONF_SCAN_INTERVAL, 600),
             ): vol.All(vol.Coerce(int), vol.Range(min=60)),
+            vol.Optional(
+                CONF_INCLUDE_HIDDEN,
+                default=self._config_entry.options.get(
+                    CONF_INCLUDE_HIDDEN, DEFAULT_INCLUDE_HIDDEN
+                ),
+            ): cv.boolean,
+            vol.Required(
+                CONF_PROXIMITY_RSSI_THRESHOLD,
+                default=self._config_entry.options.get(
+                    CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=-100, max=-30)),
+            vol.Required(
+                CONF_SCAN_BANDS,
+                default=self._config_entry.options.get(
+                    CONF_SCAN_BANDS, DEFAULT_SCAN_BANDS
+                ),
+            ): vol.In(["all", "2.4", "5"]),
+            vol.Optional(
+                CONF_DENYLIST_SSIDS,
+                default=self._config_entry.options.get(CONF_DENYLIST_SSIDS, ""),
+            ): cv.string,
+            vol.Optional(
+                CONF_LAST_SEEN_TTL_DAYS,
+                default=self._config_entry.options.get(
+                    CONF_LAST_SEEN_TTL_DAYS, DEFAULT_LAST_SEEN_TTL_DAYS
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=366)),
         }
 
-        if available_interfaces:
-            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
-                vol.In(available_interfaces)
-            )
-        else:
-            data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = (
-                cv.string
-            )
+        data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = vol.In(
+            available_interfaces
+        )
 
         return self.async_show_form(
             step_id="init",

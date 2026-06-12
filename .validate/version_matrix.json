@@ -1,0 +1,48 @@
+{
+  "tools": {
+    "check-jsonschema": {
+      "pins": ["dockerfile", "requirements_test"],
+      "version": "0.37.2"
+    },
+    "codespell": {
+      "pins": ["pre-commit", "dockerfile", "requirements_test"],
+      "version": "2.4.2"
+    },
+    "mypy": {
+      "pins": ["dockerfile"],
+      "version": "2.1.0"
+    },
+    "prettier": {
+      "pins": ["pre-commit", "dockerfile"],
+      "version": "3.6.2"
+    },
+    "prettier-plugin-sort-json": {
+      "pins": ["pre-commit", "dockerfile"],
+      "version": "4.2.0"
+    },
+    "pytest-cov": {
+      "pins": ["dockerfile", "requirements_test"],
+      "version": "7.1.0"
+    },
+    "pytest-homeassistant-custom-component": {
+      "pins": ["dockerfile", "requirements_test"],
+      "version": "0.13.326"
+    },
+    "python-typing-update": {
+      "pins": ["pre-commit", "dockerfile"],
+      "version": "0.8.1"
+    },
+    "ruff": {
+      "pins": ["pre-commit", "dockerfile", "requirements_test"],
+      "version": "0.15.15"
+    },
+    "yamllint": {
+      "pins": ["pre-commit", "dockerfile", "requirements_test"],
+      "version": "1.38.0"
+    },
+    "zizmor": {
+      "pins": ["pre-commit", "dockerfile"],
+      "version": "1.25.2"
+    }
+  }
+}

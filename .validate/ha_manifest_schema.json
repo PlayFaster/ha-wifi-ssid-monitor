@@ -10,6 +10,13 @@
       },
       "type": "array"
     },
+    "bluetooth": {
+      "description": "Bluetooth discovery matchers.",
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
     "codeowners": {
       "description": "GitHub usernames of the maintainers.",
       "items": {
@@ -29,6 +36,17 @@
       },
       "type": "array"
     },
+    "dhcp": {
+      "description": "DHCP discovery matchers.",
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "disabled": {
+      "description": "If set, the integration is disabled with this reason string.",
+      "type": "string"
+    },
     "documentation": {
       "description": "URL to the integration's documentation.",
       "format": "uri",
@@ -38,6 +56,22 @@
       "description": "Unique identifier for the integration (lowercase, no spaces).",
       "pattern": "^[a-z0-9_]+$",
       "type": "string"
+    },
+    "homekit": {
+      "description": "HomeKit discovery matchers.",
+      "properties": {
+        "models": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "import_executor": {
+      "description": "Whether the integration should be imported in an executor.",
+      "type": "boolean"
     },
     "integration_type": {
       "description": "Purpose of the integration.",
@@ -56,22 +90,62 @@
     "iot_class": {
       "description": "Communication type.",
       "enum": [
-        "local_push",
-        "local_polling",
-        "cloud_push",
-        "cloud_polling",
+        "assumed_state",
         "calculated",
-        "assumed_state"
+        "cloud_polling",
+        "cloud_push",
+        "local_polling",
+        "local_push"
       ],
       "type": "string"
+    },
+    "iot_standards": {
+      "description": "IoT standards used by a virtual integration.",
+      "items": {
+        "enum": ["homekit", "zigbee", "zwave"],
+        "type": "string"
+      },
+      "type": "array"
     },
     "issue_tracker": {
       "description": "URL where users can report issues.",
       "format": "uri",
       "type": "string"
     },
+    "loggers": {
+      "description": "Logger namespaces used by the integration's dependencies.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "mqtt": {
+      "description": "MQTT discovery topics.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "name": {
       "description": "Human-readable name of the integration.",
+      "type": "string"
+    },
+    "preview_features": {
+      "description": "Feature flags for preview/beta functionality.",
+      "type": "object"
+    },
+    "quality_scale": {
+      "description": "Integration code quality rating.",
+      "enum": [
+        "bronze",
+        "custom",
+        "gold",
+        "internal",
+        "legacy",
+        "no_score",
+        "platinum",
+        "silver"
+      ],
       "type": "string"
     },
     "requirements": {
@@ -81,9 +155,38 @@
       },
       "type": "array"
     },
+    "single_config_entry": {
+      "description": "Whether the integration allows only one config entry.",
+      "type": "boolean"
+    },
+    "ssdp": {
+      "description": "SSDP/UPnP discovery matchers.",
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "supported_by": {
+      "description": "For virtual integrations: the domain of the implementing integration.",
+      "type": "string"
+    },
+    "usb": {
+      "description": "USB device discovery matchers.",
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
     "version": {
       "description": "Version of the integration (must follow Semantic Versioning).",
       "type": "string"
+    },
+    "zeroconf": {
+      "description": "Zeroconf/mDNS service discovery types.",
+      "items": {
+        "oneOf": [{ "type": "string" }, { "type": "object" }]
+      },
+      "type": "array"
     }
   },
   "required": [

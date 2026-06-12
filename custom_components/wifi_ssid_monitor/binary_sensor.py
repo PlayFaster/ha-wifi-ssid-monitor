@@ -10,13 +10,24 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_NAME, DOMAIN
+from .const import (
+    CONF_NAME,
+    CONF_PROXIMITY_RSSI_THRESHOLD,
+    DEFAULT_PROXIMITY_RSSI_THRESHOLD,
+    DOMAIN,
+)
 from .coordinator import WifiScanCoordinator
+
+PARALLEL_UPDATES = 0
 
 NEW_NETWORK_DESCRIPTION = BinarySensorEntityDescription(
     key="new_network",
     translation_key="new_network",
-    icon="mdi:wifi-alert",
+)
+
+PROXIMITY_ALERT_DESCRIPTION = BinarySensorEntityDescription(
+    key="proximity_alert",
+    translation_key="proximity_alert",
 )
 
 
@@ -26,9 +37,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the binary sensor platform."""
-    coordinator: WifiScanCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: WifiScanCoordinator = entry.runtime_data
     async_add_entities(
-        [WifiScanBinarySensor(coordinator, entry, NEW_NETWORK_DESCRIPTION)]
+        [
+            WifiScanBinarySensor(coordinator, entry, NEW_NETWORK_DESCRIPTION),
+            WifiProximityBinarySensor(coordinator, entry, PROXIMITY_ALERT_DESCRIPTION),
+        ]
     )
 
 
@@ -54,7 +68,67 @@ class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorE
         """Return true if any unknown networks are currently detected."""
         if not self.coordinator.data:
             return False
-        return self.coordinator.data.get("unknown_count", 0) > 0
+        return bool(self.coordinator.data.get("unknown_count", 0) > 0)
+
+    @property
+    def device_info(self) -> DeviceInfo | None:
+        """Return device information."""
+        name = self._entry.options.get(CONF_NAME, self._entry.title)
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": name,
+            "manufacturer": "PlayFaster",
+            "model": f"v{self.coordinator.version} ({self.coordinator.api.interface})",
+        }
+
+
+class WifiProximityBinarySensor(
+    CoordinatorEntity[WifiScanCoordinator], BinarySensorEntity
+):
+    """Binary sensor that triggers when an unknown network exceeds RSSI threshold."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: WifiScanCoordinator,
+        entry: ConfigEntry,
+        description: BinarySensorEntityDescription,
+    ) -> None:
+        """Initialize the proximity alert binary sensor."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._entry = entry
+        self._attr_unique_id = f"{entry.unique_id}_{description.key}"
+
+    @property
+    def is_on(self) -> bool:
+        """Return true when the strongest unknown signal exceeds the threshold."""
+        if not self.coordinator.data:
+            return False
+        strongest_rssi: int | None = self.coordinator.data.get("strongest_unknown_rssi")
+        if strongest_rssi is None:
+            return False
+        threshold: int = self._entry.options.get(
+            CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
+        )
+        return strongest_rssi >= threshold
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int | None]:
+        """Expose the strongest RSSI and configured threshold."""
+        threshold: int = self._entry.options.get(
+            CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
+        )
+        strongest_rssi: int | None = (
+            self.coordinator.data.get("strongest_unknown_rssi")
+            if self.coordinator.data
+            else None
+        )
+        return {
+            "strongest_unknown_rssi": strongest_rssi,
+            "threshold": threshold,
+        }
 
     @property
     def device_info(self) -> DeviceInfo | None:

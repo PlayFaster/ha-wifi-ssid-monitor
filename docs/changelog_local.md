@@ -4,7 +4,226 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.4.3] - 2026-05-10 - Unreleased
+## [1.6.0] - 2026-06-12
+
+### Summary
+
+Version 1.6.0 is a major feature release focusing on security monitoring, scanning control, and robust history tracking. Key highlights include a **Proximity Alert** sensor and threshold controls to detect nearby unknown networks, dedicated sensors for the **Strongest Unknown SSID & RSSI**, and **Persistent History** (surviving restarts, tracking first-seen and visit counts). Scanning can now be filtered by **frequency band** and **hidden networks**, and an **SSID Denylist** is introduced to force specific networks to remain permanently flagged. Five new service actions and a **Scan Now** dashboard button enable dynamic whitelisting and on-demand polling. Finally, known network matching is upgraded to support **wildcard patterns** (e.g., `Guest_*`).
+
+### Added
+
+- **Proximity Alert Binary Sensor**: New binary sensor that fires when the strongest unknown network's signal strength meets or exceeds a configurable threshold (default −60 dBm).
+- **Scan Now Button**: New button entity for triggering an immediate WiFi scan from the HA dashboard without waiting for the next scheduled interval.
+- **Strongest Unknown SSID Sensor**: New sensor showing the SSID name of the unknown network with the strongest signal.
+- **Strongest Unknown RSSI Sensor**: New sensor showing the signal strength (dBm) of the closest unknown network, with native long-term statistics support.
+- **Persistent History**: Unknown SSID last-seen timestamps now survive HA restarts. Each SSID also records a first-seen timestamp and a visit count (number of scan cycles the SSID was detected).
+- **History TTL**: New option to automatically expire stale history entries after a configurable number of days (default 90; set to 0 to keep forever).
+- **Band Filter**: New option to restrict scanning to 2.4 GHz or 5 GHz networks only. APs with an undetermined band are excluded when a filter is active.
+- **SSID Denylist**: New option accepting comma-separated `fnmatch` patterns. Matching SSIDs are always treated as unknown, regardless of the known list.
+- **Include Hidden Networks Toggle**: New option to exclude hidden (non-broadcasting) APs from all counts and attributes (default: include).
+- **Proximity Alert Threshold**: New option controlling the RSSI level at which the Proximity Alert sensor fires (range −100 to −30 dBm, default −60 dBm).
+- **`add_known_ssid` Service**: Add an SSID or pattern to the known list with an immediate re-scan.
+- **`remove_known_ssid` Service**: Remove a single SSID or pattern from the known list. Silent success if not present; triggers a re-scan when the list changes.
+- **`scan_now` Service**: Trigger an immediate scan for one or all configured entries.
+- **`clear_last_seen` Service**: Clear all persistent history (last seen, first seen, and visit counts) for one or all entries.
+- **`set_known_ssids` Service**: Replace the entire known SSID list in a single call. Returns the previous list per entry as service response data.
+- **Repair Issues**: HA now creates a repair issue after 4 consecutive scan failures and clears it automatically on recovery.
+
+### Changed
+
+- **Known SSID Matching**: Now uses `fnmatch` wildcard patterns (e.g., `Guest_*`, `IoT_?`) in addition to exact string matching. Existing lists work unchanged.
+- **Signal Strength and Band Attributes**: `signal_strengths` (RSSI per SSID) and `bands` (frequency band per SSID) are now exposed as attributes on both count sensors.
+- **Options Dialog**: Added contextual hints to all configuration and options flow fields.
+- **Error Messages**: Integration errors (e.g., invalid service parameters, failed scans) now display translated messages in the HA UI.
+
+### Fixed
+
+- **Scan Button Error Reporting**: The scan button now correctly propagates scan failure to automations (previously always reported success).
+- **`add_known_ssid` Silent No-Op**: Supplying an invalid `config_entry_id` now raises a UI-visible error instead of silently doing nothing.
+
+---
+
+## [1.6.0-dev7] - 2026-06-11 - Unreleased
+
+### Changed
+
+- **Documentation**: All relevant documents, README.md, FUTURE.md, DEVELOPMENT.md etc. updated.
+
+## [1.6.0-dev6] - 2026-06-11 - Unreleased
+
+### Changed
+
+- **Test Coverage**: `__init__.py` coverage increased from 88% to 100% (overall 96% → 100%) with new tests for `scan_now`, `clear_last_seen`, and `set_known_ssids` service paths.
+
+### Fixed
+
+- **`test_coordinator_async_initialize_with_corrupt_data`**: Updated test to use store mock exception instead of invalid date string, which no longer exercises the error path under the new `asyncio.gather(return_exceptions=True)` loading pattern.
+
+---
+
+## [1.6.0-dev4] - 2026-06-11 - Unreleased
+
+### Added
+
+- **"First Seen" Persistent Timestamps**: `_first_seen` dict backed by a dedicated `Store` (`.storage/wifi_ssid_monitor.<entry_id>.first_seen`). Written once per SSID on first detection — never overwritten. Exposed as `first_seen` ISO-timestamp dict attribute on `unknown_count`. TTL expiry prunes `first_seen` entries simultaneously with `last_seen` and `visit_counts`.
+- **Unknown SSID Visit Count**: `_visit_counts` dict backed by a dedicated `Store` (`.storage/wifi_ssid_monitor.<entry_id>.visit_counts`). Incremented each scan cycle the SSID is present. Exposed as `visit_counts` int dict attribute on `unknown_count`.
+- **Dedicated Strongest Unknown RSSI Sensor** (`sensor.strongest_unknown_rssi`): `SensorDeviceClass.SIGNAL_STRENGTH`, `native_unit_of_measurement="dBm"`, guard band −100–0 dBm. Allows native HA history graphing and numeric automation conditions without attribute extraction.
+- **`scan_now` Service** (`wifi_ssid_monitor.scan_now`): Triggers `coordinator.async_refresh()` for one or all entries. Optional `config_entry_id` field. Registered in `async_setup` alongside other domain services.
+- **`clear_last_seen` Service** (`wifi_ssid_monitor.clear_last_seen`): Silently clears `_last_seen`, `_first_seen`, and `_visit_counts` and saves empty state to all three Stores. The next scheduled scan repopulates from scratch. No re-scan triggered. Optional `config_entry_id` field.
+- **`set_known_ssids` Service** (`wifi_ssid_monitor.set_known_ssids`): Replaces the entire known networks list in a single call. Returns the previous list per entry as service response data (`SupportsResponse.OPTIONAL`). Triggers an immediate re-scan. Optional `config_entry_id` field.
+- **`_resolve_entries()` Helper**: Internal helper in `__init__.py` deduplicates entry-resolution logic across all multi-entry service handlers. Raises `HomeAssistantError` (with `translation_key="entry_not_found"`) when a supplied `config_entry_id` matches no loaded entry.
+- **`async_remove_entry` Hook**: Removes all three Stores when an integration entry is deleted, preventing orphaned `.storage` files.
+
+### Changed
+
+- **`coordinator.py` — Three Stores**: `async_initialize()` now loads all three Stores in parallel via `asyncio.gather(return_exceptions=True)` with independent error handling per Store. All three are saved in parallel via `asyncio.gather()` after each scan cycle. TTL expiry prunes `last_seen`, `first_seen`, and `visit_counts` simultaneously using a shared `expired` set.
+
+### Fixed
+
+- **mypy strict errors** in `coordinator.py:async_initialize`: Changed `isinstance(x, Exception)` to `isinstance(x, BaseException)` for Store load results from `asyncio.gather(return_exceptions=True)`. mypy infers the exception union as `T | BaseException` (not `T | Exception`), so only `BaseException` correctly narrows the union in the `elif` data branches.
+- **HASSFest `services.yaml` validation errors**: Removed unsupported `response` and `target` keys from the `set_known_ssids` service definition. The HASSFest schema version used by this project does not accept these keys. `SupportsResponse.OPTIONAL` in the Python handler controls runtime response behaviour; the services.yaml entry is UI documentation only.
+
+---
+
+## [1.6.0-dev1] - 2026-06-11 - Unreleased
+
+### Added
+
+- **`remove_known_ssid` Service** (`wifi_ssid_monitor.remove_known_ssid`): Removes an exact SSID or `fnmatch` pattern from the known list. Silent success if the SSID is not present. Triggers an immediate re-scan when the list changes. Optional `config_entry_id` field.
+- **Strongest Unknown SSID Name Sensor** (`sensor.strongest_unknown_ssid`): State is the SSID name of the unknown network with the strongest signal. State is `unknown` when no unknown networks are visible.
+- **Persistent "Last Seen" Storage**: `_last_seen` dict is now backed by HA's `Store` (`.storage/wifi_ssid_monitor.<entry_id>.last_seen`). Timestamps survive HA restarts. `async_initialize()` (called from `async_setup_entry` before the first background scan) loads persisted data. Store is removed via `async_remove_entry` when the entry is deleted.
+- **Auto-Expire Stale "Last Seen" Entries** (`last_seen_ttl_days`): Configurable TTL in the options flow (range 0–366 days; 0 = keep forever; default 90 days). Applied on each successful scan immediately before saving to the Store. Entries not seen within the TTL window are pruned.
+- **Band Filter Option** (`scan_bands`): Options flow dropdown (`all` / `2.4` / `5`). Filters all scan results — network counts, sensor attributes, and known-network matching — not just band display. APs with an undetermined band are excluded (strict exclusion) when any filter other than `all` is active.
+- **SSID Denylist** (`denylist_ssids`): Options flow field accepting comma-separated `fnmatch` patterns. SSIDs matching any denylist pattern are always counted as unknown regardless of the known list. Denylist takes priority over the known list for SSIDs that match both.
+
+### Changed
+
+- **`coordinator.py` — `async_initialize()`**: New explicit method replaces the abandoned `_async_setup()` hook (which is never invoked when the integration uses `coordinator.async_refresh()` rather than `async_config_entry_first_refresh()`). Called directly from `async_setup_entry` before the first background refresh.
+- **Options flow**: Added `scan_bands`, `denylist_ssids`, and `last_seen_ttl_days` fields to `WifiScanOptionsFlowHandler.async_step_init`. `strings.json` and `translations/en.json` updated with descriptions and warnings for each new field.
+
+---
+
+## [1.5.0-dev6] - 2026-06-11 - Unreleased
+
+### Changed
+
+- **Validation Sync**: Moved to a better system and process to keep validation (lint/format/test) tools in sync, across PlayFaster projects and between the projects and what Home Assistant uses.
+  - .validate/version_matrix.json added as the definitive source of tool version use.
+  - Several Env: entries added to .vscode/tasks.json for tool sync and checking.
+  - .validate/requirements_test.txt pulled as generic, with all tools pinned to versions, and requirements_custom.txt used to add project specific items.
+  - As part of the sync, docker-compose.yml and devcontainer.json are now generic, with a .env file holding project specific info and a docker-compose.override.yml holding additional, project specific steps.
+  - HA Manifest and HACS schema files updated.
+  - Ruff updated from 0.15.12 to 0.15.15
+
+## [1.5.0-dev5] - 2026-06-07 - Unreleased
+
+### Changed
+
+- **README Emoji Consistency**: Replaced all VS16 compound emoji in headings and ToC links with always-colour single-codepoint alternatives (`⚙️`→`🔧`, `🗑️`→`❌`, `⚠️`→`❗`, `⏱️`→`🔁`, `✉️`→`💬`, `⏯️`→`🔁`, `🛠️`→`🔩`, `🎛️`→`🔘`); moved License badge out of heading; standardised Use Cases icon to `🎯`.
+
+- **`pyproject.toml` — mypy Configuration Realigned with HA's Internal `mypy.ini`**: The project's `[tool.mypy]` section has been restructured to closely match HA's auto-generated `mypy.ini` (produced by `script/hassfest -p mypy_config`). This ensures the pre-commit mypy hook, and the project's basic `mypy custom_components/` check, run under materially the same conditions as HA's own integration quality checks. The goal is for any type errors caught here to be errors HA itself would also catch — and vice versa.
+
+## [1.5.0-dev4] - 2026-06-03 - Unreleased
+
+### Changed
+
+- **`action-setup` fix**: `add_known_ssid` service registration moved from `async_setup_entry` (with `has_service` guard) to `async_setup`. Service is now domain-lifecycle-managed — active for the domain's loaded state, no per-entry guard or cleanup needed. `async_unload_entry` simplified accordingly (service cleanup logic removed).
+- **Config flow dead code removal**: Removed two unreachable `else: cv.string` branches from `async_step_reconfigure` and `WifiScanOptionsFlowHandler.async_step_init` in `config_flow.py`. The `current_interface` fallback guard that runs immediately before the conditional guarantees `available_interfaces` is always non-empty, making the `else` branches dead code. `config_flow.py` coverage is now 100%.
+- **Exception translations**: `HomeAssistantError` raises in `button.py` (`async_press`) and `__init__.py` (service handler) now include `translation_domain`, `translation_key`, and `translation_placeholders` for UI-translatable error messages. `exceptions` section added to `strings.json` and `translations/en.json` (`scan_failed`, `entry_not_found` keys).
+
+---
+
+## [1.5.0-dev3] - 2026-06-03 - Unreleased
+
+### Fixed
+
+- **`button.async_press` error propagation**: `async_press` now checks `coordinator.last_update_success` after calling `async_refresh()` and raises `HomeAssistantError` when False. Previously the button always reported success to the caller, making it impossible for automations to detect a failed scan. The fix correctly uses `last_update_success` rather than the return value of `async_refresh()` (which always returns `None`, not a bool — the proposed fix in the code review document was incorrect on this point; see `.notes/code_review/code_review_20260602.md`).
+- **`add_known_ssid` service silent no-op on bad `config_entry_id`**: Service handler now raises `HomeAssistantError(f"No {DOMAIN} entry found with ID '{target_entry_id}'")` when a `config_entry_id` is provided but does not match any loaded entry. Previously a mistyped or stale entry ID silently did nothing.
+- **`async_unload_entry` service lifecycle cleanup**: `async_unload_entry` now removes the `add_known_ssid` domain service when the last config entry is unloaded. The remaining-entries check explicitly filters out the entry currently being unloaded (which is still present in `async_entries(DOMAIN)` during the unload call) — the proposed fix in the code review document contained a bug that would have prevented removal; see `.notes/code_review/code_review_20260602.md`.
+
+### Changed
+
+- **Supervisor URL constant**: Extracted `_SUPERVISOR_BASE_URL = "http://supervisor"` as a named module-level constant in `api.py`. Both endpoint URL constructions now use this constant. No behavioural change.
+
+---
+
+## [1.5.0-dev2] - 2026-06-02 - Unreleased
+
+### Added
+
+- **Level 1 Deeper Testing**: Implemented all 14 findings from recommendations_20260602.md — 22 new tests across 5 files. Coverage: BVA boundary-value tests for `_channel_to_band`, `WifiProximityBinarySensor.is_on`, and sensor guard bands; combinatorial tests for `include_hidden`, `fnmatch` wildcard matching, and proximity sensor unit tests; error-path tests for `ValueError` in JSON decode (`get_access_points` and `get_interfaces`); assertion gap tests for `proximity_alert` check, `signal_strengths`/`bands` attributes, `networks`/`last_seen`/`strongest_unknown_rssi` return validation, hidden network band/strongest_rssi assertions, and `add_known_ssid` runtime deduplication.
+
+### Changed
+
+- **Coverage**: `__init__.py` coverage increased from 76% to 100% (overall 95% → 98%) with 4 new tests for data-to-options migration and `add_known_ssid` service paths.
+- **Docstrings**: Fixed 18 D103 missing-docstring violations across `test_coordinator.py`, `test_binary_sensor.py`, `test_api.py`, and `test_init.py`.
+
+---
+
+## [1.5.0-dev1] - 2026-06-02 - Unreleased
+
+### Added
+
+- **Manual Scan Button**: New `button` platform with a `scan_now` entity. Pressing it calls `coordinator.async_refresh()` for an immediate on-demand scan without waiting for the next scheduled interval.
+- **Proximity Alert Binary Sensor**: New `binary_sensor.proximity_alert` entity — fires when the strongest unknown SSID signal meets or exceeds a configurable RSSI threshold (default −60 dBm). Exposes `strongest_unknown_rssi` and `threshold` as state attributes.
+- **`add_known_ssid` Service**: New `wifi_ssid_monitor.add_known_ssid` HA service. Appends an SSID to the known list and triggers an immediate re-scan via the existing update listener. Accepts optional `config_entry_id` to target a specific entry; if omitted, updates all entries. Documented in `services.yaml`.
+- **Include Hidden Networks Toggle** (`CONF_INCLUDE_HIDDEN`): New boolean option in the options flow (default: `True`). When disabled, APs without a broadcasted SSID are filtered out entirely before processing — they no longer appear in counts or attributes.
+- **Proximity Alert Threshold** (`CONF_PROXIMITY_RSSI_THRESHOLD`): New integer option in the options flow (range: −100 to −30 dBm, default: −60 dBm). Controls the signal strength at which the Proximity Alert sensor fires.
+
+### Changed
+
+- **Pattern Matching for Known SSIDs**: Replaced exact-string comparison with `fnmatch.fnmatch()` for known SSID matching. Existing comma-separated exact-match lists continue to work unchanged; wildcards (`Guest_*`, `IoT_?`) are now also supported.
+- **Band Identification**: `coordinator.py` now computes the WiFi band for each network via `_channel_to_band()` helper (channels 1–14 → `"2.4 GHz"`, 36–177 → `"5 GHz"`). Band is stored in `network_map` and exposed in sensor attributes.
+- **Signal Strength Attributes**: `signal_strengths` (RSSI per SSID) and `bands` (band per SSID) dicts added to `count` and `unknown_count` sensor `extra_state_attributes`.
+- **Last Seen Timestamps**: In-memory `_last_seen` dict tracks the datetime each SSID was last detected. ISO-format timestamps are exposed in the `unknown_count` sensor's `last_seen` attribute. Resets on HA restart (no cross-restart persistence by design).
+- **Coordinator Data Keys**: `coordinator.data` now includes `band` per network entry, `last_seen` (dict of SSID → datetime), and `strongest_unknown_rssi` (int | None).
+- **`__init__.py`**: Added `"button"` to PLATFORMS; registered `add_known_ssid` service with `has_service` guard to avoid duplicate registration on multi-entry setups.
+- **Version**: Bumped to `1.5.0-dev1` (minor version increment; reflects significant feature additions).
+
+---
+
+## [1.4.4-dev3] - 2026-06-02 - Unreleased
+
+### Changed
+
+- **Entity Category Imports**: Standardized `EntityCategory` imports to use `homeassistant.const` instead of `homeassistant.helpers.entity` in sensor and number platforms.
+- **README Alignment**: Aligned the `README.md` layout and structure with the premium ZTE project template (adding compatibility grid, config parameter tables, and side-by-side screenshots).
+- **Automation YAML Formatting**: Rewrote example automations to use standard block scalar `|` formatting and updated legacy time platform triggers to `trigger: time` syntax.
+
+### Fixed
+
+- **Mypy Strict Errors**: Resolved all 10 type errors logged in strict mode (correcting exception tuple syntax, wrapping forward type references in quotes in config flow, and removing unused type ignore comments).
+- **Incorrect Entity IDs in Docs**: Updated all sensor entity ID references in `README.md` from `total_count` and `unknown_count` to `total_ssid_count` and `unknown_ssid_count` to match runtime IDs.
+
+---
+
+## [1.4.4-dev2] - 2026-05-13 - Unreleased
+
+### Added
+
+- Full IQS Review carried out , all open items implemented. IQS compliance is currently taken as far as it can go in this project.
+
+### Changed
+
+- **runtime-data** (IQS Bronze): Migrated coordinator storage from `hass.data[DOMAIN]` to `entry.runtime_data` in `__init__.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `diagnostics.py`; `async_unload_entry` simplified — HA handles `runtime_data` cleanup automatically, no manual teardown needed.
+- **parallel-updates** (IQS Silver): Added `PARALLEL_UPDATES = 0` to `sensor.py`, `binary_sensor.py`, `number.py`, signaling to HA that the coordinator handles all update coordination.
+- **config-flow** (IQS Bronze): Added `data_description` contextual hints to all config and options flow steps in `strings.json` and `translations/en.json`.
+- **docs-data-update** (IQS Gold): Added Data Updates section to `README.md` documenting polling endpoint, interval, 3-strike resilience, and immediate-refresh behaviour.
+- **repair-issues** (IQS Gold): Implemented `ir.async_create_issue` / `ir.async_delete_issue` in `coordinator.py`; added `supervisor_unavailable` repair issue strings to `strings.json` and `translations/en.json`. Issue is raised on 4th consecutive failure and cleared on next successful scan.
+- **quality_scale.yaml**: Rewrote to canonical 52-rule format; all 47 trackable rules now `done`.
+
+### Fixed
+
+- **Tests**: Updated `test_sensor.py`, `test_binary_sensor.py`, `test_number.py` to use `mock_config_entry.runtime_data = mock_coordinator` instead of `patch.dict(hass.data, {DOMAIN: ...})` injection — aligns test setup with runtime-data migration.
+
+## [1.4.4-dev1] - 2026-05-13 - Unreleased
+
+### Changed
+
+- **icons.json**: Implemented icons.json standard, where all icons are defined in an icons.json file, not individual .py files.
+- **mypy --strict**: Addressed all mypy type issues.
+
+## [1.4.3] - 2026-05-10
 
 ### Changed
 

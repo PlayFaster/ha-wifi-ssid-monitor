@@ -12,6 +12,8 @@ build/
 htmlcov/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+*cache/
 coverage.xml
 .coverage
 .reports/
@@ -19,7 +21,6 @@ coverage.xml
 # Home Assistant
 .storage/
 testing_config/
-*.log
 *.db
 *.db-shm
 *.db-wal
@@ -46,6 +47,8 @@ uv.lock
 .comp/
 .notes
 .shared
+.obsidian
+.obsidian/
 .notes/
 .shared/
 loc_only/
@@ -55,3 +58,4 @@ loc_only/
 .geminignore
 .aiexclude
 .aider*
+CLAUDE.md

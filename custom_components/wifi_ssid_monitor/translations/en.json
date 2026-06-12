@@ -7,6 +7,11 @@
           "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)"
+        },
+        "data_description": {
+          "name": "Display name shown in the Home Assistant UI for this integration instance.",
+          "wifi_interface": "The network interface to scan for WiFi networks (e.g., wlan0). Available interfaces are detected automatically where possible.",
+          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Wildcards supported (e.g., Guest_*). Networks not matching this list are counted as unknown."
         }
       },
       "reauth_confirm": {
@@ -19,6 +24,11 @@
           "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)"
+        },
+        "data_description": {
+          "name": "Display name shown in the Home Assistant UI for this integration instance.",
+          "wifi_interface": "The network interface to scan for WiFi networks (e.g., wlan0). Available interfaces are detected automatically where possible.",
+          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Wildcards supported (e.g., Guest_*). Networks not matching this list are counted as unknown."
         }
       }
     },
@@ -35,13 +45,33 @@
       "total_count": { "name": "Total SSID Count" },
       "unknown_count": { "name": "Unknown SSID Count" },
       "interface": { "name": "Interface" },
-      "last_updated": { "name": "Last Updated" }
+      "last_updated": { "name": "Last Updated" },
+      "strongest_unknown_ssid": { "name": "Strongest Unknown SSID" },
+      "strongest_unknown_rssi": { "name": "Strongest Unknown RSSI" }
     },
     "binary_sensor": {
-      "new_network": { "name": "New Network Alert" }
+      "new_network": { "name": "New Network Alert" },
+      "proximity_alert": { "name": "Proximity Alert" }
     },
     "number": {
       "scan_interval": { "name": "Scan Interval" }
+    },
+    "button": {
+      "scan_now": { "name": "Scan Now" }
+    }
+  },
+  "exceptions": {
+    "scan_failed": {
+      "message": "WiFi scan failed — check Home Assistant Repairs for details"
+    },
+    "entry_not_found": {
+      "message": "No wifi_ssid_monitor entry found with ID {entry_id}"
+    }
+  },
+  "issues": {
+    "supervisor_unavailable": {
+      "title": "WiFi SSID Monitor cannot reach the Supervisor API",
+      "description": "The integration has failed to connect to the Home Assistant Supervisor API for multiple consecutive scan cycles. WiFi scan data is now stale. Check that the Supervisor service is running and that the monitored interface is valid under **Settings > System > Network**."
     }
   },
   "options": {
@@ -52,7 +82,23 @@
           "name": "Integration Name",
           "wifi_interface": "Wifi Interface (e.g., wlan0)",
           "known_wifi_ids": "Known SSIDs (comma separated)",
-          "scan_interval": "Scan Interval (seconds, minimum 60)"
+          "scan_interval": "Scan Interval (seconds, minimum 60)",
+          "include_hidden": "Include Hidden Networks",
+          "proximity_rssi_threshold": "Proximity Alert Threshold (dBm)",
+          "scan_bands": "Band Filter",
+          "denylist_ssids": "Always-Unknown SSIDs (denylist)",
+          "last_seen_ttl_days": "Last Seen History (days)"
+        },
+        "data_description": {
+          "name": "Display name shown in the Home Assistant UI for this integration instance.",
+          "wifi_interface": "The network interface to scan for WiFi networks (e.g., wlan0).",
+          "known_wifi_ids": "Comma-separated list of SSIDs to treat as known (e.g., Home-WiFi, Guest-Network). Wildcards supported (e.g., Guest_*). Networks not matching this list are counted as unknown.",
+          "scan_interval": "How often to poll for WiFi networks, in seconds. Minimum 60 seconds. Default is 600 seconds (10 minutes).",
+          "include_hidden": "When enabled, networks that do not broadcast their SSID are counted as a single '[hidden]' entry. Disable to ignore them entirely.",
+          "proximity_rssi_threshold": "Signal strength threshold (dBm) for the Proximity Alert sensor. The alert triggers when an unknown network's signal is at or above this value (e.g., -60 dBm indicates a nearby device). Range: -100 to -30.",
+          "scan_bands": "Restrict scanning to a specific WiFi band. Applies to all results including counts and known-network matching — not just band attributes. APs with an undetermined band are excluded when a filter is active. Select 'all' to scan all bands.",
+          "denylist_ssids": "Comma-separated list of SSIDs or patterns that are always counted as unknown, even if they also appear in the known list. Wildcards supported (e.g., Guest_*). This list takes priority over the known list — an SSID matching both will always be flagged as unknown.",
+          "last_seen_ttl_days": "How many days to retain last-seen history for networks that are no longer visible. Set to 0 to keep history forever. Range: 0–366 days. Default is 90 days."
         }
       }
     },

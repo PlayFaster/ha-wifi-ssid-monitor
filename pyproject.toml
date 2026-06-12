@@ -1,6 +1,6 @@
 [tool.ruff]
 # Target the version used in your devcontainer
-target-version = "py314"
+target-version = "py313"
 line-length = 88
 
 [tool.ruff.lint]
@@ -56,18 +56,42 @@ filterwarnings = [
 
 [tool.mypy]
 python_version = "3.14"
+platform = "linux"
+# Project-specific: resolve custom_components and ha_core paths in the devcontainer
+mypy_path = "/ha_core"
 explicit_package_bases = true
 show_error_codes = true
-ignore_missing_imports = true
+# Aligned with HA: targeted error-code suppression rather than ignore_missing_imports = true
+disable_error_code = ["annotation-unchecked", "import-not-found", "import-untyped"]
+enable_error_code = ["deprecated", "ignore-without-code", "redundant-self", "truthy-iterable"]
+# Misc / warnings
 warn_unused_configs = true
-disallow_untyped_defs = true
-check_untyped_defs = true
-no_implicit_optional = true
+warn_incomplete_stub = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
+warn_return_any = true
+# Strictness — aligned with HA global mypy.ini
+local_partial_types = true
+strict_bytes = true
 strict_equality = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+
+# homeassistant.* modules: silence HA-internal errors and follow imports silently
+# (project-specific: avoids walking all of HA source on every check).
+# no_implicit_reexport matches HA's own [mypy-homeassistant.*] policy exactly.
+[[tool.mypy.overrides]]
+module = ["homeassistant.*"]
+ignore_errors = true
+follow_imports = "silent"
+no_implicit_reexport = true
 
 [tool.coverage.run]
 source = ["custom_components"]

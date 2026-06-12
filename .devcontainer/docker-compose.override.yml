@@ -1,0 +1,17 @@
+---
+version: "3.8"
+services:
+  homeassistant:
+    depends_on:
+      - supervisor
+    environment:
+      - SUPERVISOR_TOKEN=mock_dev_token
+    volumes:
+      - ../custom_components/wifi_ssid_monitor:/config/custom_components/wifi_ssid_monitor:ro
+
+  supervisor:
+    command: python /mock_supervisor.py
+    container_name: supervisor_mock
+    image: python:3.11-slim
+    volumes:
+      - ./mock_supervisor.py:/mock_supervisor.py:ro

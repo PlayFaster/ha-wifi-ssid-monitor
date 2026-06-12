@@ -12,49 +12,35 @@
       ],
       "settings": {
         "_comment": "This helps VS Code find your imports correctly",
+        "editor.formatOnSave": true,
+        "extensions.verifySignature": false,
+        "markdownlint.config": {
+          "MD013": false,
+          "MD033": false
+        },
         "python.analysis.extraPaths": [
-          "/workspaces/ha-wifi-ssid-monitor/custom_components"
+          "/workspaces/${localWorkspaceFolderBasename}/custom_components"
         ],
         "yaml.schemas": {
           "https://raw.githubusercontent.com/hacs/default/master/hacs.json": "hacs.json",
           "https://raw.githubusercontent.com/home-assistant/schemas/main/frontend/lovelace_config.json": "ui-lovelace.yaml"
         },
-        "yaml.validate": true,
-        "editor.formatOnSave": true,
-        "markdownlint.config": {
-          "MD013": false,
-          "MD033": false
-        }
+        "yaml.validate": true
       }
     }
   },
-  "dockerComposeFile": "docker-compose.yml",
+  "dockerComposeFile": ["docker-compose.yml", "docker-compose.override.yml"],
   "mounts": [
     {
-      "source": "${localEnv:USERPROFILE}/.gemini",
-      "target": "/root/.gemini",
-      "type": "bind"
-    },
-    {
-      "source": "${localEnv:USERPROFILE}/.gitconfig",
-      "target": "/root/.gitconfig",
-      "type": "bind"
-    },
-    {
-      "source": "C:/Local/Code/github/PlayFaster/home-assistant/shared/ProjNotes/Notes-ha-wifi-ssid-monitor",
-      "target": "${containerWorkspaceFolder}/.notes",
-      "type": "bind"
-    },
-    {
-      "source": "C:/Local/Code/github/PlayFaster/home-assistant/shared/SharedNotes",
-      "target": "${containerWorkspaceFolder}/.shared",
-      "type": "bind"
+      "source": "vscode-server-vol-${localWorkspaceFolderBasename}",
+      "target": "/root/.vscode-server",
+      "type": "volume"
     }
   ],
-  "name": "WiFi SSID Monitor",
+  "name": "${localWorkspaceFolderBasename}",
   "overrideCommand": false,
   "postCreateCommand": "sed -i 's/\\r$//' .devcontainer/setup.sh && sh .devcontainer/setup.sh || (echo 'Setup failed! Check .reports/devcontainer/post_setup.log for details.' && sleep infinity)",
   "remoteUser": "root",
   "service": "homeassistant",
-  "workspaceFolder": "/workspaces/ha-wifi-ssid-monitor"
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}"
 }
