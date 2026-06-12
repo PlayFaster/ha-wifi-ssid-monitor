@@ -577,17 +577,18 @@ To remove the integration from Home Assistant:
 
 To fully uninstall (HACS):
 
-1. Go to **HACS > Integrations**.
+1. Go to **HACS**.
 2. Find the **WiFi SSID Monitor** and click into it.
 3. Click the **three dots** (⋮) at the top right and select **Remove**.
 4. Restart Home Assistant.
+5. Home Assistant automatically removes all associated entities and device entries from the registry when the integration is deleted.
 
 ## ❗ Known Limitations /❔ What's Missing?
 
 - **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data. You can disable hidden network tracking entirely via the **Include Hidden Networks** option.
 - **Strongest Unknown Sensors Return "unknown" When No Unknown Networks Visible**: `sensor.wifi_ssid_monitor_strongest_unknown_ssid` and `sensor.wifi_ssid_monitor_strongest_unknown_rssi` return `unknown` when no unknown networks are currently visible. This is normal and expected Home Assistant behavior indicating that no unknown signals are in range — it does not indicate a connectivity or integration problem (which would show as `unavailable`).
 - **Pattern Matching is Case-Sensitive**: Known SSID patterns (including wildcards like `Guest_*`) are matched case-sensitively. `homewifi` and `HomeWiFi` are treated as different networks — make sure your patterns match the exact casing of the SSIDs you want to filter.
-- **Proximity Alert Threshold Direction**: The threshold is a dBm value, which is always negative. A less-negative value (e.g., −40 dBm) requires the unknown device to be very close before the alert fires. A more-negative value (e.g., −80 dBm) lets distant signals trigger it. If the alert fires constantly in a dense urban area, raise the threshold closer to −40.
+- **Proximity Alert Threshold Direction**: The threshold is a dBm value, which is always negative. A less-negative value (e.g., −40 dBm) requires the unknown device to be very close before the alert fires. A more-negative value (e.g., −80 dBm) lets distant signals trigger it. If the alert fires constantly in a signal dense area, raise the threshold closer to −40.
 
 ## 📝 Maintenance Status
 
