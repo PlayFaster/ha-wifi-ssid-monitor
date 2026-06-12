@@ -85,8 +85,8 @@ This integration provides **10 entities** (all enabled by default) organized und
 | `sensor.wifi_ssid_monitor_unknown_ssid_count` | Measurement | Count of networks not in your known list |
 | `sensor.wifi_ssid_monitor_last_updated` | Diagnostic | Timestamp of the last successful WiFi scan |
 | `sensor.wifi_ssid_monitor_interface` | Diagnostic | Name of the monitored WiFi interface |
-| `sensor.wifi_ssid_monitor_strongest_unknown_ssid` | Diagnostic | SSID name of the closest unknown network (highest signal strength); `unavailable` when no unknown networks are visible |
-| `sensor.wifi_ssid_monitor_strongest_unknown_rssi` | Measurement | Signal strength of the closest unknown network (dBm); `unavailable` when no unknown networks are visible |
+| `sensor.wifi_ssid_monitor_strongest_unknown_ssid` | Diagnostic | SSID name of the closest unknown network (highest signal strength); `unknown` when no unknown networks are visible |
+| `sensor.wifi_ssid_monitor_strongest_unknown_rssi` | Measurement | Signal strength of the closest unknown network (dBm); `unknown` when no unknown networks are visible |
 
 **Attributes:** The count sensors expose per-SSID data in their state attributes; see the "On Sensor" column for which attributes apply to each:
 
@@ -585,7 +585,7 @@ To fully uninstall (HACS):
 ## ❗ Known Limitations /❔ What's Missing?
 
 - **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data. You can disable hidden network tracking entirely via the **Include Hidden Networks** option.
-- **Strongest Unknown Sensors Unavailable Between Scans**: `sensor.wifi_ssid_monitor_strongest_unknown_ssid` and `sensor.wifi_ssid_monitor_strongest_unknown_rssi` return `unavailable` when no unknown networks are currently visible. They only hold a value immediately after a scan that detected at least one unknown SSID.
+- **Strongest Unknown Sensors Return "unknown" When No Unknown Networks Visible**: `sensor.wifi_ssid_monitor_strongest_unknown_ssid` and `sensor.wifi_ssid_monitor_strongest_unknown_rssi` return `unknown` when no unknown networks are currently visible. This is normal and expected Home Assistant behavior indicating that no unknown signals are in range — it does not indicate a connectivity or integration problem (which would show as `unavailable`).
 - **Pattern Matching is Case-Sensitive**: Known SSID patterns (including wildcards like `Guest_*`) are matched case-sensitively. `homewifi` and `HomeWiFi` are treated as different networks — make sure your patterns match the exact casing of the SSIDs you want to filter.
 - **Proximity Alert Threshold Direction**: The threshold is a dBm value, which is always negative. A less-negative value (e.g., −40 dBm) requires the unknown device to be very close before the alert fires. A more-negative value (e.g., −80 dBm) lets distant signals trigger it. If the alert fires constantly in a dense urban area, raise the threshold closer to −40.
 

@@ -131,6 +131,12 @@ Now that `first_seen`, `visit_counts`, and the full service suite are in place, 
 
 ---
 
+### Case-Insensitive Known SSID Matching
+
+**Difficulty:** Unknown **Benefit:** Medium — currently, known SSID matching (including `fnmatch` patterns) is case-sensitive, matching the behaviour of real SSID identifiers. Some routers and devices broadcast the same network name with inconsistent capitalisation (e.g., `MyWiFi` vs `mywifi`), which can cause a network to appear as unknown even when it is in the known list. A configurable option to enable case-insensitive matching (e.g., lowercasing both the scanned SSID and all known patterns before comparison) could reduce false positives in these environments. Implementation complexity is unclear — the main uncertainty is whether `fnmatch` pattern semantics remain correct after lowercasing, particularly for patterns with mixed-case characters.
+
+---
+
 ### Per-SSID Presence Binary Sensors
 
 **Difficulty:** Hard **Benefit:** High (for the right users) — auto-create a binary sensor for each SSID in the known list, showing whether it is currently visible. Enables direct "is my work laptop nearby?" automations without template sensors. Requires dynamic entity creation and teardown when the known list changes, which is significantly more complex than the current static entity model.
@@ -144,3 +150,4 @@ Now that `first_seen`, `visit_counts`, and the full service suite are in place, 
 - **v1.2.0** (2026-06-11) - Marked v1.6.0 delivered items. Updated "First Seen Events" assessment. Added new opportunity section based on v1.6.0 capabilities.
 - **v1.3.0** (2026-06-11) - Marked v1.7.0 delivered items. Updated "First Seen Events" assessment to reflect first_seen Store is now live. Replaced v1.6.0 opportunity section with v1.7.0 opportunities.
 - **v1.4.0** (2026-06-11) - Rebundled: v1.5.0/v1.6.0/v1.7.0 features all ship together as v1.6.0. Renamed delivered sections to Part 1/2/3. Renamed opportunity section to "Future Options".
+- **v1.5.0** (2026-06-12) - Added "Case-Insensitive Known SSID Matching" to Future Options.
