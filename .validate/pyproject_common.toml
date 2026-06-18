@@ -1,0 +1,22 @@
+target-version = "py313"
+line-length = 88
+
+[lint]
+select = [
+    "B",     # flake8-bugbear
+    "E",     # pycodestyle error
+    "F",     # Pyflakes
+    "I",     # isort
+    "UP",    # pyupgrade
+    "W",     # pycodestyle warning
+    "N",     # pep8-naming
+    "D",     # pydocstyle
+    "ASYNC", # flake8-async
+    "RUF",   # Ruff-specific rules
+    "SIM",   # flake8-simplify
+    "T20",   # flake8-print (forbids print statements)
+]
+ignore = [
+    "D203", # Conflict with D211 (HA prefers no blank line before class)
+    "D213", # Conflict with D212 (HA prefers summary on first line)
+]
