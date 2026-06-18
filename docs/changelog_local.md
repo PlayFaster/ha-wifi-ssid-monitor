@@ -4,12 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.6.1-dev4] - 2026-06-18 - Unreleased
+## [1.6.1-dev5] - 2026-06-18 - Unreleased
+
+### Summary
+
+- **CI Validation Overhaul**: Major overhaul of the local (tasks.json) and online (github.com CI) Validation system
 
 ### Changed
 
-- CI Validation: Updated
-
+- **CI Local Tasks**: Reordered local tasks.json, added color for pass/fail.
+- **CI Validation Bump**: Shared CI validation bumped to v2.0.3. No user changes in this release, background/infrastructure only.
+- **CI Validation Bump**: Shared CI validation bumped from v2.0.1 to v2.0.2
+- **CI Coverage Report**: Removed the pytest coverage report as it required extra permissions and is separate to the coverage badge, which is what is really required.
+- **CodeQL**: CodeQL shared config and local caller modified to detail permissions to that Zizmor will pass
+- **CodeQL**: Added a shared CodeQL validation config to the shared validation repo, pulled into each project, incl this one.
+- **Validation Config**: Fixed use of .prettierrc.json
+- **Link Check**: Updated markdown-link-check to ignore .notes/ and .shared/ links in projects as these are excluded.
+- **Validation Config**: Changed from .prettierrc.js to .prettierrc.json to allow GitHub.com CodeQL to run without errors
+- **DependaBot**: Bumped Shared Validation from v1.0.8 to v1.0.9
+- **DependaBot**: Bumped Ruff from 0.15.12 to 0.15.16
+- **.gitignore**: Multiple updates to .gitignore
+- **AGENTS.md**: Added AGENTS.md to repo root
 
 ## [1.6.0] - 2026-06-12
 
