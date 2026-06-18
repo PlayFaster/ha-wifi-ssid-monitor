@@ -79,7 +79,6 @@ uv.lock
 .tmp/
 *.log
 
-
 # Note Scratch Compare Area
 .comp/
 .notes
@@ -91,6 +90,7 @@ loc_only/
 
 # AI
 .aider/
+.antigravitycli/
 .claude/
 .continue/
 .cursor/
