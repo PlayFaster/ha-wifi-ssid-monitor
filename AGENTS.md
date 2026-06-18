@@ -64,7 +64,7 @@ Do not install or run these tools on the host as a workaround.
 
 The integration follows the standard HA `DataUpdateCoordinator` pattern:
 
-```
+```text
 __init__.py         Entry point: sets up coordinator, calls async_initialize(), forwards to
                     platforms, registers reload listener; async_setup registers 5 domain
                     services (add_known_ssid, remove_known_ssid, scan_now, clear_last_seen,
@@ -103,6 +103,7 @@ const.py            Constants; reads VERSION from manifest.json at import time
 **Hidden networks:** When `include_hidden=True` (default), APs without an `ssid` key are grouped as a single `[hidden]` entry. When `include_hidden=False`, they are filtered out before processing and do not appear in any count or attribute.
 
 **Services** — all registered in `async_setup` (domain lifecycle), persisting for the domain's loaded state. Described in `services.yaml`:
+
 - **`add_known_ssid`**: Appends an SSID to `CONF_KNOWN_SSIDS` for one or all entries; triggers a re-scan.
 - **`remove_known_ssid`**: Removes an SSID or pattern from `CONF_KNOWN_SSIDS`; silent success if not found; triggers a re-scan when the list changes.
 - **`scan_now`**: Triggers `coordinator.async_refresh()` for one or all entries immediately.
@@ -138,14 +139,15 @@ When the devcontainer is running, the `ha-mcp-dev` MCP server automatically conn
 
 **After any modification, follow the post-modification process** — see [`.shared/prompts/post_mod_process.md`](.shared/prompts/post_mod_process.md). Specify a `SCOPE` when invoking it:
 
-| SCOPE | What runs |
-| :------- | :-------- |
-| `None` | Changes only — no validation |
-| `Basic` | HA restart + error check + lint/format fixes |
-| `Full` | Basic + mypy (standard) + pytest (fix failing tests only) |
-| `Complete` | Full + pre-commit --all-files + mypy --strict |
+| SCOPE      | What runs                                                 |
+| :--------- | :-------------------------------------------------------- |
+| `None`     | Changes only — no validation                              |
+| `Basic`    | HA restart + error check + lint/format fixes              |
+| `Full`     | Basic + mypy (standard) + pytest (fix failing tests only) |
+| `Complete` | Full + pre-commit --all-files + mypy --strict             |
 
 Additional tools useful during development:
+
 - `ha_get_state` / `ha_search_entities` — verify entity states and attributes after a reload
 - `ha_call_service` — trigger service calls (e.g. `homeassistant.update_entity`) to exercise platform callbacks directly
 
