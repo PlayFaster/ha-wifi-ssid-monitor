@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.1-dev6] - 2026-06-26 - Unreleased
+
+### Summary
+
+- **Validation Bumps**: Bumped Shared CI, Ruff, PyTest
+
+### Changed
+
+- **Dependabot Bump**: Updated shared CI Validation call (.github) from v2.0.3 to v2.0.4
+- **Dependabot Bump**: Updated ruff from 0.15.16 to 0.15.17
+- **Bump**: Updated PyTest Custom from 0.13.326 to 0.13.340
+- **Agents.md**: Updated to include reference to run in devcon skills
+
 ## [1.6.1-dev5] - 2026-06-18 - Unreleased
 
 ### Summary
@@ -12,6 +25,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **dev-workbench**: Moved CI Validation and Sync to dev-workbench system, with major restructure of files and folders.
 - **CI Local Tasks**: Reordered local tasks.json, added color for pass/fail.
 - **CI Validation Bump**: Shared CI validation bumped to v2.0.3. No user changes in this release, background/infrastructure only.
 - **CI Validation Bump**: Shared CI validation bumped from v2.0.1 to v2.0.2
@@ -21,7 +35,6 @@ All notable changes to this project will be documented in this file.
 - **Validation Config**: Fixed use of .prettierrc.json
 - **Link Check**: Updated markdown-link-check to ignore .notes/ and .shared/ links in projects as these are excluded.
 - **Validation Config**: Changed from .prettierrc.js to .prettierrc.json to allow GitHub.com CodeQL to run without errors
-- **DependaBot**: Bumped Shared Validation from v1.0.8 to v1.0.9
 - **DependaBot**: Bumped Ruff from 0.15.12 to 0.15.16
 - **.gitignore**: Multiple updates to .gitignore
 - **AGENTS.md**: Added AGENTS.md to repo root

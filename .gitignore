@@ -89,6 +89,8 @@ uv.lock
 .shared/
 .workbench/
 loc_only/
+scratch/
+.scratch/
 
 # AI
 .aider/

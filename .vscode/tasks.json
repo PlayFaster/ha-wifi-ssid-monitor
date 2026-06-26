@@ -115,7 +115,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json | tee .reports/markdown_lint.txt; echo \"\"; if [ ! -s \".reports/markdown_lint.txt\" ]; then echo -e \"\\033[1;32m✔  Markdown Lint: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Markdown Lint: FAILED\\033[0m\"; fi",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json 2>&1 | tee .reports/markdown_lint.txt; echo \"\"; if [ ! -s \".reports/markdown_lint.txt\" ]; then echo -e \"\\033[1;32m✔  Markdown Lint: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Markdown Lint: FAILED\\033[0m\"; fi",
       "label": "Markdown: Lint (View Only)",
       "presentation": {
         "panel": "dedicated",

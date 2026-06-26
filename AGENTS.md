@@ -155,6 +155,18 @@ HA core source is mounted read-only at `/ha_core`; mypy resolves HA types agains
 
 Validation reports are written to the `.reports/` directory (gitignored outputs from lint/test runs).
 
+### Skill Prompts
+
+Three reusable prompts are available via `.shared/prompts/` for working within this devcontainer:
+
+| Prompt | Purpose |
+| :-- | :-- |
+| `devcon_run_gen.md` | Run any single command inside the container |
+| `devcon_run_and_fix.md` | Full test + lint cycle: pytest, ruff, prettier, validate — with auto-fix |
+| `devcon_coverage.md` | Coverage report, target file selection, and new test writing |
+
+Container identity values (`CONTAINER_NAME`, `PROJECT_DIR`) are in `.devcontainer/.env`.
+
 ---
 
 ## Version Control
