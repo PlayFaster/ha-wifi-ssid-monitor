@@ -406,13 +406,15 @@ actions:
 
 ## 📸 Screenshots
 
-| Integration Overview | Sensor Entities |
-| :-: | :-: |
-| ![Integration Overview](.github/images/wifi_ssid_mon_integration_screen.png) | ![Sensor Entities](.github/images/wifi_ssid_mon_sensors_screen.png) |
+<p align="left"><strong>Integration Overview</strong></p>
+<p align="left"><img src=".github/images/wifi_ssid_mon_integration_screen.png" alt="Integration Overview"></p>
 
-| Setup | Network Interface Configuration |
+| Sensor Entities | Setup |
 | :-: | :-: |
-| ![Setup](.github/images/wifi_ssid_mon_setup_screen.png) | ![Interface Configuration](.github/images/wlan_name_sys_netw.png) |
+| ![Sensor Entities](.github/images/wifi_ssid_mon_sensors_screen.png) | ![Setup](.github/images/wifi_ssid_mon_setup_screen.png) |
+
+<p align="left"><strong>Network Interface Configuration</strong></p>
+<p align="left"><img src=".github/images/wlan_name_sys_netw.png" width="40%" alt="Network Interface Configuration"></p>
 
 ## 📥 Installation
 
@@ -546,6 +548,15 @@ Entries older than the **Last Seen History TTL** (default: 90 days) are pruned a
 
 - **Threshold is too permissive**: The default threshold of −60 dBm may be too broad for a dense WiFi environment (many neighbors' networks). Open **Configure** on the integration card and raise the **Proximity Alert Threshold** toward −50 or −40 dBm to require a closer signal before the alert fires.
 - **Persistent unknown networks in range**: Check the `signal_strengths` attribute on `sensor.wifi_ssid_monitor_unknown_ssid_count` to identify which network is triggering the alert, then decide whether to add it to the Known SSIDs list.
+
+### Fewer Networks Detected Than Expected
+
+**Cause:** The number of WiFi networks this integration can detect depends heavily on the **physical location of your Home Assistant hardware**.
+
+- A system placed centrally in an open area of your home will typically see most networks in range, including expected SSIDs and any rogue signals.
+- A system tucked into a metal IT rack, a utility cupboard, or a corner of your home may see significantly fewer networks — metal enclosures and walls attenuate WiFi signals and can reduce scan coverage substantially.
+
+If signal coverage seems low, consider relocating the hardware to a more central, open position, or check that your WiFi interface is not being physically obstructed.
 
 ### Known SSID Pattern Not Matching
 
