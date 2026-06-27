@@ -8,11 +8,11 @@ All notable changes to this project will be documented in this file.
 
 ### Summary
 
-- **Summary**: Summary
-- **All about YAML Lint**: Multiple YAML Lint local validation warns/fails in the ha-dev-pf stub repo highlighted some shortcomings with YAML Lint implementation. Updated to avoid need for "---" at the top of every YAML file, which is a YAML standard, but NOT the HA standard. Also updated to only run on git tracked files (avoids linting devcon files for example).
+- **Docs and Validation**: Screenshot updates for the README file plus file changes based on YAML List rule change (no "---" needed at top of YAML files).
 
 ### Changed
 
+- **Screenshots**: Updated the four screenshots used in the README file to (a) higher resolution and (b) current version. In particular the sensors image now shows all 10 entities versus the 6 shown previously and the setup image is significantly larger, reflecting a lot of set-up based options added in recent versions (scan interval, include hidden, threshold, band filter, deny list, keep days).
 - **Docs**: Updated README with a note to clarify that performance depends heavily on the location of the Home Assistant hardware within your home.
 - **YAML Lint**: Added "document-start: disable" to .yamllint rule file, to stop warns/fails for "no --- at document start", which brings it in line with Home Assistant.
 - **YAML Files**: Updated YAML files to remove any "---" document starts added.

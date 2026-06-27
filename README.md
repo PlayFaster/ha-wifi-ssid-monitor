@@ -406,15 +406,30 @@ actions:
 
 ## 📸 Screenshots
 
-<p align="left"><strong>Integration Overview</strong></p>
-<p align="left"><img src=".github/images/wifi_ssid_mon_integration_screen.png" alt="Integration Overview"></p>
-
-| Sensor Entities | Setup |
-| :-: | :-: |
-| ![Sensor Entities](.github/images/wifi_ssid_mon_sensors_screen.png) | ![Setup](.github/images/wifi_ssid_mon_setup_screen.png) |
-
-<p align="left"><strong>Network Interface Configuration</strong></p>
-<p align="left"><img src=".github/images/wlan_name_sys_netw.png" width="40%" alt="Network Interface Configuration"></p>
+<table width="100%">
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <strong>Integration Overview</strong><br><br>
+      <img src=".github/images/wifi_ssid_mon_integration_screen.png" alt="Integration Overview" width="60%">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <strong>Sensor Entities</strong><br><br>
+      <img src=".github/images/wifi_ssid_mon_sensors_screen.png" alt="Sensor Entities" width="70%">
+    </td>
+    <td align="center" valign="top" width="50%">
+      <strong>Setup</strong><br><br>
+      <img src=".github/images/wifi_ssid_mon_setup_screen.png" alt="Setup" width="90%">
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <strong>Network Interface Configuration</strong><br><br>
+      <img src=".github/images/wlan_name_sys_netw.png" alt="Network Interface Configuration" width="40%">
+    </td>
+  </tr>
+</table>
 
 ## 📥 Installation
 
