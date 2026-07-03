@@ -49,7 +49,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 **🏠 Home Assistant Version:**
 
-- Minimum: Home Assistant **2024.1.0**
+- Minimum: Home Assistant **2024.8.0**
 - Minimum Python: **3.12+**
 
 ## 🎯 Use Cases

@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.1-dev8] - 2026-07-02 - Unreleased
+
+### Summary
+
+- **Explicit `config_entry` on the Coordinator**: Pass the config entry explicitly to `DataUpdateCoordinator` so Home Assistant reliably honours the "Enable polling for changes" system option and to satisfy the upcoming HA requirement (implicit `ContextVar` detection is being removed in HA 2026.8).
+
+### Changed
+
+- **Coordinator `config_entry`**: `WifiScanCoordinator` now passes `config_entry=entry` to `super().__init__()`. This makes `self.config_entry` explicit, which is what HA core's `_schedule_refresh()` checks (`config_entry.pref_disable_polling`) to stop scheduled polling when the user sets **System options → "Enable polling for changes" = OFF**. Manual updates (`homeassistant.update_entity`, the "Scan Now" button) still fetch. No behaviour change on current HA — it removes reliance on implicit context detection, which HA logs as an error from **2026.8**.
+- **Minimum HA Version**: Documented minimum raised to **2024.8.0** (the release that added the `config_entry` argument to `DataUpdateCoordinator`).
+- **.gitignore**: Added scratch folders
+
+### Tests
+
+- Added a coordinator test asserting `coordinator.config_entry is entry`.
+
+### Bumps
+
+- **Shared .github CI Validation**: Bump .github Shared CI Validation via SHA from v2.0.4 to v2.0.5 (PR #33)
+- **Validate Bump**: Updated `ruff` from 0.15.17 to 0.15.19 (PR #34)
+- **Validate Bump**: Bumped `pytest-homeassistant-custom-component` from 0.13.340 to 0.13.344
+- **Validate Bump**: Bumped `check-jsonschema` from 0.37.2 to 0.37.4
+
 ## [1.6.1-dev7] - 2026-06-27 - Unreleased
 
 ### Summary
