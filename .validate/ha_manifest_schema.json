@@ -69,15 +69,11 @@
       },
       "type": "object"
     },
-    "import_executor": {
-      "description": "Whether the integration should be imported in an executor.",
-      "type": "boolean"
-    },
     "integration_type": {
       "description": "Purpose of the integration.",
       "enum": [
-        "entity",
         "device",
+        "entity",
         "hardware",
         "helper",
         "hub",
@@ -190,11 +186,11 @@
     }
   },
   "required": [
-    "domain",
-    "name",
     "codeowners",
     "documentation",
+    "domain",
     "issue_tracker",
+    "name",
     "version"
   ],
   "title": "Home Assistant Integration Manifest",

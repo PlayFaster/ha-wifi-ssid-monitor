@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.1-dev9] - 2026-07-03 - Unreleased
+
+### Bumps
+
+- **Validate Bump**: Update Ruff from 0.15.19 to 0.15.20
+
 ## [1.6.1-dev8] - 2026-07-02 - Unreleased
 
 ### Summary
