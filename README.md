@@ -28,7 +28,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
   - [📸 Screenshots](#-screenshots)
   - [📥 Installation](#-installation)
   - [🔧 Configuration](#-configuration)
-  - [🔨 Under the Hood — Technical Architecture](#-under-the-hood--technical-architecture)
+  - [🔩 Under the Hood - Technical Architecture](#-under-the-hood---technical-architecture)
   - [❓ FAQ \& Troubleshooting](#-faq--troubleshooting)
   - [❌ Removal](#-removal)
   - [❗ Known Limitations /❔ What's Missing?](#-known-limitations--whats-missing)
@@ -61,17 +61,34 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 ## ✅ Features
 
+### 📡 Network Scanning & Detection
+
 - **Real-time SSID Scanning**: Count all detectable WiFi networks in range and view full SSID lists with signal strength and frequency band in sensor attributes.
 - **Unknown Network Detection**: Identify networks not in your known list, with wildcard pattern matching (e.g., `Guest_*`) for flexible filtering.
 - **Proximity Alert**: A binary sensor fires when an unknown network's signal strength exceeds a configurable threshold, indicating a nearby rogue AP.
-- **On-Demand Scan**: Trigger an immediate scan at any time using the **Scan Now** button entity or the `wifi_ssid_monitor.scan_now` service — no need to wait for the next interval.
-- **Service API**: Five callable services cover the full management lifecycle — add, remove, or replace the known list, trigger on-demand scans, and clear history.
-- **Last Seen Tracking**: Each unknown SSID records when it was last detected, first detected, and how many times it has appeared — all persisted across Home Assistant restarts with a configurable TTL.
-- **Dynamic Polling Control**: Adjust the scan frequency (1–180 minutes) from the HA UI or via automations.
+- **Auto-detected Interface**: WiFi interfaces (e.g., `wlan0`) are automatically populated during setup where available.
+
+### 🧰 Filtering & History
+
 - **Band Filter**: Restrict scanning to 2.4 GHz only, 5 GHz only, or all bands to reduce noise from neighboring networks.
 - **SSID Denylist**: Mark specific SSID patterns as permanently unknown — useful for neighbor networks that should never be whitelisted.
 - **Hidden Network Control**: Toggle whether unbroadcasted (hidden) SSIDs are counted or silently ignored.
-- **Auto-detected Interface**: WiFi interfaces (e.g., `wlan0`) are automatically populated during setup where available.
+- **Last Seen Tracking**: Each unknown SSID records when it was last detected, first detected, and how many times it has appeared — all persisted across Home Assistant restarts with a configurable TTL.
+
+### 🔄 Dynamic Polling
+
+- **Dynamic Polling Control**: Adjust the scan frequency (1–180 minutes) from the HA UI or via automations.
+- **On-Demand Scan**: Trigger an immediate scan at any time using the **Scan Now** button entity or the `wifi_ssid_monitor.scan_now` service — no need to wait for the next interval.
+
+> [!TIP]
+>
+> **Scan interval can be controlled dynamically, via automation**
+>
+> - Lower it (e.g. 1–5 minutes) during security sweeps or when you want faster rogue-AP detection, and raise it afterwards to reduce system load.
+
+### 🔌 Service API
+
+- **Service API**: Five callable services cover the full management lifecycle — add, remove, or replace the known list, trigger on-demand scans, and clear history. See [What You Get → Services](#services) for full parameters and examples.
 
 ## 🔍 What You Get
 
@@ -283,7 +300,7 @@ actions:
       message: "WiFi network count has dropped — a home network may be offline"
 ```
 
-### 🔁 Dynamic Polling Control
+### 🔄 Dynamic Polling Control
 
 Automatically adjust the scan frequency between day and evening hours.
 
@@ -456,13 +473,11 @@ actions:
 
 Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**.
 
-| Parameter | Required | Description |
-| :-- | :-- | :-- |
-| **WiFi Interface** | **Yes** | The network interface to monitor (e.g., `wlan0`). Autopopulated where available. |
-| **Known SSIDs** | No | Comma-separated list of WiFi networks to treat as known (e.g., `Home-WiFi, Guest-Network`). |
-| **Integration Name** | No | Display name shown in the UI for this integration instance (default: `WiFi SSID Monitor`). |
+- **WiFi Interface** (required) — The network interface to monitor (e.g., `wlan0`). Autopopulated where available.
+- **Known SSIDs** — Comma-separated list of WiFi networks to treat as known (e.g., `Home-WiFi, Guest-Network`).
+- **Integration Name** — Display name shown in the UI for this integration instance (default: `WiFi SSID Monitor`).
 
-### 🔩 Runtime Options
+### 🔨 Runtime Options
 
 After setup, settings can be updated by clicking **Configure** on the integration card:
 
@@ -512,9 +527,9 @@ The integration keeps track of how often and when unknown networks are seen:
 - `last_seen` — Timestamp of the most recent scan cycle the SSID was detected.
 - `visit_counts` — Total number of scan cycles in which the SSID has appeared. To prevent storage bloat, any SSID that has not been seen for longer than the TTL window is pruned automatically from history on the next scan. Setting this to `0` disables pruning.
 
-## 🔨 Under the Hood — Technical Architecture
+## 🔩 Under the Hood - Technical Architecture
 
-### 🔄 Polling & 3-Strike Resilience 🩹
+### 🔄 Data Polling & 3-Strike Resilience 🩹
 
 The integration utilizes a custom polling mechanism designed to interact with the Home Assistant Supervisor Network API:
 
@@ -537,9 +552,15 @@ The integration persists three history stores across Home Assistant restarts usi
 
 Entries older than the **Last Seen History TTL** (default: 90 days) are pruned automatically on the next scan. Set TTL to `0` to retain all entries indefinitely. Call `wifi_ssid_monitor.clear_last_seen` to reset all three stores immediately.
 
+### 🔄 Dynamic Polling & Standard System Options
+
+- **Both Available**: The integration provides dynamic polling controls, to change the scan interval or trigger an on-demand scan. It also functions normally with the standard Home Assistant **System options** > **Enable polling for changes** toggle.
+
 ## ❓ FAQ & Troubleshooting
 
-### Integration Fails to Load
+### 🔌 Setup & Connectivity
+
+#### **Integration Fails to Load**
 
 **Issue:** "Failed to connect to Supervisor API" or similar errors.
 
@@ -548,14 +569,16 @@ Entries older than the **Last Seen History TTL** (default: 90 days) are pruned a
 - **WiFi hardware unavailable**: Verify your Home Assistant system has physical WiFi capabilities enabled under **Settings > System > Network**.
 - **Invalid interface**: Ensure the interface name is correct and configured on your host OS.
 
-### No Networks Detected
+#### **No Networks Detected**
 
 - Verify the interface name is correct for your system.
 - Ensure WiFi is enabled in **Settings > System > Network**.
 - Check that networks are actively broadcasting in range of the system.
 - Review the Home Assistant logs for detailed error messages.
 
-### Proximity Alert Is Always On
+### 📊 Detection, Signals & History
+
+#### **Proximity Alert Is Always On**
 
 **Issue:** `binary_sensor.wifi_ssid_monitor_proximity_alert` stays on permanently even when no suspicious device is nearby.
 
@@ -564,7 +587,7 @@ Entries older than the **Last Seen History TTL** (default: 90 days) are pruned a
 - **Threshold is too permissive**: The default threshold of −60 dBm may be too broad for a dense WiFi environment (many neighbors' networks). Open **Configure** on the integration card and raise the **Proximity Alert Threshold** toward −50 or −40 dBm to require a closer signal before the alert fires.
 - **Persistent unknown networks in range**: Check the `signal_strengths` attribute on `sensor.wifi_ssid_monitor_unknown_ssid_count` to identify which network is triggering the alert, then decide whether to add it to the Known SSIDs list.
 
-### Fewer Networks Detected Than Expected
+#### **Fewer Networks Detected Than Expected**
 
 **Cause:** The number of WiFi networks this integration can detect depends heavily on the **physical location of your Home Assistant hardware**.
 
@@ -573,7 +596,7 @@ Entries older than the **Last Seen History TTL** (default: 90 days) are pruned a
 
 If signal coverage seems low, consider relocating the hardware to a more central, open position, or check that your WiFi interface is not being physically obstructed.
 
-### Known SSID Pattern Not Matching
+#### **Known SSID Pattern Not Matching**
 
 **Issue:** A network remains flagged as unknown even though a matching entry or wildcard is in the Known SSIDs list.
 
@@ -583,7 +606,7 @@ If signal coverage seems low, consider relocating the hardware to a more central
 - **Missing wildcard**: A plain string is treated as an exact match. Use `Guest_*` or `*guest*` for partial matches.
 - **Trailing spaces**: The Known SSIDs field strips leading/trailing whitespace from each entry, but double-check there are no invisible characters.
 
-### `last_seen` History Contains Stale or Unexpected Entries
+#### **`last_seen` History Contains Stale or Unexpected Entries**
 
 **Issue:** The `last_seen`, `first_seen`, or `visit_counts` attributes on `sensor.wifi_ssid_monitor_unknown_ssid_count` contain entries for SSIDs that have not been seen recently, or history is larger than expected.
 

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.1-dev10] - 2026-07-04 - Unreleased
+
+### Changed
+
+- **Dev-WorkBench**: Updated the Check Drift script to account for the situation where the HA Core version online is ahead of the local version (dev-workbench v2.1.0-dev9).
+- **Documentation**: Updated the README file to better align to the style and structure of the ZTE and Huawei README files, while maintaining the project unique content.
+
 ## [1.6.1-dev9] - 2026-07-03 - Unreleased
 
 ### Bumps

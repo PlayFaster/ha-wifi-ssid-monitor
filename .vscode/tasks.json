@@ -405,6 +405,16 @@
       "type": "shell"
     },
     {
+      "command": "mkdir -p .reports && python3 .workbench/check_tool_drift.py -nocache | tee .reports/tool_drift_raw.txt && sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' .reports/tool_drift_raw.txt > .reports/tool_drift.txt && rm .reports/tool_drift_raw.txt",
+      "label": "Env: Audit Version Drift (no cache)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
       "command": "python3 .workbench/check_tool_drift.py --apply",
       "label": "Env: Apply Version Matrix Targets",
       "presentation": {
