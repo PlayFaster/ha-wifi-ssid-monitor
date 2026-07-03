@@ -1,6 +1,7 @@
 """Config flow for WiFi SSID Monitor integration."""
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -52,6 +53,59 @@ async def _get_wifi_interfaces(hass: HomeAssistant) -> list[str]:
     except WifiScanError as e:
         _LOGGER.debug("Could not fetch available WiFi interfaces: %s", e)
         return []
+
+
+def _build_settings_schema(
+    options: Mapping[str, Any],
+    available_interfaces: list[str],
+    current_interface: str,
+    name_fallback: str,
+) -> vol.Schema:
+    """Build the full settings schema shared by the reconfigure and options flows.
+
+    Both the ⋮ → Reconfigure step and the gear → Configure (options) step render
+    the same fields from this single definition so the two paths never drift.
+    """
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_NAME, default=options.get(CONF_NAME, name_fallback)
+            ): cv.string,
+            vol.Optional(
+                CONF_KNOWN_SSIDS, default=options.get(CONF_KNOWN_SSIDS, "")
+            ): cv.string,
+            vol.Required(
+                CONF_SCAN_INTERVAL, default=options.get(CONF_SCAN_INTERVAL, 600)
+            ): vol.All(vol.Coerce(int), vol.Range(min=60)),
+            vol.Optional(
+                CONF_INCLUDE_HIDDEN,
+                default=options.get(CONF_INCLUDE_HIDDEN, DEFAULT_INCLUDE_HIDDEN),
+            ): cv.boolean,
+            vol.Required(
+                CONF_PROXIMITY_RSSI_THRESHOLD,
+                default=options.get(
+                    CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=-100, max=-30)),
+            vol.Required(
+                CONF_SCAN_BANDS,
+                default=options.get(CONF_SCAN_BANDS, DEFAULT_SCAN_BANDS),
+            ): vol.In(["all", "2.4", "5"]),
+            vol.Optional(
+                CONF_DENYLIST_SSIDS,
+                default=options.get(CONF_DENYLIST_SSIDS, ""),
+            ): cv.string,
+            vol.Optional(
+                CONF_LAST_SEEN_TTL_DAYS,
+                default=options.get(
+                    CONF_LAST_SEEN_TTL_DAYS, DEFAULT_LAST_SEEN_TTL_DAYS
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=366)),
+            vol.Required(
+                CONF_INTERFACE, default=current_interface
+            ): vol.In(available_interfaces),
+        }
+    )
 
 
 class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -162,12 +216,7 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_update_reload_and_abort(
                     entry,
                     title=name,
-                    options={
-                        **entry.options,
-                        CONF_NAME: name,
-                        CONF_INTERFACE: new_interface,
-                        CONF_KNOWN_SSIDS: user_input[CONF_KNOWN_SSIDS],
-                    },
+                    options={**entry.options, **user_input},
                 )
             except WifiScanError:
                 errors["base"] = "cannot_connect"
@@ -177,27 +226,19 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected error during reconfigure")
                 errors["base"] = "unknown"
 
-        data_schema = {
-            vol.Required(
-                CONF_NAME, default=entry.options.get(CONF_NAME, entry.title)
-            ): cv.string,
-            vol.Optional(
-                CONF_KNOWN_SSIDS, default=entry.options.get(CONF_KNOWN_SSIDS, "")
-            ): cv.string,
-        }
-
         current_interface = entry.options.get(CONF_INTERFACE, "wlan0")
         available_interfaces = list(interfaces) if interfaces else []
         if current_interface not in available_interfaces:
             available_interfaces.append(current_interface)
 
-        data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = vol.In(
-            available_interfaces
-        )
-
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=vol.Schema(data_schema),
+            data_schema=_build_settings_schema(
+                entry.options,
+                available_interfaces,
+                current_interface,
+                entry.title,
+            ),
             errors=errors,
         )
 
@@ -256,58 +297,13 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
         if current_interface not in available_interfaces:
             available_interfaces.append(current_interface)
 
-        data_schema = {
-            vol.Required(
-                CONF_NAME,
-                default=self._config_entry.options.get(CONF_NAME, DEFAULT_NAME),
-            ): cv.string,
-            vol.Optional(
-                CONF_KNOWN_SSIDS,
-                default=self._config_entry.options.get(
-                    CONF_KNOWN_SSIDS,
-                    self._config_entry.data.get(CONF_KNOWN_SSIDS, ""),
-                ),
-            ): cv.string,
-            vol.Required(
-                CONF_SCAN_INTERVAL,
-                default=self._config_entry.options.get(CONF_SCAN_INTERVAL, 600),
-            ): vol.All(vol.Coerce(int), vol.Range(min=60)),
-            vol.Optional(
-                CONF_INCLUDE_HIDDEN,
-                default=self._config_entry.options.get(
-                    CONF_INCLUDE_HIDDEN, DEFAULT_INCLUDE_HIDDEN
-                ),
-            ): cv.boolean,
-            vol.Required(
-                CONF_PROXIMITY_RSSI_THRESHOLD,
-                default=self._config_entry.options.get(
-                    CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
-                ),
-            ): vol.All(vol.Coerce(int), vol.Range(min=-100, max=-30)),
-            vol.Required(
-                CONF_SCAN_BANDS,
-                default=self._config_entry.options.get(
-                    CONF_SCAN_BANDS, DEFAULT_SCAN_BANDS
-                ),
-            ): vol.In(["all", "2.4", "5"]),
-            vol.Optional(
-                CONF_DENYLIST_SSIDS,
-                default=self._config_entry.options.get(CONF_DENYLIST_SSIDS, ""),
-            ): cv.string,
-            vol.Optional(
-                CONF_LAST_SEEN_TTL_DAYS,
-                default=self._config_entry.options.get(
-                    CONF_LAST_SEEN_TTL_DAYS, DEFAULT_LAST_SEEN_TTL_DAYS
-                ),
-            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=366)),
-        }
-
-        data_schema[vol.Required(CONF_INTERFACE, default=current_interface)] = vol.In(
-            available_interfaces
-        )
-
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(data_schema),
+            data_schema=_build_settings_schema(
+                self._config_entry.options,
+                available_interfaces,
+                current_interface,
+                DEFAULT_NAME,
+            ),
             errors=errors,
         )
