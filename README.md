@@ -416,11 +416,11 @@ actions:
   <tr>
     <td align="center" valign="top" width="50%">
       <strong>Sensor Entities</strong><br><br>
-      <img src=".github/images/wifi_ssid_mon_sensors_screen.png" alt="Sensor Entities" width="70%">
+      <img src=".github/images/wifi_ssid_mon_sensors_screen.png" alt="Sensor Entities" width="75%">
     </td>
     <td align="center" valign="top" width="50%">
       <strong>Setup</strong><br><br>
-      <img src=".github/images/wifi_ssid_mon_setup_screen.png" alt="Setup" width="90%">
+      <img src=".github/images/wifi_ssid_mon_setup_screen.png" alt="Setup" width="88%">
     </td>
   </tr>
   <tr>
