@@ -101,9 +101,9 @@ def _build_settings_schema(
                     CONF_LAST_SEEN_TTL_DAYS, DEFAULT_LAST_SEEN_TTL_DAYS
                 ),
             ): vol.All(vol.Coerce(int), vol.Range(min=0, max=366)),
-            vol.Required(
-                CONF_INTERFACE, default=current_interface
-            ): vol.In(available_interfaces),
+            vol.Required(CONF_INTERFACE, default=current_interface): vol.In(
+                available_interfaces
+            ),
         }
     )
 
