@@ -248,10 +248,10 @@ triggers:
     entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
     to: "on"
 actions:
-  action: notify.mobile_app_phone
-  data:
-    message: |
-      Unknown WiFi network detected: {{ states('sensor.wifi_ssid_monitor_unknown_ssid_count') }} unknown network(s) found
+  - action: notify.mobile_app_phone
+    data:
+      message: |
+        Unknown WiFi network detected: {{ states('sensor.wifi_ssid_monitor_unknown_ssid_count') }} unknown network(s) found
 ```
 
 ### 📟 Smart Device Setup Detection
@@ -483,6 +483,7 @@ After setup, settings can be updated by clicking **Configure** on the integratio
 
 | Parameter | Default | Range | Description |
 | :-- | :-- | :-- | :-- |
+| **Integration Name** | `WiFi SSID Monitor` | String | Display name shown in the UI for this integration instance. |
 | **Known SSIDs** | — | String | Comma-separated list of known networks. Wildcards supported (e.g., `Guest_*`). Case-sensitive. |
 | **Always-Unknown SSIDs** | — | String | Comma-separated fnmatch patterns permanently treated as unknown, even if they also match an entry in the known list. Useful for flagging neighbor networks that should never be whitelisted. |
 | **Scan Interval** | `600` | 60–10800s | Polling frequency (in seconds; equivalent to 1–180 minutes). |
@@ -491,6 +492,14 @@ After setup, settings can be updated by clicking **Configure** on the integratio
 | **Include Hidden Networks** | On | Toggle | When off, networks without a broadcasted SSID are ignored entirely and do not appear in any count or attribute. |
 | **Proximity Alert Threshold** | `-60` | −100 to −30 dBm | Signal strength at which the Proximity Alert sensor fires. **dBm values are negative** — −40 dBm means the device must be very close; −80 dBm allows distant signals to trigger the alert. |
 | **Last Seen History TTL** | `90` | 0–366 days | Number of days to retain `last_seen`, `first_seen`, and `visit_counts` history entries. Set to `0` to keep all history indefinitely. |
+
+> [!NOTE]
+>
+> **Scan Interval — two views of one setting:**
+>
+> The **Scan Interval** field above (Configure dialog) is in **seconds** (`60`–`10800`), while the `number.wifi_ssid_monitor_scan_interval` entity is in **minutes** (`1`–`180`). They control the same value — e.g. `600` seconds here equals `10` minutes on the number entity.
+
+---
 
 > [!TIP]
 >
