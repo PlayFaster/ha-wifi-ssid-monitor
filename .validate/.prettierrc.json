@@ -1,0 +1,34 @@
+{
+  "arrowParens": "always",
+  "bracketSpacing": true,
+  "overrides": [
+    {
+      "files": "**/*.json",
+      "options": {
+        "jsonRecursiveSort": true,
+        "jsonSortOrder": "{\"/.*/\":\"numeric\"}"
+      }
+    },
+    {
+      "files": ["manifest.json", "**/manifest.json"],
+      "options": {
+        "jsonRecursiveSort": false,
+        "jsonSortOrder": "{\"domain\":null,\"name\":null,\"/.*/\":\"numeric\"}"
+      }
+    },
+    {
+      "files": "*.md",
+      "options": {
+        "proseWrap": "never"
+      }
+    }
+  ],
+  "plugins": ["prettier-plugin-sort-json"],
+  "printWidth": 88,
+  "proseWrap": "always",
+  "semi": true,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "useTabs": false
+}

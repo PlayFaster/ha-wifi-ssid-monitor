@@ -11,8 +11,8 @@ LOG_FILE=".reports/devcontainer/post_setup.log"
     echo "Environment: ha-dev-base:latest"
 
     echo "Refreshing shared config files..."
-    if [ -f ".shared/validate-configs/sync_shared_files.sh" ]; then
-        RUNNING_FROM_SETUP=1 sh .shared/validate-configs/sync_shared_files.sh
+    if [ -f ".workbench/sync_shared_files.sh" ]; then
+        RUNNING_FROM_SETUP=1 sh .workbench/sync_shared_files.sh
     else
         echo "Warning: sync_shared_files.sh not found — shared files not updated."
     fi

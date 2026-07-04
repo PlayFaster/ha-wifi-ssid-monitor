@@ -508,3 +508,13 @@ async def test_coordinator_ttl_expiry_filters_all_history(
     assert "NewNet" in coordinator._last_seen
     assert "NewNet" in coordinator._first_seen
     assert coordinator._visit_counts["NewNet"] == 6
+
+
+@pytest.mark.asyncio
+async def test_coordinator_config_entry_associated(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Coordinator passes config_entry to base so HA honours pref_disable_polling."""
+    mock_config_entry.add_to_hass(hass)
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+    assert coordinator.config_entry is mock_config_entry

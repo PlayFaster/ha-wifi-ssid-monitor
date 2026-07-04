@@ -4,9 +4,18 @@ __pycache__/
 *$py.class
 .venv/
 venv/
+env/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 dist/
 build/
+out/
+target/
 *.egg-info/
+node_modules/
+.ipynb_checkpoints/
 
 # Test and coverage reports
 htmlcov/
@@ -24,15 +33,35 @@ testing_config/
 *.db
 *.db-shm
 *.db-wal
+**/token.txt
+
+# HA Dev Specific
+errors/
+local_only/
+router_probe/
+**/restart_ha.ps1
+**/sensors_states/*.json
+**/sensors_states/*.txt
+**/sensors_states/older/*.json
+**/sensors_states/older/*.txt
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+.AppleDouble
+.LSOverride
 
 # IDEs
 # .vscode/
 *.code-workspace
 .idea/
+.sublime-*
+.sublime-workspace
+*.sublime-project
+.vim/
+*.swp
+*.swo
 
 # Sync
 sync.ffs_*
@@ -43,19 +72,39 @@ sync.ffs_lock
 .devconfig/
 uv.lock
 
+# Temp Trash
+.Trash/
+.trash/
+.temp/
+.tmp/
+*.log
+
 # Note Scratch Compare Area
 .comp/
 .notes
 .shared
-.obsidian
+.workbench
 .obsidian/
 .notes/
 .shared/
+.workbench/
 loc_only/
+scratch/
+.scratch/
 
 # AI
+.aider/
+.antigravitycli/
+.claude/
+.continue/
+.cursor/
+.windsurf/
 *.gptcache
 .geminignore
 .aiexclude
 .aider*
+.opencommit
+**/.ai-memory/
 CLAUDE.md
+CLAUDE.local.md
+agents.local.md

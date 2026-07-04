@@ -152,3 +152,31 @@ async def test_number_debounce_cancelled(hass, mock_config_entry, mock_coordinat
         assert "cancelled" in mock_log_debug.call_args[0][0].lower()
 
     assert number._attr_native_value == 30
+
+
+@pytest.mark.asyncio
+async def test_number_will_remove_from_hass_cancels_task(
+    hass, mock_config_entry, mock_coordinator
+):
+    """Test that async_will_remove_from_hass cancels an active refresh task."""
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
+    mock_config_entry.runtime_data = mock_coordinator
+
+    number = WifiScanIntervalNumber(
+        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
+    )
+    number.hass = hass
+    number.async_write_ha_state = MagicMock()
+
+    await number.async_set_native_value(15)
+    assert number._refresh_task is not None
+    assert not number._refresh_task.done()
+
+    await number.async_will_remove_from_hass()
+
+    # Task catches CancelledError internally, so it completes normally
+    with suppress(asyncio.CancelledError):
+        await number._refresh_task
+
+    assert number._refresh_task.done()

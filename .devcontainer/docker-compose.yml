@@ -14,12 +14,14 @@ services:
       # Mount your local dev config
       - ./.devconfig:/config
       # Project notes and shared files
-      - C:/Local/Code/github/PlayFaster/home-assistant/shared/ProjNotes/Notes-${PROJECT_NAME}:/workspaces/${PROJECT_NAME}/.notes
-      - C:/Local/Code/github/PlayFaster/home-assistant/shared/SharedNotes:/workspaces/${PROJECT_NAME}/.shared
+      - C:/Local/Code/ha-dev-pf/shared/ProjNotes/Notes-${PROJECT_NAME}:/workspaces/${PROJECT_NAME}/.notes
+      - C:/Local/Code/ha-dev-pf/shared/SharedNotes:/workspaces/${PROJECT_NAME}/.shared
       # HA core source — read-only, used by mypy for type resolution
       - C:/Local/Code/ha_core/core:/ha_core:ro
       # Docker Outside Docker (DooD) — allows running docker commands from inside
       # the container by delegating to the host Docker daemon.
       - /var/run/docker.sock:/var/run/docker.sock
-      # Mount the root Dockerfile so the container can inspect it for version drift
-      - ../../../dev-environment/Dockerfile:/dev-environment/Dockerfile:ro
+      # Workbench — configs, tools, and templates (maps to .workbench/ in the container)
+      - C:/Local/Code/ha-dev-pf/dev-workbench/workbench:/workspaces/${PROJECT_NAME}/.workbench
+      # Mount the Dockerfile so the container can inspect it for version drift
+      - C:/Local/Code/ha-dev-pf/dev-workbench/workbench/docker/Dockerfile:/dev-environment/Dockerfile:ro

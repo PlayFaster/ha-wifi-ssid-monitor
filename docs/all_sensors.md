@@ -12,7 +12,7 @@ This document provides a comprehensive list of all entities currently implemente
 
 ---
 
-## 1. System Sub-Device (4 Entities)
+## 1. System Sub-Device (4 Entities, 5 Services)
 
 _Group: `system`_
 
@@ -22,6 +22,11 @@ _Group: `system`_
 | Last Updated | `last_updated` | Sensor | Timestamp | Diagnostic | Timestamp of the last successful scan. |
 | Scan Interval | `scan_interval` | Number | min | Config | Range: 1 min – 180 min. Debounced (2 s) before applying. |
 | Scan Now | `scan_now` | Button | - | - | Triggers an immediate on-demand scan (`coordinator.async_refresh()`). |
+| Add Known Ssid | `add_known_ssid` | Service | — | — | Adds an SSID to the known networks list for one or all integration entries. Triggers an immediate re-scan after the list is updated. |
+| Remove Known Ssid | `remove_known_ssid` | Service | — | — | Removes an SSID or pattern from the known networks list for one or all integration entries. |
+| Scan Now | `scan_now` | Service | — | — | Triggers an immediate WiFi scan for one or all integration entries. |
+| Clear Last Seen | `clear_last_seen` | Service | — | — | Clears all persisted last-seen, first-seen, and visit-count history for one or all integration entries. |
+| Set Known Ssids | `set_known_ssids` | Service | — | — | Replaces the entire known networks list for one or all integration entries in a single call. |
 
 ---
 
@@ -31,9 +36,9 @@ _Group: `monitor`_
 
 | Name | Key | Type | Unit | Category | Notes |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| Total WiFi Networks | `count` | Sensor | - | - | Total number of access points visible to the interface. |
-| Unknown WiFi Networks | `unknown_count` | Sensor | - | - | Number of detected networks not in the "Known SSIDs" list. |
-| New WiFi Network Detected | `new_network` | Binary Sensor | - | - | **ON** if `unknown_count > 0`. Triggers `mdi:wifi-alert`. |
+| Total SSID Count | `total_ssid_count` | Sensor | - | - | Total number of access points visible to the interface. |
+| Unknown SSID Count | `unknown_ssid_count` | Sensor | - | - | Number of detected networks not in the "Known SSIDs" list. |
+| New Network Alert | `new_network_alert` | Binary Sensor | - | - | **ON** if `unknown_ssid_count > 0`. Triggers `mdi:wifi-alert`. |
 | Proximity Alert | `proximity_alert` | Binary Sensor | - | - | **ON** if the strongest unknown SSID signal ≥ configured RSSI threshold. |
 | Strongest Unknown SSID | `strongest_unknown_ssid` | Sensor | - | - | SSID name of the unknown network with the strongest signal. State is `unknown` when no unknown networks are visible. |
 | Strongest Unknown RSSI | `strongest_unknown_rssi` | Sensor | dBm | - | Signal strength of the strongest unknown network. `SensorDeviceClass.SIGNAL_STRENGTH`. Guard band: −100 to 0 dBm. |
@@ -93,3 +98,4 @@ The following entities expose additional data in their extra state attributes:
 - **v1.0.2** (2026-05-05) - Updated.
 - **v1.0.3** (2026-06-02) - Added button and proximity alert entities; updated attributes, band detection, and service reference (v1.5.0-dev1).
 - **v1.0.4** (2026-06-11) - Added `strongest_unknown_ssid` and `strongest_unknown_rssi` sensors; updated `unknown_count` attributes to include `first_seen` and `visit_counts`; updated scan logic with band filter and denylist; expanded services list (v1.6.0-dev1/dev4).
+- **v1.0.5** (2026-06-12) - Updated entity names/keys to match HA runtime (renamed total/unknown counters and new network alert); added service descriptions to System device manifest; removed stale guard bands from value_min_max.md.

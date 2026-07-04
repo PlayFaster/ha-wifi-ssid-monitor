@@ -1,5 +1,9 @@
 # Auto detect text files and perform LF normalization
-* text=auto
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
 
 # Don't include the 'tests' folder in the final .zip download
 /tests export-ignore

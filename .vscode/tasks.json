@@ -1,7 +1,7 @@
 {
   "tasks": [
     {
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint -c .shared/validate-configs/.yamllint | tee .reports/yaml_lint.txt",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint -c .validate/.yamllint | tee .reports/yaml_lint.txt; echo \"\"; if [ ! -s \".reports/yaml_lint.txt\" ]; then echo -e \"\\033[1;32m✔  YAML Lint: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  YAML Lint: FAILED\\033[0m\"; fi",
       "label": "YAML: Lint Project",
       "presentation": {
         "clear": true,
@@ -12,7 +12,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.json' | xargs -0 -r check-jsonschema --schemafile https://json-schema.org/draft/2020-12/schema | tee .reports/json_validation.txt; echo \"\"; if grep -q \"ok -- validation done\" .reports/json_validation.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  JSON: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  JSON: FAILED\\033[0m\"; fi",
       "label": "JSON: Verify All Files",
       "presentation": {
         "panel": "dedicated",
@@ -22,7 +22,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .shared/validate-configs/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && git ls-files -z --cached --others --exclude-standard 'manifest.json' '**/manifest.json' | xargs -0 -r check-jsonschema --schemafile .validate/ha_manifest_schema.json | tee .reports/ha_manifest_validation.txt; echo \"\"; if grep -q \"ok -- validation done\" .reports/ha_manifest_validation.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  HA Manifest: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  HA Manifest: FAILED\\033[0m\"; fi; }",
       "label": "HA: Verify Manifest",
       "presentation": {
         "panel": "dedicated",
@@ -32,7 +32,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && HOST_PATH=$(docker inspect $(hostname) | python3 -c \"import json,sys,re; binds=json.load(sys.stdin)[0]['HostConfig']['Binds']; cw='/workspaces/${workspaceFolderBasename}'; result=next((p[0].replace(chr(92),'/') for b in binds for p in [re.split(r'(?<=[^:]):/',b, maxsplit=1)] if len(p)==2 and ('/'+p[1]).split(':')[0]==cw),None); print(result) if result else exit(1)\") && docker run --rm -v \"$HOST_PATH:/github/workspace\" ghcr.io/home-assistant/hassfest:latest | tee .reports/hassfest.txt",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && HOST_PATH=$(docker inspect $(hostname) | python3 -c \"import json,sys,re; binds=json.load(sys.stdin)[0]['HostConfig']['Binds']; cw='/workspaces/${workspaceFolderBasename}'; result=next((p[0].replace(chr(92),'/') for b in binds for p in [re.split(r'(?<=[^:]):/',b, maxsplit=1)] if len(p)==2 and ('/'+p[1]).split(':')[0]==cw),None); print(result) if result else exit(1)\") && docker run --rm -v \"$HOST_PATH:/github/workspace\" ghcr.io/home-assistant/hassfest:latest | tee .reports/hassfest.txt; echo \"\"; if grep -q \"Invalid integrations: 0\" .reports/hassfest.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  Hassfest: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Hassfest: FAILED\\033[0m\"; fi; }",
       "label": "HA: Hassfest Validation",
       "presentation": {
         "clear": true,
@@ -43,7 +43,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && check-jsonschema --schemafile .shared/validate-configs/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt",
+      "command": "mkdir -p .reports && check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt; echo \"\"; if grep -q \"ok -- validation done\" .reports/hacs_validation.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  HACS: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  HACS: FAILED\\033[0m\"; fi",
       "label": "HACS: Verify Manifest",
       "presentation": {
         "panel": "dedicated",
@@ -53,7 +53,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && hass --script check_config --config /config | tee .reports/ha_check_config.txt",
+      "command": "mkdir -p .reports && hass --script check_config --config /config | tee .reports/ha_check_config.txt; echo \"\"; if ! grep -qi \"error\" .reports/ha_check_config.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  HA Check Config: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  HA Check Config: FAILED\\033[0m\"; fi",
       "label": "HA: Check Config",
       "presentation": {
         "panel": "dedicated",
@@ -63,7 +63,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && ruff check . | tee .reports/ruff_lint.txt",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && ruff check . | tee .reports/ruff_lint.txt; echo \"\"; if grep -q \"All checks passed\" .reports/ruff_lint.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  Ruff Lint: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Ruff Lint: FAILED\\033[0m\"; fi; }",
       "label": "Ruff: Check (Lint Only)",
       "presentation": {
         "panel": "dedicated",
@@ -73,7 +73,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && ruff format --check . | tee .reports/ruff_format_status.txt",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && ruff format --check . | tee .reports/ruff_format_status.txt; echo \"\"; if grep -q \"already formatted\" .reports/ruff_format_status.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  Ruff Format: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Ruff Format: FAILED\\033[0m\"; fi; }",
       "label": "Ruff: Format Check (View Only)",
       "presentation": {
         "panel": "dedicated",
@@ -83,7 +83,7 @@
       "type": "shell"
     },
     {
-      "command": "ruff format . || true",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || ruff format . || true",
       "label": "Ruff: Format Fix (Auto-Repair)",
       "presentation": {
         "close": false,
@@ -94,7 +94,7 @@
       "type": "shell"
     },
     {
-      "command": "ruff check --fix . || true",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || ruff check --fix . || true",
       "label": "Ruff: Check Fix (Auto-Repair Lint)",
       "presentation": {
         "close": false,
@@ -105,7 +105,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && markdown-link-check README.md | tee .reports/markdown_link_check.txt",
+      "command": "mkdir -p .reports && markdown-link-check --config .validate/.mlc_config.json README.md | tee .reports/markdown_link_check.txt; echo \"\"; if ! grep -q \"✖\" .reports/markdown_link_check.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  Markdown Links: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Markdown Links: FAILED\\033[0m\"; fi",
       "label": "Markdown: Check Links",
       "presentation": {
         "panel": "dedicated",
@@ -115,7 +115,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .shared/validate-configs/.markdownlint.json | tee .reports/markdown_lint.txt",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json 2>&1 | tee .reports/markdown_lint.txt; echo \"\"; if [ ! -s \".reports/markdown_lint.txt\" ]; then echo -e \"\\033[1;32m✔  Markdown Lint: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Markdown Lint: FAILED\\033[0m\"; fi",
       "label": "Markdown: Lint (View Only)",
       "presentation": {
         "panel": "dedicated",
@@ -125,7 +125,7 @@
       "type": "shell"
     },
     {
-      "command": "git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .shared/validate-configs/.markdownlint.json --fix || true",
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' | xargs -0 -r markdownlint --config .validate/.markdownlint.json --fix || true",
       "label": "Markdown: Lint (Auto-Fix)",
       "presentation": {
         "panel": "dedicated",
@@ -135,7 +135,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && codespell . | tee .reports/codespell.txt",
+      "command": "mkdir -p .reports && codespell . | tee .reports/codespell.txt; echo \"\"; if [ ! -s \".reports/codespell.txt\" ]; then echo -e \"\\033[1;32m✔  Codespell: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Codespell: FAILED\\033[0m\"; fi",
       "label": "Codespell: Check (View Only)",
       "presentation": {
         "panel": "dedicated",
@@ -155,7 +155,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .shared/validate-configs/.prettierrc.js --check | tee .reports/prettier_check.txt",
+      "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc.json --check | tee .reports/prettier_check.txt; echo \"\"; if grep -q \"Prettier code style\" .reports/prettier_check.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  Prettier: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Prettier: FAILED\\033[0m\"; fi",
       "label": "Prettier: Check (View Only)",
       "presentation": {
         "panel": "dedicated",
@@ -165,7 +165,7 @@
       "type": "shell"
     },
     {
-      "command": "git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .shared/validate-configs/.prettierrc.js --write || true",
+      "command": "git ls-files -z --cached --others --exclude-standard '*.md' '*.json' '*.yaml' '*.yml' | xargs -0 -r prettier --config .validate/.prettierrc.json --write || true",
       "label": "Prettier: Format (Auto-Fix)",
       "presentation": {
         "panel": "dedicated",
@@ -175,7 +175,7 @@
       "type": "shell"
     },
     {
-      "command": "prettier --config .shared/validate-configs/.prettierrc.js --ignore-path /dev/null --write \".notes/**/*.{md,json,yaml,yml}\" || true",
+      "command": "prettier --config .validate/.prettierrc.json --ignore-path /dev/null --write \".notes/**/*.{md,json,yaml,yml}\" || true",
       "label": "Prettier: Fix Notes",
       "presentation": {
         "panel": "dedicated",
@@ -185,7 +185,7 @@
       "type": "shell"
     },
     {
-      "command": "prettier --config .shared/validate-configs/.prettierrc.js --ignore-path /dev/null --write \".shared/**/*.{md,json,yaml,yml}\" || true",
+      "command": "prettier --config .validate/.prettierrc.json --ignore-path /dev/null --write \".shared/**/*.{md,json,yaml,yml}\" || true",
       "label": "Prettier: Fix Shared",
       "presentation": {
         "panel": "dedicated",
@@ -195,7 +195,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && mypy custom_components/ | tee .reports/mypy_check.txt",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && mypy custom_components/ | tee .reports/mypy_check.txt; echo \"\"; if grep -q \"Success:\" .reports/mypy_check.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  Mypy Standard: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Mypy Standard: FAILED\\033[0m\"; fi; }",
       "label": "Mypy: Check (Standard)",
       "presentation": {
         "panel": "dedicated",
@@ -205,7 +205,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && mypy custom_components/ --strict | tee .reports/mypy_strict.txt",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && mypy custom_components/ --strict | tee .reports/mypy_strict.txt; echo \"\"; if grep -q \"Success:\" .reports/mypy_strict.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  Mypy Strict: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  Mypy Strict: FAILED\\033[0m\"; fi; }",
       "label": "Mypy: Strict Check",
       "presentation": {
         "panel": "dedicated",
@@ -215,7 +215,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run zizmor --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/zizmor_audit.txt)",
+      "command": "mkdir -p .reports && if [ -f .pre-commit-config.yaml ]; then FORCE_COLOR=1 pre-commit run zizmor --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/zizmor_audit.txt); else zizmor --pedantic .github/ | tee .reports/zizmor_audit.txt; fi",
       "label": "Zizmor: GitHub Actions Audit",
       "presentation": {
         "panel": "dedicated",
@@ -235,7 +235,7 @@
       "type": "shell"
     },
     {
-      "command": "python-typing-update --py311-plus --force --keep-updates custom_components/${config:project.componentName}/ || true",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || python-typing-update --py311-plus --force --keep-updates custom_components/${config:project.componentName}/ || true",
       "label": "Python: Update Typing Syntax (Maintenance)",
       "presentation": {
         "panel": "dedicated",
@@ -245,7 +245,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && uv run --with awesomeversion python3 -c \"import json; from awesomeversion import AwesomeVersion; v = json.load(open('custom_components/${config:project.componentName}/manifest.json'))['version']; av = AwesomeVersion(v); print(f'Version {v} detected strategy: {av.strategy}'); exit(1 if av.strategy == 'unknown' else 0)\" | tee .reports/version_validation.txt",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && uv run --with awesomeversion python3 -c \"import json; from awesomeversion import AwesomeVersion; v = json.load(open('custom_components/${config:project.componentName}/manifest.json'))['version']; av = AwesomeVersion(v); print(f'Version {v} detected strategy: {av.strategy}'); exit(1 if av.strategy == 'unknown' else 0)\" | tee .reports/version_validation.txt; echo \"\"; if [ -s \".reports/version_validation.txt\" ] && ! grep -q \"unknown\" .reports/version_validation.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  HA Version: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  HA Version: FAILED\\033[0m\"; fi; }",
       "label": "HA: Verify Version (AwesomeVersion)",
       "presentation": {
         "panel": "dedicated",
@@ -255,7 +255,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --color=yes --junitxml=.reports/pytest_results.xml | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_results.txt)",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && PYTHONPATH=. pytest tests/ -W ignore::DeprecationWarning --color=yes --junitxml=.reports/pytest_results.xml | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_results.txt); }",
       "group": {
         "isDefault": true,
         "kind": "test"
@@ -270,7 +270,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && PYTHONPATH=. pytest --cov --cov-report=term-missing --cov-report=html:.reports/coverage --color=yes tests/ | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_coverage.txt)",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && PYTHONPATH=. pytest --cov --cov-report=term-missing --cov-report=html:.reports/coverage --color=yes tests/ | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/pytest_coverage.txt); }",
       "label": "Pytest: Check Test Coverage",
       "presentation": {
         "panel": "dedicated",
@@ -280,7 +280,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/precommit_all.txt)",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && FORCE_COLOR=1 pre-commit run --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/precommit_all.txt); }",
       "label": "Pre-commit: Fix + Check All",
       "presentation": {
         "clear": true,
@@ -291,7 +291,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && FORCE_COLOR=1 pre-commit run | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/precommit_staged.txt)",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && FORCE_COLOR=1 pre-commit run | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/precommit_staged.txt); }",
       "label": "Pre-commit: Fix + Check Staged",
       "presentation": {
         "panel": "dedicated",
@@ -301,7 +301,17 @@
       "type": "shell"
     },
     {
-      "command": "pre-commit autoupdate",
+      "command": "G='\\033[1;32m'; R='\\033[1;31m'; Y='\\033[1;33m'; N='\\033[0m'; chk() { local lbl=\"$1\" f=\".reports/$2\" pat=\"$3\" result=\"\"; if [ ! -f \"$f\" ]; then echo -e \"  ${Y}?${N}  $lbl (not run)\"; elif [ -z \"$pat\" ] && [ ! -s \"$f\" ]; then echo -e \"  ${G}✔${N}  $lbl (no issues)\"; elif [ -n \"$pat\" ] && grep -q \"$pat\" \"$f\"; then result=$(grep \"$pat\" \"$f\" | tail -1); echo -e \"  ${G}✔${N}  $lbl $result\"; else result=$(tail -1 \"$f\"); echo -e \"  ${R}✖${N}  $lbl $result\"; fi; }; echo \"\"; echo -e \"\\033[1m══════════════════════════════════════\\033[0m\"; echo -e \"\\033[1m       Validate All — Summary        \\033[0m\"; echo -e \"\\033[1m══════════════════════════════════════\\033[0m\"; chk \"Hassfest          \" hassfest.txt \"Invalid integrations: 0\"; chk \"Pytest            \" pytest_results.txt \" passed\"; chk \"Mypy Standard     \" mypy_check.txt \"Success:\"; chk \"Mypy Strict       \" mypy_strict.txt \"Success:\"; chk \"Ruff Lint         \" ruff_lint.txt \"All checks passed\"; chk \"Ruff Format       \" ruff_format_status.txt \"already formatted\"; chk \"YAML Lint         \" yaml_lint.txt \"\"; chk \"Codespell         \" codespell.txt \"\"; chk \"Markdown Lint     \" markdown_lint.txt \"\"; echo \"\"",
+      "label": "Show: Results Summary",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || pre-commit autoupdate",
       "label": "Env: Autoupdate Pre-commit Hooks",
       "presentation": {
         "panel": "dedicated",
@@ -324,23 +334,24 @@
     {
       "dependsOn": [
         "Initialize Reports",
-        "HA: Hassfest Validation",
-        "HA: Check Config",
-        "HA: Verify Version (AwesomeVersion)",
         "HA: Verify Manifest",
         "HACS: Verify Manifest",
+        "Zizmor: GitHub Actions Audit",
         "YAML: Lint Project",
         "JSON: Verify All Files",
         "Ruff: Check (Lint Only)",
         "Ruff: Format Check (View Only)",
-        "Markdown: Check Links",
-        "Markdown: Lint (View Only)",
         "Codespell: Check (View Only)",
-        "Mypy: Check (Standard)",
-        "Zizmor: GitHub Actions Audit",
         "Prettier: Check (View Only)",
+        "Markdown: Lint (View Only)",
+        "Markdown: Check Links",
+        "HA: Verify Version (AwesomeVersion)",
+        "HA: Check Config",
+        "HA: Hassfest Validation",
         "Pytest: Run All Tests",
-        "Pytest: Check Test Coverage"
+        "Pytest: Check Test Coverage",
+        "Mypy: Check (Standard)",
+        "Mypy: Strict Check"
       ],
       "dependsOrder": "sequence",
       "group": {
@@ -356,13 +367,12 @@
     },
     {
       "dependsOn": [
-        "Ruff: Check Fix (Auto-Repair Lint)",
+        "Zizmor: Fix (Safe Auto-Fix)",
         "Ruff: Format Fix (Auto-Repair)",
+        "Ruff: Check Fix (Auto-Repair Lint)",
         "Markdown: Lint (Auto-Fix)",
         "Codespell: Fix (Auto-Repair)",
         "Prettier: Format (Auto-Fix)",
-        "Prettier: Fix Notes",
-        "Prettier: Fix Shared",
         "Pre-commit: Fix + Check All"
       ],
       "dependsOrder": "sequence",
@@ -375,7 +385,7 @@
       "problemMatcher": []
     },
     {
-      "command": "mkdir -p .reports && sh .shared/validate-configs/sync_shared_files.sh | tee .reports/sync_shared_files.txt",
+      "command": "mkdir -p .reports && sh .workbench/sync_shared_files.sh | tee .reports/sync_shared_files.txt",
       "label": "Env: Sync Shared Files",
       "presentation": {
         "panel": "dedicated",
@@ -385,7 +395,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && python3 .shared/validate-configs/check_tool_drift.py | tee .reports/tool_drift_raw.txt && sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' .reports/tool_drift_raw.txt > .reports/tool_drift.txt && rm .reports/tool_drift_raw.txt",
+      "command": "mkdir -p .reports && python3 .workbench/check_tool_drift.py | tee .reports/tool_drift_raw.txt && sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' .reports/tool_drift_raw.txt > .reports/tool_drift.txt && rm .reports/tool_drift_raw.txt",
       "label": "Env: Audit Version Drift",
       "presentation": {
         "panel": "dedicated",
@@ -395,7 +405,17 @@
       "type": "shell"
     },
     {
-      "command": "python3 .shared/validate-configs/check_tool_drift.py --apply",
+      "command": "mkdir -p .reports && python3 .workbench/check_tool_drift.py -nocache | tee .reports/tool_drift_raw.txt && sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' .reports/tool_drift_raw.txt > .reports/tool_drift.txt && rm .reports/tool_drift_raw.txt",
+      "label": "Env: Audit Version Drift (no cache)",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "python3 .workbench/check_tool_drift.py --apply",
       "label": "Env: Apply Version Matrix Targets",
       "presentation": {
         "panel": "dedicated",
@@ -405,7 +425,7 @@
       "type": "shell"
     },
     {
-      "command": "python3 .shared/validate-configs/check_tool_drift.py --absorb",
+      "command": "python3 .workbench/check_tool_drift.py --absorb",
       "label": "Env: Absorb Pre-commit Bumps",
       "presentation": {
         "panel": "dedicated",
@@ -415,7 +435,7 @@
       "type": "shell"
     },
     {
-      "command": "mkdir -p .reports && (echo 'Fetching latest upstream commits...' && rm -rf /tmp/ha_core_fetch && git -c init.defaultBranch=master init --bare /tmp/ha_core_fetch >/dev/null && mkdir -p /tmp/ha_core_fetch/objects/info && echo '/ha_core/.git/objects' > /tmp/ha_core_fetch/objects/info/alternates && git -C /tmp/ha_core_fetch fetch --quiet https://github.com/home-assistant/core.git dev && echo '=== Local HA Core dev Commit ===' && git -C /ha_core log -1 --format='%cd (%h) - %s' dev && echo '=== Upstream HA Core dev Commit ===' && git -C /tmp/ha_core_fetch log -1 --format='%cd (%h) - %s' FETCH_HEAD) | tee .reports/ha_core_staleness.txt",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && (echo 'Fetching latest upstream commits...' && rm -rf /tmp/ha_core_fetch && git -c init.defaultBranch=master init --bare /tmp/ha_core_fetch >/dev/null && mkdir -p /tmp/ha_core_fetch/objects/info && echo '/ha_core/.git/objects' > /tmp/ha_core_fetch/objects/info/alternates && git -C /tmp/ha_core_fetch fetch --quiet https://github.com/home-assistant/core.git dev && echo '=== Local HA Core dev Commit ===' && git -C /ha_core log -1 --format='%cd (%h) - %s' dev && echo '=== Upstream HA Core dev Commit ===' && git -C /tmp/ha_core_fetch log -1 --format='%cd (%h) - %s' FETCH_HEAD) | tee .reports/ha_core_staleness.txt; }",
       "label": "Env: Check HA Core Stub Staleness",
       "presentation": {
         "panel": "dedicated",
@@ -425,7 +445,7 @@
       "type": "shell"
     },
     {
-      "command": "echo '=== HA Core is Mounted Read-Only inside the Dev Container ===' && echo 'To pull latest, please run the following command in a host terminal:' && echo '  git -C C:/Local/Code/ha_core/core pull https://github.com/home-assistant/core.git dev'",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { echo '=== HA Core is Mounted Read-Only inside the Dev Container ===' && echo 'To pull latest, please run the following command in a host terminal:' && echo '  git -C C:/Local/Code/ha_core/core pull https://github.com/home-assistant/core.git dev'; }",
       "label": "Env: Show HA Core Stub Pull Commands",
       "presentation": {
         "panel": "dedicated",

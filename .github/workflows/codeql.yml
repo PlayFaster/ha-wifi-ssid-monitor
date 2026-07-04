@@ -1,0 +1,28 @@
+---
+name: CodeQL
+
+"on":
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 6 * * 1" # Weekly Monday 06:00 UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    permissions:
+      contents: read
+      security-events: write # Required to upload CodeQL SARIF results to GitHub Security
+    # Branch @main — replace SHA after releasing .github repo with codeql.yaml v2.0.5
+    uses: PlayFaster/.github/.github/workflows/codeql.yaml@1fcce18024ce90d2d31e5f5aea0671c131660714

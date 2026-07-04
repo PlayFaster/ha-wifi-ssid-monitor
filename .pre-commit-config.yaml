@@ -1,7 +1,6 @@
----
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.15
+    rev: v0.15.20
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -33,7 +32,7 @@ repos:
     rev: v1.38.0
     hooks:
       - id: yamllint
-        args: [-c, .shared/validate-configs/.yamllint]
+        args: [-c, .validate/.yamllint]
         exclude: \.yamllint$
 
   - repo: https://github.com/rbubley/mirrors-prettier
@@ -43,7 +42,7 @@ repos:
         additional_dependencies:
           - prettier@3.6.2
           - prettier-plugin-sort-json@4.2.0
-        args: [--config, .shared/validate-configs/.prettierrc.js]
+        args: [--config, .validate/.prettierrc.json]
 
   - repo: https://github.com/cdce8p/python-typing-update
     rev: v0.8.1

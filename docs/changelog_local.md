@@ -4,6 +4,114 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.1] - 2026-07-04 - Release
+
+### Summary
+
+- **Mostly Behind the Scenes**: Most of the changes in v1.6.1 are behind-the-scenes or under-the-hood: a lot of improvements in the CI Validation and Testing system; some documentation updates. No new features , but some improvements for more predictable performance.
+
+### Changed
+
+- **Polling Toggle Future Ready**: Turning off "Enable polling for changes" in the entry's system options now reliably stops scheduled polling and will satisfy the upcoming HA requirement (implicit `ContextVar` detection is being removed in HA 2026.8).
+- **Minimum Home Assistant Version**: Documented minimum raised to 2024.8.0.
+
+### Fixed
+
+- **Reconfigure Screen Now Shows All Settings**: The ⋮ Reconfigure screen previously offered only Name, Known SSIDs, and Interface, while the gear → Configure screen exposed everything. Reconfigure now shows the full settings set — Scan Interval, Include Hidden Networks, Proximity Alert Threshold, Band Filter, Always-Unknown (denylist), and Last Seen History — so both paths behave identically.
+
+---
+
+## [1.6.1-dev11] - 2026-07-04 - Unreleased
+
+### Changed
+
+- **Reconfigure Shows All Settings**: The ⋮ → **Reconfigure** screen now exposes the same full field set as the gear → **Configure** (options) screen — Scan Interval, Include Hidden Networks, Proximity Alert Threshold, Band Filter, Always-Unknown (denylist), and Last Seen History, in addition to Name, Known SSIDs, and Interface. Previously Reconfigure only offered the three setup essentials, so the two paths gave different results. Both screens are now built from a single shared schema so they can't drift apart. No identity/unique_id behaviour changed — entity history is preserved as before. Added `strings.json`/`en.json` labels for the added reconfigure fields and tests asserting the two paths render an identical field set.
+
+## [1.6.1-dev10] - 2026-07-04 - Unreleased
+
+### Changed
+
+- **Dev-WorkBench**: Updated the Check Drift script to account for the situation where the HA Core version online is ahead of the local version (dev-workbench v2.1.0-dev9).
+- **Documentation**: Updated the README file to better align to the style and structure of the ZTE and Huawei README files, while maintaining the project unique content.
+
+## [1.6.1-dev9] - 2026-07-03 - Unreleased
+
+### Bumps
+
+- **Validate Bump**: Update Ruff from 0.15.19 to 0.15.20
+
+## [1.6.1-dev8] - 2026-07-02 - Unreleased
+
+### Summary
+
+- **Explicit `config_entry` on the Coordinator**: Pass the config entry explicitly to `DataUpdateCoordinator` so Home Assistant reliably honours the "Enable polling for changes" system option and to satisfy the upcoming HA requirement (implicit `ContextVar` detection is being removed in HA 2026.8).
+
+### Changed
+
+- **Coordinator `config_entry`**: `WifiScanCoordinator` now passes `config_entry=entry` to `super().__init__()`. This makes `self.config_entry` explicit, which is what HA core's `_schedule_refresh()` checks (`config_entry.pref_disable_polling`) to stop scheduled polling when the user sets **System options → "Enable polling for changes" = OFF**. Manual updates (`homeassistant.update_entity`, the "Scan Now" button) still fetch. No behaviour change on current HA — it removes reliance on implicit context detection, which HA logs as an error from **2026.8**.
+- **Minimum HA Version**: Documented minimum raised to **2024.8.0** (the release that added the `config_entry` argument to `DataUpdateCoordinator`).
+- **.gitignore**: Added scratch folders
+
+### Tests
+
+- Added a coordinator test asserting `coordinator.config_entry is entry`.
+
+### Bumps
+
+- **Shared .github CI Validation**: Bump .github Shared CI Validation via SHA from v2.0.4 to v2.0.5 (PR #33)
+- **Validate Bump**: Updated `ruff` from 0.15.17 to 0.15.19 (PR #34)
+- **Validate Bump**: Bumped `pytest-homeassistant-custom-component` from 0.13.340 to 0.13.344
+- **Validate Bump**: Bumped `check-jsonschema` from 0.37.2 to 0.37.4
+
+## [1.6.1-dev7] - 2026-06-27 - Unreleased
+
+### Summary
+
+- **Docs and Validation**: Screenshot updates for the README file plus file changes based on YAML List rule change (no "---" needed at top of YAML files).
+
+### Changed
+
+- **Screenshots**: Updated the four screenshots used in the README file to (a) higher resolution and (b) current version. In particular the sensors image now shows all 10 entities versus the 6 shown previously and the setup image is significantly larger, reflecting a lot of set-up based options added in recent versions (scan interval, include hidden, threshold, band filter, deny list, keep days).
+- **Docs**: Updated README with a note to clarify that performance depends heavily on the location of the Home Assistant hardware within your home.
+- **YAML Lint**: Added "document-start: disable" to .yamllint rule file, to stop warns/fails for "no --- at document start", which brings it in line with Home Assistant.
+- **YAML Files**: Updated YAML files to remove any "---" document starts added.
+- **Tasks.json**: Updated tasks.json, via hosts-tooling so that YAML-Lint only runs on git tracked files.
+
+## [1.6.1-dev6] - 2026-06-26 - Unreleased
+
+### Summary
+
+- **Validation Bumps**: Bumped Shared CI, Ruff, PyTest
+
+### Changed
+
+- **Dependabot Bump**: Updated shared CI Validation call (.github) from v2.0.3 to v2.0.4
+- **Dependabot Bump**: Updated ruff from 0.15.16 to 0.15.17
+- **Bump**: Updated PyTest Custom from 0.13.326 to 0.13.340
+- **Agents.md**: Updated to include reference to run in devcon skills
+
+## [1.6.1-dev5] - 2026-06-18 - Unreleased
+
+### Summary
+
+- **CI Validation Overhaul**: Major overhaul of the local (tasks.json) and online (github.com CI) Validation system
+
+### Changed
+
+- **dev-workbench**: Moved CI Validation and Sync to dev-workbench system, with major restructure of files and folders.
+- **CI Local Tasks**: Reordered local tasks.json, added color for pass/fail.
+- **CI Validation Bump**: Shared CI validation bumped to v2.0.3. No user changes in this release, background/infrastructure only.
+- **CI Validation Bump**: Shared CI validation bumped from v2.0.1 to v2.0.2
+- **CI Coverage Report**: Removed the pytest coverage report as it required extra permissions and is separate to the coverage badge, which is what is really required.
+- **CodeQL**: CodeQL shared config and local caller modified to detail permissions to that Zizmor will pass
+- **CodeQL**: Added a shared CodeQL validation config to the shared validation repo, pulled into each project, incl this one.
+- **Validation Config**: Fixed use of .prettierrc.json
+- **Link Check**: Updated markdown-link-check to ignore .notes/ and .shared/ links in projects as these are excluded.
+- **Validation Config**: Changed from .prettierrc.js to .prettierrc.json to allow GitHub.com CodeQL to run without errors
+- **DependaBot**: Bumped Ruff from 0.15.12 to 0.15.16
+- **.gitignore**: Multiple updates to .gitignore
+- **AGENTS.md**: Added AGENTS.md to repo root
+
 ## [1.6.0] - 2026-06-12
 
 ### Summary

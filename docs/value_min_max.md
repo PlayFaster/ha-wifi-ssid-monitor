@@ -19,8 +19,8 @@ We use a **Declarative Validation** approach. Limits are defined directly within
 
 | Metric Category | Metric Name | Min | Max | Action if Out of Bounds |
 | :-- | :-- | :-- | :-- | :-- |
-| **Network Counters** | Total WiFi Networks | 0 | 256 | Set to `Unavailable` |
-|  | Unknown WiFi Networks | 0 | 256 | Set to `Unavailable` |
+| **Network Counters** | Total SSID Count | 0 | 256 | Set to `Unavailable` |
+|  | Unknown SSID Count | 0 | 256 | Set to `Unavailable` |
 | **Signal Strength** | Strongest Unknown RSSI | −100 dBm | 0 dBm | Set to `Unavailable` |
 | **Diagnostics** | Scan Interval | 1 | 180 | Enforced by UI (1-180 min) |
 
@@ -34,12 +34,12 @@ The `WifiSensorEntityDescription` dataclass includes optional `min_limit` and `m
 
 ```python
 WifiSensorEntityDescription(
-    key="count",
-    name="Total WiFi Networks",
+    key="total_ssid_count",
+    name="Total SSID Count",
     ...
     min_limit=0,
     max_limit=256,
-    value_fn=lambda data: data.get("count"),
+    value_fn=lambda data: data.get("total_ssid_count"),
 )
 ```
 
@@ -66,3 +66,4 @@ While the core counters are now protected, future updates may include:
 
 - **v1.0.1** (2026-05-05) - Created.
 - **v1.0.2** (2026-06-11) - Added `Strongest Unknown RSSI` guard band entry (−100 to 0 dBm). Removed stale "Future Extensions" note — signal strength sensor is now implemented (v1.6.0-dev4).
+- **v1.0.3** (2026-06-12) - Updated network counter names and keys to `Total SSID Count` (`total_ssid_count`) and `Unknown SSID Count` (`unknown_ssid_count`) to match HA runtime.

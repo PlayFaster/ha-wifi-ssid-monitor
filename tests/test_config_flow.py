@@ -802,3 +802,113 @@ async def test_reconfigure_flow_current_missing_from_api(
     schema = result["data_schema"].schema
     interface_key = next(k for k in schema if k == "wifi_interface")
     assert "wlan0" in schema[interface_key].container
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_exposes_full_settings(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Reconfigure now shows the full settings set, not just the setup essentials."""
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.config_flow._get_wifi_interfaces",
+        return_value=["wlan0"],
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": mock_config_entry.entry_id,
+            },
+        )
+
+    assert result["step_id"] == "reconfigure"
+    keys = {str(k) for k in result["data_schema"].schema}
+    for field in (
+        CONF_SCAN_INTERVAL,
+        CONF_INCLUDE_HIDDEN,
+        CONF_PROXIMITY_RSSI_THRESHOLD,
+        CONF_SCAN_BANDS,
+        CONF_DENYLIST_SSIDS,
+        CONF_LAST_SEEN_TTL_DAYS,
+    ):
+        assert field in keys
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_and_options_schemas_match(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Both edit paths must render the same field set from the shared schema builder."""
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.config_flow._get_wifi_interfaces",
+        return_value=["wlan0"],
+    ):
+        reconfigure = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": mock_config_entry.entry_id,
+            },
+        )
+        options = await hass.config_entries.options.async_init(
+            mock_config_entry.entry_id
+        )
+
+    reconfigure_keys = {str(k) for k in reconfigure["data_schema"].schema}
+    options_keys = {str(k) for k in options["data_schema"].schema}
+    assert reconfigure_keys == options_keys
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_persists_extra_settings(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Reconfigure now writes the full settings set, not only name/interface/known."""
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.config_flow._get_wifi_interfaces",
+        return_value=["wlan0"],
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": mock_config_entry.entry_id,
+            },
+        )
+
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.config_flow._get_wifi_interfaces",
+            return_value=["wlan0"],
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.config_flow._validate_input",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.async_setup_entry", return_value=True
+        ),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={
+                "name": "WiFi SSID Monitor",
+                CONF_INTERFACE: "wlan0",
+                CONF_KNOWN_SSIDS: "MyNetwork1,MyNetwork2",
+                CONF_SCAN_INTERVAL: 300,
+                CONF_SCAN_BANDS: "5",
+                CONF_LAST_SEEN_TTL_DAYS: 30,
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert result["reason"] == "reconfigure_successful"
+    assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 300
+    assert mock_config_entry.options[CONF_SCAN_BANDS] == "5"
+    assert mock_config_entry.options[CONF_LAST_SEEN_TTL_DAYS] == 30

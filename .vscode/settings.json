@@ -1,3 +1,4 @@
 {
+  "project.category": "integration",
   "project.componentName": "wifi_ssid_monitor"
 }

@@ -105,9 +105,9 @@ class WifiScanAPI:
 
                 # Filter for wireless interfaces
                 return [
-                    iface["interface"]
+                    iface.get("interface", "")
                     for iface in interfaces
-                    if iface.get("type") == "wifi"
+                    if iface.get("type") == "wifi" and iface.get("interface")
                 ]
         except WifiScanError:
             # Re-raise our custom errors without wrapping
