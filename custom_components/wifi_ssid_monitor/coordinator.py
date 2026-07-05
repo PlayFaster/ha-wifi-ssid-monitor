@@ -161,8 +161,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             self._failure_count += 1
             if self.data and self._failure_count <= 3:
                 _LOGGER.warning(
-                    "Error fetching WiFi data (failure %d/3), "
-                    "API returned no data"
+                    "Error fetching WiFi data (failure %d/3), API returned no data"
                 )
                 result = self.data
                 return result
@@ -205,9 +204,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 if _channel_to_band(ap.get("channel")) == target_band
             ]
 
-        all_ssids = sorted(
-            list({ap.get("ssid", "[hidden]") for ap in access_points})
-        )
+        all_ssids = sorted(list({ap.get("ssid", "[hidden]") for ap in access_points}))
 
         # Build a structured map with signal, channel, and band
         network_map: dict[str, dict[str, Any]] = {}
@@ -229,14 +226,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
 
         known_networks_str = self.entry.options.get(CONF_KNOWN_SSIDS, "")
         self.last_known_ssids = known_networks_str
-        known_patterns = [
-            x.strip() for x in known_networks_str.split(",") if x.strip()
-        ]
+        known_patterns = [x.strip() for x in known_networks_str.split(",") if x.strip()]
 
         denylist_str = self.entry.options.get(CONF_DENYLIST_SSIDS, "")
-        denylist_patterns = [
-            x.strip() for x in denylist_str.split(",") if x.strip()
-        ]
+        denylist_patterns = [x.strip() for x in denylist_str.split(",") if x.strip()]
 
         # Denylist overrides known: an SSID matching both is always unknown
         unknown_ssids = sorted(
@@ -301,4 +294,3 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             "strongest_unknown_rssi": strongest_unknown_rssi,
             "strongest_unknown_ssid": strongest_unknown_ssid,
         }
-

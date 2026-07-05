@@ -128,4 +128,3 @@ class WifiScanAPI:
             for iface in interfaces
             if iface.get("type") == "wifi" and iface.get("interface")
         ]
-

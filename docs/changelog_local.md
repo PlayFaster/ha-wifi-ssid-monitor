@@ -4,7 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.2.dev1] - 2026-07-05 - Unreleased
+
+### Summary
+
+- **Ruff Code Health & Configuration Parity**: Upgraded the project's Ruff checking profile to align with Home Assistant Core (adding Pylint, Tryceratops, Pytest-style, and Bandit rules), resolved extended config path-resolution issues in the devcontainer, and directly refactored all remaining warnings in the component code (achieving 100% clean linter checks).
+
+### Changed
+
+- **Ruff Configuration Parity**: Adopted the updated root `pyproject.toml` containing `per-file-ignores` for tests, resolving the relative path glob parsing bug in the devcontainer and silencing ~312 false positive `S101` test assert warnings and 47 `PLC0415` test import warnings.
+- **Number Entity Exception Handling**: Refactored `number.py` exception logger to use `_LOGGER.exception` without passing the redundant `err` exception object, resolving `TRY401` and rendering the block clean from `BLE001` violations.
+
+### Fixed
+
+- **API raise-within-try (`TRY301`)**: Refactored `get_access_points()` and `get_interfaces()` in `api.py` to handle response checks and exception raises outside of the primary `try-except` block, resolving the raise-within-try alerts.
+- **Coordinator updates (`TRY301`)**: Refactored `_async_update_data()` in `coordinator.py` to isolate the `try-except` scope strictly to the API call. Check validations (such as `access_points is None`) are now evaluated outside the block, resolving `TRY301` and allowing the removal of the unused `WifiScanError` import.
+- **Mock Supervisor Bind (`S104`)**: Added `# ruff: noqa: S104` to `.devcontainer/mock_supervisor.py` to allow binding the mock service to `0.0.0.0` for local dev container access.
+
+---
+
 ## [1.6.1] - 2026-07-04 - Release
+
 
 ### Summary
 
