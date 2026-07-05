@@ -162,7 +162,9 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 ) from err
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
-        if access_points is None:
+        # Defensive runtime check for API anomalies returning None
+        ap_check: Any = access_points
+        if ap_check is None:
             self._failure_count += 1
             if self.data and self._failure_count <= 3:
                 _LOGGER.warning(

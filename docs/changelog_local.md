@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.2.dev3] - 2026-07-05 - Unreleased
+
+### Summary
+
+- **Mypy Code Quality Fix**: Resolved static type check failure due to an unreachable statement error in the coordinator's defensive None checks.
+
+### Changed
+
+- **Defensive Type Erasure**: Implemented type erasure via `ap_check: Any = access_points` in `coordinator.py` to preserve defensive runtime checks against unexpected null values from API calls while satisfying mypy's static analysis requirements.
+
+---
+
 ## [1.6.2.dev2] - 2026-07-05 - Unreleased
 
 ### Summary
