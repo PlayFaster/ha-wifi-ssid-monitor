@@ -26,7 +26,7 @@
     },
     "pytest-homeassistant-custom-component": {
       "pins": ["dockerfile", "requirements_test"],
-      "version": "0.13.344"
+      "version": "0.13.345"
     },
     "python-typing-update": {
       "pins": ["pre-commit", "dockerfile"],

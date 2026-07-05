@@ -24,14 +24,14 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
   - [🎯 Use Cases](#-use-cases)
   - [✅ Features](#-features)
   - [🔍 What You Get](#-what-you-get)
-  - [💡 Example Automations](#-example-automations)
   - [📸 Screenshots](#-screenshots)
+  - [💡 Example Automations](#-example-automations)
   - [📥 Installation](#-installation)
   - [🔧 Configuration](#-configuration)
   - [🔩 Under the Hood - Technical Architecture](#-under-the-hood---technical-architecture)
   - [❓ FAQ \& Troubleshooting](#-faq--troubleshooting)
-  - [❌ Removal](#-removal)
   - [❗ Known Limitations /❔ What's Missing?](#-known-limitations--whats-missing)
+  - [❌ Removal](#-removal)
   - [📝 Maintenance Status](#-maintenance-status)
   - [🤝 Contributors \& Acknowledgements](#-contributors--acknowledgements)
   - [📄 License](#-license)
@@ -235,6 +235,33 @@ Home Assistant stores Long Term Statistics for numeric sensors that have a `stat
 
 The remaining sensors (text, timestamp, non-measurement) do not get added to LTS based on Home Assistant design.
 
+## 📸 Screenshots
+
+<table width="100%">
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <strong>Integration Overview</strong><br><br>
+      <img src=".github/images/wifi_ssid_mon_integration_screen.png" alt="Integration Overview" width="60%">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <strong>Sensor Entities</strong><br><br>
+      <img src=".github/images/wifi_ssid_mon_sensors_screen.png" alt="Sensor Entities" width="75%">
+    </td>
+    <td align="center" valign="top" width="50%">
+      <strong>Setup</strong><br><br>
+      <img src=".github/images/wifi_ssid_mon_setup_screen.png" alt="Setup" width="88%">
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <strong>Network Interface Configuration</strong><br><br>
+      <img src=".github/images/wlan_name_sys_netw.png" alt="Network Interface Configuration" width="40%">
+    </td>
+  </tr>
+</table>
+
 ## 💡 Example Automations
 
 ### 🚨 Rogue Network Detection Alert
@@ -421,33 +448,6 @@ actions:
   - action: wifi_ssid_monitor.clear_last_seen
 ```
 
-## 📸 Screenshots
-
-<table width="100%">
-  <tr>
-    <td colspan="2" align="center" valign="top">
-      <strong>Integration Overview</strong><br><br>
-      <img src=".github/images/wifi_ssid_mon_integration_screen.png" alt="Integration Overview" width="60%">
-    </td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="50%">
-      <strong>Sensor Entities</strong><br><br>
-      <img src=".github/images/wifi_ssid_mon_sensors_screen.png" alt="Sensor Entities" width="75%">
-    </td>
-    <td align="center" valign="top" width="50%">
-      <strong>Setup</strong><br><br>
-      <img src=".github/images/wifi_ssid_mon_setup_screen.png" alt="Setup" width="88%">
-    </td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center" valign="top">
-      <strong>Network Interface Configuration</strong><br><br>
-      <img src=".github/images/wlan_name_sys_netw.png" alt="Network Interface Configuration" width="40%">
-    </td>
-  </tr>
-</table>
-
 ## 📥 Installation
 
 ### ✨ HACS (Recommended)
@@ -509,7 +509,7 @@ After setup, settings can be updated by clicking **Configure** on the integratio
 > 2. Check **Configure network interfaces**.
 > 3. Your WiFi interface will typically be listed as `wlan0`, `wlan1`, `wlp2s0`, or similar.
 
-### ⚙️ Explaining the Configuration Options
+### 🔧 Explaining the Configuration Options
 
 #### 1. Wildcard SSID Matching (Known & Always-Unknown)
 
@@ -624,6 +624,13 @@ If signal coverage seems low, consider relocating the hardware to a more central
 - **Automatic TTL pruning**: The integration automatically removes entries older than the **Last Seen History TTL** setting (default: 90 days). Entries for SSIDs not seen within that window are pruned on the next scan. To change the retention window, open **Configure** on the integration card and adjust the **Last Seen History TTL** value. Set it to `0` to keep all entries indefinitely.
 - **Manual reset**: To immediately clear all `last_seen`, `first_seen`, and `visit_counts` history, call the `wifi_ssid_monitor.clear_last_seen` service from **Developer Tools > Services**. This resets all three history stores for the targeted entry (or all entries if `config_entry_id` is omitted).
 
+## ❗ Known Limitations /❔ What's Missing?
+
+- **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data. You can disable hidden network tracking entirely via the **Include Hidden Networks** option.
+- **Strongest Unknown Sensors Return "unknown" When No Unknown Networks Visible**: `sensor.wifi_ssid_monitor_strongest_unknown_ssid` and `sensor.wifi_ssid_monitor_strongest_unknown_rssi` return `unknown` when no unknown networks are currently visible. This is normal and expected Home Assistant behavior indicating that no unknown signals are in range — it does not indicate a connectivity or integration problem (which would show as `unavailable`).
+- **Pattern Matching is Case-Sensitive**: Known SSID patterns (including wildcards like `Guest_*`) are matched case-sensitively. `homewifi` and `HomeWiFi` are treated as different networks — make sure your patterns match the exact casing of the SSIDs you want to filter.
+- **Proximity Alert Threshold Direction**: The threshold is a dBm value, which is always negative. A less-negative value (e.g., −40 dBm) requires the unknown device to be very close before the alert fires. A more-negative value (e.g., −80 dBm) lets distant signals trigger it. If the alert fires constantly in a signal dense area, raise the threshold closer to −40.
+
 ## ❌ Removal
 
 To remove the integration from Home Assistant:
@@ -640,13 +647,6 @@ To fully uninstall (HACS):
 3. Click the **three dots** (⋮) at the top right and select **Remove**.
 4. Restart Home Assistant.
 5. Home Assistant automatically removes all associated entities and device entries from the registry when the integration is deleted.
-
-## ❗ Known Limitations /❔ What's Missing?
-
-- **Hidden Networks (No Broadcasted SSID)**: WiFi access points that do not broadcast an SSID are grouped together as a single `[hidden]` entry in the network count and SSID lists. If multiple hidden networks are present in your area, the total count will reflect only one `[hidden]` entry regardless of how many physical hidden APs are detected. This is a limitation of the current implementation — hidden networks cannot be individually identified without SSID data. You can disable hidden network tracking entirely via the **Include Hidden Networks** option.
-- **Strongest Unknown Sensors Return "unknown" When No Unknown Networks Visible**: `sensor.wifi_ssid_monitor_strongest_unknown_ssid` and `sensor.wifi_ssid_monitor_strongest_unknown_rssi` return `unknown` when no unknown networks are currently visible. This is normal and expected Home Assistant behavior indicating that no unknown signals are in range — it does not indicate a connectivity or integration problem (which would show as `unavailable`).
-- **Pattern Matching is Case-Sensitive**: Known SSID patterns (including wildcards like `Guest_*`) are matched case-sensitively. `homewifi` and `HomeWiFi` are treated as different networks — make sure your patterns match the exact casing of the SSIDs you want to filter.
-- **Proximity Alert Threshold Direction**: The threshold is a dBm value, which is always negative. A less-negative value (e.g., −40 dBm) requires the unknown device to be very close before the alert fires. A more-negative value (e.g., −80 dBm) lets distant signals trigger it. If the alert fires constantly in a signal dense area, raise the threshold closer to −40.
 
 ## 📝 Maintenance Status
 

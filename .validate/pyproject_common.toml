@@ -15,8 +15,27 @@ select = [
     "RUF",   # Ruff-specific rules
     "SIM",   # flake8-simplify
     "T20",   # flake8-print (forbids print statements)
+    "BLE",   # flake8-blind-except
+    "TRY",   # tryceratops exception handling
+    "S",     # flake8-bandit security checks
+    "DTZ",   # flake8-datetimez
+    "PT",    # flake8-pytest-style
+    "FURB",  # refurb (modernizing refactoring)
+    "FLY",   # flynt (f-strings conversion)
+    "PL",    # pylint rules
 ]
 ignore = [
-    "D203", # Conflict with D211 (HA prefers no blank line before class)
-    "D213", # Conflict with D212 (HA prefers summary on first line)
+    "D203",    # Conflict with D211 (HA prefers no blank line before class)
+    "D213",    # Conflict with D212 (HA prefers summary on first line)
+    "TRY003",  # Avoid specifying long messages outside exception class
+    "PLR2004", # Magic value used in comparison
+    "PLR0911", # Too many return statements
+    "PLR0912", # Too many branches
+    "PLR0913", # Too many arguments to function call
+    "PLR0915", # Too many statements
 ]
+
+[lint.per-file-ignores]
+# Pytest files rely on assert statements (S101)
+"tests/**" = ["S101"]
+
