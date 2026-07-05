@@ -1,6 +1,7 @@
 """Tests for WiFi SSID Monitor coordinator."""
 
 import pytest
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.wifi_ssid_monitor.api import WifiScanError
@@ -93,7 +94,7 @@ async def test_coordinator_update_data_timeout(hass, mock_config_entry, mock_wif
 
     mock_wifi_api.get_access_points.side_effect = TimeoutError
 
-    with pytest.raises(UpdateFailed, match="Error communicating with API: "):
+    with pytest.raises(ConfigEntryNotReady, match="Error communicating with API: "):
         await coordinator._async_update_data()
 
 
@@ -105,7 +106,7 @@ async def test_coordinator_update_data_failure(hass, mock_config_entry, mock_wif
     mock_wifi_api.get_access_points.side_effect = WifiScanError("Persistent failure")
 
     with pytest.raises(
-        UpdateFailed,
+        ConfigEntryNotReady,
         match="Error communicating with API: Persistent failure",
     ):
         await coordinator._async_update_data()
@@ -238,7 +239,7 @@ async def test_coordinator_update_data_api_none(hass, mock_config_entry, mock_wi
     mock_wifi_api.get_access_points.return_value = None
 
     with pytest.raises(
-        UpdateFailed,
+        ConfigEntryNotReady,
         match="Error communicating with API: API returned no data",
     ):
         await coordinator._async_update_data()

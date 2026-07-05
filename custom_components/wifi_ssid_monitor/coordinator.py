@@ -8,6 +8,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -155,6 +156,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 severity=ir.IssueSeverity.WARNING,
                 translation_key="supervisor_unavailable",
             )
+            if not self.data:
+                raise ConfigEntryNotReady(
+                    f"Error communicating with API: {err}"
+                ) from err
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
         if access_points is None:
@@ -175,6 +180,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 severity=ir.IssueSeverity.WARNING,
                 translation_key="supervisor_unavailable",
             )
+            if not self.data:
+                raise ConfigEntryNotReady(
+                    "Error communicating with API: API returned no data"
+                )
             raise UpdateFailed("Error communicating with API: API returned no data")
 
         # Success: reset failure count and clear any active repair issue

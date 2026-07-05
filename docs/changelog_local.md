@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.2.dev2] - 2026-07-05 - Unreleased
+
+### Summary
+
+- **IQS test-before-setup Compliance**: Implemented the `test-before-setup` quality scale compliance pattern by raising `ConfigEntryNotReady` in the coordinator during the initial startup refresh. This IQS rule `test-before-setup` had been marked as complete, but the new script, referenced below, highlighted that it was not complete.
+
+### Changed
+
+- **Coordinator Update Failure Handling**: Modified `_async_update_data()` in `coordinator.py` to raise `ConfigEntryNotReady` (imported from `homeassistant.exceptions`) instead of `UpdateFailed` during the first data update (when `self.data is None`), fulfilling the rule requirements statically and dynamically.
+  - The normal **3-strike resilience logic** applies, to avoid false flags:
+    - During normal operations, if a data fetch fails (due to a temporary Supervisor timeout or network hiccup) and the integration already has existing runtime data (self.data is not None):
+      - Failures 1, 2, and 3: The coordinator suppresses raising exceptions. It logs a warning ("Error fetching WiFi data (failure X/3)") and holds onto the last known values, returning them to keep entities functional.
+      - Recovery: If the Supervisor API recovers within these 3 attempts, the failure counter is reset to 0 and the integration continues seamlessly.
+      - Failure 4: If the outage persists for a 4th consecutive attempt, the coordinator stops holding the last known values, logs an ERROR, creates a persistent repair issue (supervisor_unavailable) in the Home Assistant UI, and raises UpdateFailed, correctly flagging the entities as unavailable.
+    - Handling Failures During Initial Startup (Setup)
+      - On the first run, the integration has no existing data (self.data is None).
+      - In this state, there are no cached values to fall back on, so the 3-strike resilience cannot be applied. The coordinator immediately creates the supervisor_unavailable repair issue and raises ConfigEntryNotReady, indicating that setup cannot complete until the Supervisor API is available.
+- **Unit Tests**: Updated `test_coordinator.py` assertions in `test_coordinator_update_data_timeout`, `test_coordinator_update_data_failure`, and `test_coordinator_update_data_api_none` to expect `ConfigEntryNotReady` on startup failures.
+
+---
+
 ## [1.6.2.dev1] - 2026-07-05 - Unreleased
 
 ### Summary
@@ -14,6 +35,8 @@ All notable changes to this project will be documented in this file.
 
 - **Ruff Configuration Parity**: Adopted the updated root `pyproject.toml` containing `per-file-ignores` for tests, resolving the relative path glob parsing bug in the devcontainer and silencing ~312 false positive `S101` test assert warnings and 47 `PLC0415` test import warnings.
 - **Number Entity Exception Handling**: Refactored `number.py` exception logger to use `_LOGGER.exception` without passing the redundant `err` exception object, resolving `TRY401` and rendering the block clean from `BLE001` violations.
+- **Documentation**: Updated README.md , re-ordered some sections for logical flow and readability.
+- **IQS Validation**: `dev-workbench` script `iqs_static_check.py` added via `tasks.json` now checks for Home Assistant Integration Quality Scale ( IQS ) compliance to 7 basic IQS rules.
 
 ### Fixed
 
