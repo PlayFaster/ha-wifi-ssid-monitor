@@ -25,7 +25,6 @@ All notable changes to this project will be documented in this file.
 
 ## [1.6.1] - 2026-07-04 - Release
 
-
 ### Summary
 
 - **Mostly Behind the Scenes**: Most of the changes in v1.6.1 are behind-the-scenes or under-the-hood: a lot of improvements in the CI Validation and Testing system; some documentation updates. No new features , but some improvements for more predictable performance.
