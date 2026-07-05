@@ -17,7 +17,7 @@ from custom_components.wifi_ssid_monitor.const import (
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Enable custom integrations."""
-    yield
+    return
 
 
 @pytest.fixture

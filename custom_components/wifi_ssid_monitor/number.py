@@ -105,8 +105,8 @@ class WifiScanIntervalNumber(NumberEntity):
 
         except asyncio.CancelledError:
             _LOGGER.debug("Scan interval change cancelled (debounced)")
-        except Exception as err:
-            _LOGGER.error("Failed to apply scan interval change: %s", err)
+        except Exception:
+            _LOGGER.exception("Failed to apply scan interval change")
             # Revert the UI value on failure (use round to match initial value logic)
             self._attr_native_value = max(
                 1, round(self._entry.options.get(CONF_SCAN_INTERVAL, 600) / 60)

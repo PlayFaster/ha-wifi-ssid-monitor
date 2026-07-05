@@ -1,4 +1,5 @@
 """Mock Supervisor Network API for development."""
+# ruff: noqa: S104
 
 import json
 import logging

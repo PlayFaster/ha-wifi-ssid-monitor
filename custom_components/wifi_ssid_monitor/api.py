@@ -44,26 +44,24 @@ class WifiScanAPI:
             "Content-Type": "application/json",
         }
 
+        status = 200
+        res_data = {}
         try:
             async with self.session.get(
                 url, headers=headers, timeout=ClientTimeout(total=30)
             ) as response:
-                if response.status != 200:
+                status = response.status
+                if status == 200:
+                    try:
+                        res_data = await response.json()
+                    except (aiohttp.ContentTypeError, ValueError) as e:
+                        _LOGGER.error("Invalid JSON response from API: %s", e)
+                        raise WifiScanError(f"Invalid API response: {e}") from e
+                else:
                     text = await response.text()
                     _LOGGER.error(
-                        "Failed to fetch access points: %s - %s", response.status, text
+                        "Failed to fetch access points: %s - %s", status, text
                     )
-                    raise WifiScanError(f"API returned status {response.status}")
-
-                try:
-                    res_data = await response.json()
-                except (aiohttp.ContentTypeError, ValueError) as e:
-                    _LOGGER.error("Invalid JSON response from API: %s", e)
-                    raise WifiScanError(f"Invalid API response: {e}") from e
-
-                data_block = res_data.get("data") or {}
-                access_points: list[dict[str, Any]] = data_block.get("accesspoints", [])
-                return access_points
         except WifiScanError:
             # Re-raise our custom errors without wrapping
             raise
@@ -73,6 +71,13 @@ class WifiScanAPI:
         except Exception as e:
             _LOGGER.error("Unexpected error fetching access points: %s", e)
             raise WifiScanError(f"Unexpected error: {e}") from e
+
+        if status != 200:
+            raise WifiScanError(f"API returned status {status}")
+
+        data_block = res_data.get("data") or {}
+        access_points: list[dict[str, Any]] = data_block.get("accesspoints", [])
+        return access_points
 
     async def get_interfaces(self) -> list[str]:
         """Fetch all network interfaces and return WiFi ones."""
@@ -86,29 +91,21 @@ class WifiScanAPI:
             "Content-Type": "application/json",
         }
 
+        status = 200
+        res_data = {}
         try:
             async with self.session.get(
                 url, headers=headers, timeout=ClientTimeout(total=30)
             ) as response:
-                if response.status != 200:
-                    _LOGGER.error("Failed to fetch network info: %s", response.status)
-                    raise WifiScanError(f"API returned status {response.status}")
-
-                try:
-                    res_data = await response.json()
-                except (aiohttp.ContentTypeError, ValueError) as e:
-                    _LOGGER.error("Invalid JSON response from API: %s", e)
-                    raise WifiScanError(f"Invalid API response: {e}") from e
-
-                data_block = res_data.get("data") or {}
-                interfaces = data_block.get("interfaces", [])
-
-                # Filter for wireless interfaces
-                return [
-                    iface.get("interface", "")
-                    for iface in interfaces
-                    if iface.get("type") == "wifi" and iface.get("interface")
-                ]
+                status = response.status
+                if status == 200:
+                    try:
+                        res_data = await response.json()
+                    except (aiohttp.ContentTypeError, ValueError) as e:
+                        _LOGGER.error("Invalid JSON response from API: %s", e)
+                        raise WifiScanError(f"Invalid API response: {e}") from e
+                else:
+                    _LOGGER.error("Failed to fetch network info: %s", status)
         except WifiScanError:
             # Re-raise our custom errors without wrapping
             raise
@@ -118,3 +115,17 @@ class WifiScanAPI:
         except Exception as e:
             _LOGGER.error("Unexpected error fetching interfaces: %s", e)
             raise WifiScanError(f"Unexpected error: {e}") from e
+
+        if status != 200:
+            raise WifiScanError(f"API returned status {status}")
+
+        data_block = res_data.get("data") or {}
+        interfaces = data_block.get("interfaces", [])
+
+        # Filter for wireless interfaces
+        return [
+            iface.get("interface", "")
+            for iface in interfaces
+            if iface.get("type") == "wifi" and iface.get("interface")
+        ]
+
