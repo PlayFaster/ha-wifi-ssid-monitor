@@ -512,6 +512,49 @@ async def test_coordinator_ttl_expiry_filters_all_history(
 
 
 @pytest.mark.asyncio
+async def test_coordinator_resilience_holds_for_api_none_with_prior_data(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Hold stale data when API returns None with prior data (<=3 strikes)."""
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    initial_data = {
+        "count": 2,
+        "ssids": ["Net1", "Net2"],
+        "unknown_ssids": ["Net2"],
+        "unknown_count": 1,
+        "interface": "wlan0",
+        "networks": {},
+    }
+    coordinator.data = initial_data
+    mock_wifi_api.get_access_points.return_value = None
+
+    # Failures 1, 2, 3 with API returning None — stale data returned, no exception
+    for expected_count in range(1, 4):
+        result = await coordinator._async_update_data()
+        assert result == initial_data
+        assert coordinator._failure_count == expected_count
+
+    # Failure 4 — raises UpdateFailed
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_coordinator_resilience_api_none_without_prior_data(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Raise ConfigEntryNotReady when API returns None with no prior data."""
+    coordinator = WifiScanCoordinator(hass, mock_config_entry, mock_wifi_api, "1.4.0")
+
+    coordinator._failure_count = 4
+    mock_wifi_api.get_access_points.return_value = None
+
+    with pytest.raises(ConfigEntryNotReady):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
 async def test_coordinator_config_entry_associated(
     hass, mock_config_entry, mock_wifi_api
 ):
