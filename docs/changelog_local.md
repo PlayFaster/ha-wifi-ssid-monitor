@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.2-dev5] - 2026-07-06 - Unreleased
+
+### Bumps
+
+- **Shared .github CI Validation**: Bump .github Shared CI Validation via SHA from v2.0.5 to v2.0.6
+
 ## [1.6.2.dev4] - 2026-07-05 - Unreleased
 
 ### Changed
@@ -51,6 +57,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Ruff Checks Extended**: As of shared CI Dev-workbench v2.2.1, Ruff checks have been extended to align with Home Assistant. This involves INcluding a wide range of checks and then EXcluding several items because of the wider range.
 - **Ruff Configuration Parity**: Adopted the updated root `pyproject.toml` containing `per-file-ignores` for tests, resolving the relative path glob parsing bug in the devcontainer and silencing ~312 false positive `S101` test assert warnings and 47 `PLC0415` test import warnings.
 - **Number Entity Exception Handling**: Refactored `number.py` exception logger to use `_LOGGER.exception` without passing the redundant `err` exception object, resolving `TRY401` and rendering the block clean from `BLE001` violations.
 - **Documentation**: Updated README.md , re-ordered some sections for logical flow and readability.
