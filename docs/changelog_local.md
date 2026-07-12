@@ -452,7 +452,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 ### Added
 
 - **Diagnostics**: Implemented a diagnostics platform (`diagnostics.py`) to provide sanitized integration state for troubleshooting.
-- **Re-authentication**: Added a re-authentication flow to handle invalid or expired Supervisor API tokens.
+- **Reauthentication**: Added a re-authentication flow to handle invalid or expired Supervisor API tokens.
 - **Reconfiguration**: Added a reconfiguration flow allowing users to update the interface and settings without re-installing.
 
 ### Changed
