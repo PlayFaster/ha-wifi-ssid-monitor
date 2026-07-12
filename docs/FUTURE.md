@@ -53,7 +53,7 @@ These items were on the original list but have not yet been implemented.
 
 ### Channel Crowding Map
 
-**Original idea:** Identify which WiFi channels are most congested to help optimise home router settings.
+**Original idea:** Identify which WiFi channels are most congested to help optimize home router settings.
 
 **Assessment:** The data is available (channel per AP in `network_map`), so a channel-frequency histogram could be computed in the coordinator. The harder problem is the entity model — there is no clean HA entity type for a map of `{channel: count}`. This would surface best as a sensor attribute (easy) or as a template sensor the user builds themselves. Low user demand relative to effort; defer unless requested.
 
@@ -113,7 +113,7 @@ Now that `first_seen`, `visit_counts`, and the full service suite are in place, 
 
 ### Visit Count Threshold Filter
 
-**Difficulty:** Easy **Benefit:** Medium-high — add a configurable options-flow setting (e.g., `min_visit_count`, default 0 = disabled) that excludes SSIDs from the `unknown_count` and all attributes unless they have been seen at least N times. Filters out drive-by hotspots and one-off scan artefacts without requiring the user to write template automation conditions.
+**Difficulty:** Easy **Benefit:** Medium-high — add a configurable options-flow setting (e.g., `min_visit_count`, default 0 = disabled) that excludes SSIDs from the `unknown_count` and all attributes unless they have been seen at least N times. Filters out drive-by hotspots and one-off scan artifacts without requiring the user to write template automation conditions.
 
 ---
 
@@ -133,7 +133,7 @@ Now that `first_seen`, `visit_counts`, and the full service suite are in place, 
 
 ### Case-Insensitive Known SSID Matching
 
-**Difficulty:** Unknown **Benefit:** Medium — currently, known SSID matching (including `fnmatch` patterns) is case-sensitive, matching the behavior of real SSID identifiers. Some routers and devices broadcast the same network name with inconsistent capitalisation (e.g., `MyWiFi` vs `mywifi`), which can cause a network to appear as unknown even when it is in the known list. A configurable option to enable case-insensitive matching (e.g., lowercasing both the scanned SSID and all known patterns before comparison) could reduce false positives in these environments. Implementation complexity is unclear — the main uncertainty is whether `fnmatch` pattern semantics remain correct after lowercasing, particularly for patterns with mixed-case characters.
+**Difficulty:** Unknown **Benefit:** Medium — currently, known SSID matching (including `fnmatch` patterns) is case-sensitive, matching the behavior of real SSID identifiers. Some routers and devices broadcast the same network name with inconsistent capitalization (e.g., `MyWiFi` vs `mywifi`), which can cause a network to appear as unknown even when it is in the known list. A configurable option to enable case-insensitive matching (e.g., lowercasing both the scanned SSID and all known patterns before comparison) could reduce false positives in these environments. Implementation complexity is unclear — the main uncertainty is whether `fnmatch` pattern semantics remain correct after lowercasing, particularly for patterns with mixed-case characters.
 
 ---
 
@@ -149,5 +149,5 @@ Now that `first_seen`, `visit_counts`, and the full service suite are in place, 
 - **v1.1.0** (2026-06-02) - Major rewrite. Marked v1.5.0 delivered items. Reassessed remaining original items. Added new opportunity section based on v1.5.0 capabilities.
 - **v1.2.0** (2026-06-11) - Marked v1.6.0 delivered items. Updated "First Seen Events" assessment. Added new opportunity section based on v1.6.0 capabilities.
 - **v1.3.0** (2026-06-11) - Marked v1.7.0 delivered items. Updated "First Seen Events" assessment to reflect first_seen Store is now live. Replaced v1.6.0 opportunity section with v1.7.0 opportunities.
-- **v1.4.0** (2026-06-11) - Rebundled: v1.5.0/v1.6.0/v1.7.0 features all ship together as v1.6.0. Renamed delivered sections to Part 1/2/3. Renamed opportunity section to "Future Options".
+- **v1.4.0** (2026-06-11) - Re-bundled: v1.5.0/v1.6.0/v1.7.0 features all ship together as v1.6.0. Renamed delivered sections to Part 1/2/3. Renamed opportunity section to "Future Options".
 - **v1.5.0** (2026-06-12) - Added "Case-Insensitive Known SSID Matching" to Future Options.

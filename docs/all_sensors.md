@@ -26,7 +26,7 @@ _Group: `system`_
 | Remove Known Ssid | `remove_known_ssid` | Service | — | — | Removes an SSID or pattern from the known networks list for one or all integration entries. |
 | Scan Now | `scan_now` | Service | — | — | Triggers an immediate WiFi scan for one or all integration entries. |
 | Clear Last Seen | `clear_last_seen` | Service | — | — | Clears all persisted last-seen, first-seen, and visit-count history for one or all integration entries. |
-| Set Known Ssids | `set_known_ssids` | Service | — | — | Replaces the entire known networks list for one or all integration entries in a single call. |
+| Set Known SSIDs | `set_known_ssids` | Service | — | — | Replaces the entire known networks list for one or all integration entries in a single call. |
 
 ---
 

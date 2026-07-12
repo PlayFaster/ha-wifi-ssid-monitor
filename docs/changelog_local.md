@@ -424,7 +424,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Dev Tooling
 
-- **Shared Reusable CI Workflow**: Created `PlayFaster/.github` organization repo containing a parameterised reusable workflow (`validate.yaml`, named "Validate (Shared)"). All 8 validation jobs (`hassfest`, `hacs_val`, `py_val`, `test_val`, `file_val`, `codespell`, `zizmor`, `mypy_val`) now live in the shared repo and are called by each integration via a thin caller. Changes to validation logic propagate to all 4 projects on the next CI run without per-project edits.
+- **Shared Reusable CI Workflow**: Created `PlayFaster/.github` organization repo containing a parameterized reusable workflow (`validate.yaml`, named "Validate (Shared)"). All 8 validation jobs (`hassfest`, `hacs_val`, `py_val`, `test_val`, `file_val`, `codespell`, `zizmor`, `mypy_val`) now live in the shared repo and are called by each integration via a thin caller. Changes to validation logic propagate to all 4 projects on the next CI run without per-project edits.
 - **Thin Caller Workflow**: Replaced the 270-line inline `.github/workflows/validate.yaml` with a ~30-line caller that delegates to the shared workflow via `uses: PlayFaster/.github/.github/workflows/validate.yaml@main`. Permissions correctly scoped: `contents: read` at workflow level, `contents: write` and `pull-requests: write` at job level (required by `test_val` for coverage badge and PR comments).
 - **Shared Workflow Concurrency**: Reusable workflow uses `${{ github.workflow }}-${{ github.ref }}-${{ github.repository }}` as its concurrency group, preventing cross-repo cancellation when multiple integrations trigger simultaneously.
 - **Shared Workflow Dependabot**: Added `dependabot.yml` to `PlayFaster/.github` tracking the `github-actions` ecosystem weekly, keeping SHA pins in the shared workflow current.
@@ -452,7 +452,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 ### Added
 
 - **Diagnostics**: Implemented a diagnostics platform (`diagnostics.py`) to provide sanitized integration state for troubleshooting.
-- **Reauthentication**: Added a reauthentication flow to handle invalid or expired Supervisor API tokens.
+- **Re-authentication**: Added a re-authentication flow to handle invalid or expired Supervisor API tokens.
 - **Reconfiguration**: Added a reconfiguration flow allowing users to update the interface and settings without re-installing.
 
 ### Changed
@@ -537,7 +537,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 ### Documentation
 
 - **DEVELOPMENT.md** (D1): Updated "Retry Resilience" bullet to accurately describe the 3-failure hold strategy, replacing stale reference to a "two-stage fetch attempt with a 10-second delay" (that logic no longer exists).
-- **DEVELOPMENT.md** (A1): Added pitfall note on hidden network deduplication — multiple hidden APs collapse to a single `[hidden]` entry in `all_ssids` (set dedup) and `network_map` (last-write-wins). Count will differ from tools like `nmcli` that report per-AP.
+- **DEVELOPMENT.md** (A1): Added pitfall note on hidden network deduplication — multiple hidden APs collapse to a single `[hidden]` entry in `all_ssids` (set de-dup) and `network_map` (last-write-wins). Count will differ from tools like `nmcli` that report per-AP.
 - **README.md** (A1): Added "Known Limitations" section documenting the hidden network grouping behavior for end users.
 
 ### Dev Tooling

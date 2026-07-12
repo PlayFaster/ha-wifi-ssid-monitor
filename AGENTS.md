@@ -115,7 +115,7 @@ All multi-entry services accept an optional `config_entry_id` field. Resolution 
 ## Key Patterns & Conventions
 
 - `PARALLEL_UPDATES = 0` is set on all platforms (coordinator-driven, no per-entity polling).
-- All entities use `_attr_has_entity_name = True` and `translation_key` for localisation; display strings live in `strings.json` and `translations/`.
+- All entities use `_attr_has_entity_name = True` and `translation_key` for localization; display strings live in `strings.json` and `translations/`.
 - `type: ignore` comments are used in several places to suppress mypy errors on HA base classes that lack complete stubs — this is expected.
 - The `.comp/` directory contains unrelated scratch/reference files; ignore it.
 - `quality_scale.yaml` tracks compliance with HA Integration Quality Scale (currently Platinum level).

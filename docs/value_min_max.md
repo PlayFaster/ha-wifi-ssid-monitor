@@ -28,7 +28,7 @@ We use a **Declarative Validation** approach. Limits are defined directly within
 
 ## Implementation Details
 
-The `WifiSensorEntityDescription` dataclass includes optional `min_limit` and `max_limit` attributes.
+The `WifiSensorEntityDescription` data-class includes optional `min_limit` and `max_limit` attributes.
 
 **Example Definition:**
 
