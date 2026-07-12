@@ -80,7 +80,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Documentation
 
-- **Known Limitations**: Added a Known Limitations section to the README documenting that multiple hidden (non-broadcasting) WiFi networks are reported as a single `[hidden]` entry in SSID counts. This is expected behaviour — hidden networks cannot be individually identified without SSID data.
+- **Known Limitations**: Added a Known Limitations section to the README documenting that multiple hidden (non-broadcasting) WiFi networks are reported as a single `[hidden]` entry in SSID counts. This is expected behavior — hidden networks cannot be individually identified without SSID data.
 
 ## [1.4.1] - 2026-04-18
 

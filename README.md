@@ -72,7 +72,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 - **Band Filter**: Restrict scanning to 2.4 GHz only, 5 GHz only, or all bands to reduce noise from neighboring networks.
 - **SSID Denylist**: Mark specific SSID patterns as permanently unknown — useful for neighbor networks that should never be whitelisted.
-- **Hidden Network Control**: Toggle whether unbroadcasted (hidden) SSIDs are counted or silently ignored.
+- **Hidden Network Control**: Toggle whether un-broadcasted (hidden) SSIDs are counted or silently ignored.
 - **Last Seen Tracking**: Each unknown SSID records when it was last detected, first detected, and how many times it has appeared — all persisted across Home Assistant restarts with a configurable TTL.
 
 ### 🔄 Dynamic Polling
@@ -473,7 +473,7 @@ actions:
 
 Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**.
 
-- **WiFi Interface** (required) — The network interface to monitor (e.g., `wlan0`). Autopopulated where available.
+- **WiFi Interface** (required) — The network interface to monitor (e.g., `wlan0`). Auto-populated where available.
 - **Known SSIDs** — Comma-separated list of WiFi networks to treat as known (e.g., `Home-WiFi, Guest-Network`).
 - **Integration Name** — Display name shown in the UI for this integration instance (default: `WiFi SSID Monitor`).
 

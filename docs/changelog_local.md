@@ -4,11 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.6.2-dev6] - 2026-07-12 — Bumped pytest-homeassistant-custom-component from 0.13.344 to 0.13.346
+## [1.6.2-dev6] - 2026-07-12 — Bumped pytest-homeassistant-custom-component from 0.13.345 to 0.13.346
 
 ### Bumps
 
-- **Validate Bump**: Bumped pytest-homeassistant-custom-component from 0.13.344 to 0.13.346
+- **Validate Bump**: Bumped pytest-homeassistant-custom-component from 0.13.345 to 0.13.346
 
 ## [1.6.2-dev5] - 2026-07-06 - Unreleased
 
@@ -98,7 +98,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Reconfigure Shows All Settings**: The ⋮ → **Reconfigure** screen now exposes the same full field set as the gear → **Configure** (options) screen — Scan Interval, Include Hidden Networks, Proximity Alert Threshold, Band Filter, Always-Unknown (denylist), and Last Seen History, in addition to Name, Known SSIDs, and Interface. Previously Reconfigure only offered the three setup essentials, so the two paths gave different results. Both screens are now built from a single shared schema so they can't drift apart. No identity/unique_id behaviour changed — entity history is preserved as before. Added `strings.json`/`en.json` labels for the added reconfigure fields and tests asserting the two paths render an identical field set.
+- **Reconfigure Shows All Settings**: The ⋮ → **Reconfigure** screen now exposes the same full field set as the gear → **Configure** (options) screen — Scan Interval, Include Hidden Networks, Proximity Alert Threshold, Band Filter, Always-Unknown (denylist), and Last Seen History, in addition to Name, Known SSIDs, and Interface. Previously Reconfigure only offered the three setup essentials, so the two paths gave different results. Both screens are now built from a single shared schema so they can't drift apart. No identity/unique_id behavior changed — entity history is preserved as before. Added `strings.json`/`en.json` labels for the added reconfigure fields and tests asserting the two paths render an identical field set.
 
 ## [1.6.1-dev10] - 2026-07-04 - Unreleased
 
@@ -121,7 +121,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Coordinator `config_entry`**: `WifiScanCoordinator` now passes `config_entry=entry` to `super().__init__()`. This makes `self.config_entry` explicit, which is what HA core's `_schedule_refresh()` checks (`config_entry.pref_disable_polling`) to stop scheduled polling when the user sets **System options → "Enable polling for changes" = OFF**. Manual updates (`homeassistant.update_entity`, the "Scan Now" button) still fetch. No behaviour change on current HA — it removes reliance on implicit context detection, which HA logs as an error from **2026.8**.
+- **Coordinator `config_entry`**: `WifiScanCoordinator` now passes `config_entry=entry` to `super().__init__()`. This makes `self.config_entry` explicit, which is what HA core's `_schedule_refresh()` checks (`config_entry.pref_disable_polling`) to stop scheduled polling when the user sets **System options → "Enable polling for changes" = OFF**. Manual updates (`homeassistant.update_entity`, the "Scan Now" button) still fetch. No behavior change on current HA — it removes reliance on implicit context detection, which HA logs as an error from **2026.8**.
 - **Minimum HA Version**: Documented minimum raised to **2024.8.0** (the release that added the `config_entry` argument to `DataUpdateCoordinator`).
 - **.gitignore**: Added scratch folders
 
@@ -262,7 +262,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 ### Fixed
 
 - **mypy strict errors** in `coordinator.py:async_initialize`: Changed `isinstance(x, Exception)` to `isinstance(x, BaseException)` for Store load results from `asyncio.gather(return_exceptions=True)`. mypy infers the exception union as `T | BaseException` (not `T | Exception`), so only `BaseException` correctly narrows the union in the `elif` data branches.
-- **HASSFest `services.yaml` validation errors**: Removed unsupported `response` and `target` keys from the `set_known_ssids` service definition. The HASSFest schema version used by this project does not accept these keys. `SupportsResponse.OPTIONAL` in the Python handler controls runtime response behaviour; the services.yaml entry is UI documentation only.
+- **HASSFest `services.yaml` validation errors**: Removed unsupported `response` and `target` keys from the `set_known_ssids` service definition. The HASSFest schema version used by this project does not accept these keys. `SupportsResponse.OPTIONAL` in the Python handler controls runtime response behavior; the services.yaml entry is UI documentation only.
 
 ---
 
@@ -300,7 +300,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Changed
 
-- **README Emoji Consistency**: Replaced all VS16 compound emoji in headings and ToC links with always-colour single-codepoint alternatives (`⚙️`→`🔧`, `🗑️`→`❌`, `⚠️`→`❗`, `⏱️`→`🔁`, `✉️`→`💬`, `⏯️`→`🔁`, `🛠️`→`🔩`, `🎛️`→`🔘`); moved License badge out of heading; standardised Use Cases icon to `🎯`.
+- **README Emoji Consistency**: Replaced all VS16 compound emoji in headings and ToC links with always-color single-codepoint alternatives (`⚙️`→`🔧`, `🗑️`→`❌`, `⚠️`→`❗`, `⏱️`→`🔁`, `✉️`→`💬`, `⏯️`→`🔁`, `🛠️`→`🔩`, `🎛️`→`🔘`); moved License badge out of heading; standardized Use Cases icon to `🎯`.
 
 - **`pyproject.toml` — mypy Configuration Realigned with HA's Internal `mypy.ini`**: The project's `[tool.mypy]` section has been restructured to closely match HA's auto-generated `mypy.ini` (produced by `script/hassfest -p mypy_config`). This ensures the pre-commit mypy hook, and the project's basic `mypy custom_components/` check, run under materially the same conditions as HA's own integration quality checks. The goal is for any type errors caught here to be errors HA itself would also catch — and vice versa.
 
@@ -324,7 +324,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Changed
 
-- **Supervisor URL constant**: Extracted `_SUPERVISOR_BASE_URL = "http://supervisor"` as a named module-level constant in `api.py`. Both endpoint URL constructions now use this constant. No behavioural change.
+- **Supervisor URL constant**: Extracted `_SUPERVISOR_BASE_URL = "http://supervisor"` as a named module-level constant in `api.py`. Both endpoint URL constructions now use this constant. No behavioral change.
 
 ---
 
@@ -389,7 +389,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 - **runtime-data** (IQS Bronze): Migrated coordinator storage from `hass.data[DOMAIN]` to `entry.runtime_data` in `__init__.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `diagnostics.py`; `async_unload_entry` simplified — HA handles `runtime_data` cleanup automatically, no manual teardown needed.
 - **parallel-updates** (IQS Silver): Added `PARALLEL_UPDATES = 0` to `sensor.py`, `binary_sensor.py`, `number.py`, signaling to HA that the coordinator handles all update coordination.
 - **config-flow** (IQS Bronze): Added `data_description` contextual hints to all config and options flow steps in `strings.json` and `translations/en.json`.
-- **docs-data-update** (IQS Gold): Added Data Updates section to `README.md` documenting polling endpoint, interval, 3-strike resilience, and immediate-refresh behaviour.
+- **docs-data-update** (IQS Gold): Added Data Updates section to `README.md` documenting polling endpoint, interval, 3-strike resilience, and immediate-refresh behavior.
 - **repair-issues** (IQS Gold): Implemented `ir.async_create_issue` / `ir.async_delete_issue` in `coordinator.py`; added `supervisor_unavailable` repair issue strings to `strings.json` and `translations/en.json`. Issue is raised on 4th consecutive failure and cleared on next successful scan.
 - **quality_scale.yaml**: Rewrote to canonical 52-rule format; all 47 trackable rules now `done`.
 
@@ -424,7 +424,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Dev Tooling
 
-- **Shared Reusable CI Workflow**: Created `PlayFaster/.github` organisation repo containing a parameterised reusable workflow (`validate.yaml`, named "Validate (Shared)"). All 8 validation jobs (`hassfest`, `hacs_val`, `py_val`, `test_val`, `file_val`, `codespell`, `zizmor`, `mypy_val`) now live in the shared repo and are called by each integration via a thin caller. Changes to validation logic propagate to all 4 projects on the next CI run without per-project edits.
+- **Shared Reusable CI Workflow**: Created `PlayFaster/.github` organization repo containing a parameterised reusable workflow (`validate.yaml`, named "Validate (Shared)"). All 8 validation jobs (`hassfest`, `hacs_val`, `py_val`, `test_val`, `file_val`, `codespell`, `zizmor`, `mypy_val`) now live in the shared repo and are called by each integration via a thin caller. Changes to validation logic propagate to all 4 projects on the next CI run without per-project edits.
 - **Thin Caller Workflow**: Replaced the 270-line inline `.github/workflows/validate.yaml` with a ~30-line caller that delegates to the shared workflow via `uses: PlayFaster/.github/.github/workflows/validate.yaml@main`. Permissions correctly scoped: `contents: read` at workflow level, `contents: write` and `pull-requests: write` at job level (required by `test_val` for coverage badge and PR comments).
 - **Shared Workflow Concurrency**: Reusable workflow uses `${{ github.workflow }}-${{ github.ref }}-${{ github.repository }}` as its concurrency group, preventing cross-repo cancellation when multiple integrations trigger simultaneously.
 - **Shared Workflow Dependabot**: Added `dependabot.yml` to `PlayFaster/.github` tracking the `github-actions` ecosystem weekly, keeping SHA pins in the shared workflow current.
@@ -497,7 +497,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Documentation
 
-- **Known Limitations**: Added a Known Limitations section to the README documenting that multiple hidden (non-broadcasting) WiFi networks are reported as a single `[hidden]` entry in SSID counts. This is expected behaviour — hidden networks cannot be individually identified without SSID data.
+- **Known Limitations**: Added a Known Limitations section to the README documenting that multiple hidden (non-broadcasting) WiFi networks are reported as a single `[hidden]` entry in SSID counts. This is expected behavior — hidden networks cannot be individually identified without SSID data.
 
 ## [1.4.2-dev3] - 2026-05-01 - Unreleased
 
@@ -520,11 +520,11 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 ### Added
 
 - **Binary Sensor Tests** (T1): Created `tests/test_binary_sensor.py` with 6 tests: platform setup and initial state, `is_on` with unknown networks, `is_on` with all-known, `is_on` with no data, `device_info` structure, and unique ID format.
-- **Coordinator Resilience Tests** (T3): Added `test_coordinator_resilience_holds_for_three_failures` and `test_coordinator_resilience_resets_on_success` to `tests/test_coordinator.py`, covering the 3-failure stale-hold behaviour and failure count reset on success.
+- **Coordinator Resilience Tests** (T3): Added `test_coordinator_resilience_holds_for_three_failures` and `test_coordinator_resilience_resets_on_success` to `tests/test_coordinator.py`, covering the 3-failure stale-hold behavior and failure count reset on success.
 
 ### Changed (Tests)
 
-- **Test Fixture** (T4): Updated `conftest.py` `mock_config_entry`: title changed to `"WiFi SSID Monitor"`, `CONF_NAME: "WiFi SSID Monitor"` added to options, `data` set to `{}` — aligns fixture with post-Q5 config flow behaviour and v1.4.0 clean naming.
+- **Test Fixture** (T4): Updated `conftest.py` `mock_config_entry`: title changed to `"WiFi SSID Monitor"`, `CONF_NAME: "WiFi SSID Monitor"` added to options, `data` set to `{}` — aligns fixture with post-Q5 config flow behavior and v1.4.0 clean naming.
 - **Sensor Test Entity IDs** (T4): Updated entity ID assertions in `tests/test_sensor.py` from `sensor.wifi_ssid_monitor_wlan0_*` to `sensor.wifi_ssid_monitor_*` to match v1.4.0 single-instance clean naming.
 - **Config Flow Test**: Updated `test_user_flow` in `tests/test_config_flow.py` — `result["data"]` assertion changed from `{user_input contents}` to `{}` to reflect Q5 fix.
 - **Number Debounce Test**: Replaced `task1.cancelling() > 0 or task1.cancelled()` state check in `test_number_debounce_cancellation` with `task1 is not task2` — the old check broke when `hass.async_create_task` with eager start ran the mocked-sleep task to completion immediately.
@@ -538,11 +538,11 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 - **DEVELOPMENT.md** (D1): Updated "Retry Resilience" bullet to accurately describe the 3-failure hold strategy, replacing stale reference to a "two-stage fetch attempt with a 10-second delay" (that logic no longer exists).
 - **DEVELOPMENT.md** (A1): Added pitfall note on hidden network deduplication — multiple hidden APs collapse to a single `[hidden]` entry in `all_ssids` (set dedup) and `network_map` (last-write-wins). Count will differ from tools like `nmcli` that report per-AP.
-- **README.md** (A1): Added "Known Limitations" section documenting the hidden network grouping behaviour for end users.
+- **README.md** (A1): Added "Known Limitations" section documenting the hidden network grouping behavior for end users.
 
 ### Dev Tooling
 
-- **VS Code Tasks**: Updated "Pytest: Run All Tests" and "Pytest: Check Test Coverage" tasks to strip ANSI escape codes from `.reports/pytest_results.txt` and `.reports/pytest_coverage.txt` while preserving colour in the terminal. Uses bash process substitution: `tee >(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' > file.txt)`. Same fix applied to `ha-tplink-router-5g-monitor` and `ha-zte-router-5g-monitor`.
+- **VS Code Tasks**: Updated "Pytest: Run All Tests" and "Pytest: Check Test Coverage" tasks to strip ANSI escape codes from `.reports/pytest_results.txt` and `.reports/pytest_coverage.txt` while preserving color in the terminal. Uses bash process substitution: `tee >(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' > file.txt)`. Same fix applied to `ha-tplink-router-5g-monitor` and `ha-zte-router-5g-monitor`.
 
 ## [1.4.1] - 2026-04-18
 

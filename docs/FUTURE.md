@@ -133,7 +133,7 @@ Now that `first_seen`, `visit_counts`, and the full service suite are in place, 
 
 ### Case-Insensitive Known SSID Matching
 
-**Difficulty:** Unknown **Benefit:** Medium — currently, known SSID matching (including `fnmatch` patterns) is case-sensitive, matching the behaviour of real SSID identifiers. Some routers and devices broadcast the same network name with inconsistent capitalisation (e.g., `MyWiFi` vs `mywifi`), which can cause a network to appear as unknown even when it is in the known list. A configurable option to enable case-insensitive matching (e.g., lowercasing both the scanned SSID and all known patterns before comparison) could reduce false positives in these environments. Implementation complexity is unclear — the main uncertainty is whether `fnmatch` pattern semantics remain correct after lowercasing, particularly for patterns with mixed-case characters.
+**Difficulty:** Unknown **Benefit:** Medium — currently, known SSID matching (including `fnmatch` patterns) is case-sensitive, matching the behavior of real SSID identifiers. Some routers and devices broadcast the same network name with inconsistent capitalisation (e.g., `MyWiFi` vs `mywifi`), which can cause a network to appear as unknown even when it is in the known list. A configurable option to enable case-insensitive matching (e.g., lowercasing both the scanned SSID and all known patterns before comparison) could reduce false positives in these environments. Implementation complexity is unclear — the main uncertainty is whether `fnmatch` pattern semantics remain correct after lowercasing, particularly for patterns with mixed-case characters.
 
 ---
 
