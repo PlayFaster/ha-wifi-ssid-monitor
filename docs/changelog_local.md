@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.2-dev6] - 2026-07-12 — Bumped pytest-homeassistant-custom-component from 0.13.344 to 0.13.346
+
+### Bumps
+
+- **Validate Bump**: Bumped pytest-homeassistant-custom-component from 0.13.344 to 0.13.346
+
 ## [1.6.2-dev5] - 2026-07-06 - Unreleased
 
 ### Bumps
