@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.6.2-dev8] - 2026-07-22 — Bumped Ruff and PHACC
+
+### Changed
+
+- **Emoji Icons**: Updated AGENTS.md to clarify that complex (two character) emoji icons should not be used, to avoid link breakage.
+
+### Bumps
+
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.346 to 0.13.347
+- **Validate Bump**: Update `ruff`from 0.15.20 to 0.15.21
+
+## [1.6.2-dev7] - 2026-07-12 — Docs Formats and Spelling
+
+### Changed
+
+- **Docs Formats and Spelling**: Updated document files for formatting and spelling
+
 ## [1.6.2-dev6] - 2026-07-12 — Bumped pytest-homeassistant-custom-component from 0.13.345 to 0.13.346
 
 ### Bumps
