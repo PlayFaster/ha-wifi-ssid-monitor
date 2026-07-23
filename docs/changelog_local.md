@@ -1,6 +1,107 @@
 # Internal Detailed Changelog: WiFi SSID Monitor
 
-All notable changes to this project will be documented in this file.
+All changes to this project will be documented in this file. This is the detailed changelog, to include non user facing changes and intra-release changes.
+
+---
+
+## [2.0.0-dev5] - 2026-07-23 - Unreleased
+
+### Changed
+
+- **Icons & Branding**: Updated the icons and logos for the project.
+
+## [2.0.0-dev4] - 2026-07-23 - Unreleased
+
+### Added
+
+- **`entry_not_loaded` Exception Translation**: Added the `entry_not_loaded` exception key to both `strings.json` and `translations/en.json` with a `{entry_id}` placeholder, ensuring Home Assistant displays localized error messages when action calls target an unloaded config entry.
+- **Targeted Pytest Iteration Guidelines**: Added the **Targeted Pytest Iteration Rule** to workspace root `AGENTS.md`, enforcing fast, single-file test execution (`pytest tests/test_services.py`) during development to eliminate token and CPU overhead.
+- **UniFi-Aligned README Structure**: Overhauled `README.md` layout, section hierarchy, brand banner presentation, entity summary tables, dedicated `## 🧹 Actions (Services)` parameter reference, architecture breakdown, Q&A troubleshooting, and post-deletion retention details to match the UniFi Network Monitor README benchmark.
+- **README — Unknown Network Detection deep-dive** (`## 📡 Unknown Network Detection`): a dedicated section consolidating the unknown-detection story — the sensors and Proximity Alert, `Hidden-<last 4 of BSSID>` naming, the `ssid_anomaly` flag, network appearance history, the `wifi_ssid_monitor_new_network` event, the `get_networks` action, and a numbered "How to use it" tuning walkthrough.
+- **README — Runtime Controls & Settings (Entities)** subsection under Configuration: lists every control entity (Pause Polling, Scan Interval, Proximity Signal Threshold, Include Hidden, the three band switches, Scan Now) with type and default.
+- **README — Under the Hood** additions: a **Self-diagnosis (Integration Health)** subsection documenting the health binary sensor and its `interface_missing` / `signal_format_changed` / `supervisor_unavailable` repair issues, plus an **Actions & Events** subsection; an **Events** reference table in the Actions section; and an **About-attribute TIP** in What You Get documenting the unrecorded `about` notes.
+- **README — FAQ Troubleshooting Tips** group with two new entries: **"How do I download diagnostics?"** (explaining the SSID/BSSID pseudonymization and the "logs have no redaction" caveat) and **"I deleted and re-added the integration — why did my settings and history come back?"** (30-day retention table).
+- **README — Installation** additions: an **Updating** subsection and the HACS "Open your Home Assistant instance" shortcut badge and release links.
+
+### Changed
+
+- **README — collapsible sections throughout**: wrapped the What You Get entity breakdown, Unknown Network Detection, Under the Hood, Updating, Removal, and every FAQ answer in `<details>` blocks with the standard expand summary, matching the UniFi layout.
+- **README — Example Automations restructured**: grouped into Security & Detection / Polling & Scanning / List & History Management, each automation collapsed into its own `<details>`, with entity-ID and notifier preamble notes.
+- **README — terminology consistency**: replaced "signal strength" with "signal quality" in the Features section to match the document-wide 0–100% wording; added a storage-clear TIP pointing at the `clear_last_seen` action over hand-editing `.storage`.
+
+### Fixed
+
+- **Option-Change Polling Behavior**: Fixed `_async_update_listener` in `__init__.py` to use an explicit `REFRESH_ON_CHANGE_KEYS` set (`known_wifi_ids`, `denylist_ssids`, `include_hidden`, `proximity_signal_threshold`, `show_24ghz`, `show_5ghz`, `show_6ghz`). Toggling Pause Polling (`stop_polling`) or changing scan intervals no longer forces an immediate fetch, preventing unintended scans when polling is paused.
+- **Redundant Control Refreshes**: Removed redundant `async_force_refresh()` calls in `switch.py` and `number.py`, eliminating duplicate back-to-back Supervisor API fetches when changing controls from the UI.
+- **Interface Missing Health Repairs**: Connected `last_interface_present` API state directly to `_record_fetch_failure_health` in `coordinator.py`, enabling `check_interface_missing` to detect missing or renamed WiFi interfaces on HTTP 400/404 errors and raise the specific `interface_missing` Repair issue.
+- **Service Handler Entry Guarding**: Updated `_resolve_entries` in `services.py` to verify that target entries are in `ConfigEntryState.LOADED` state with active `runtime_data`, raising a clean `HomeAssistantError` instead of a bare `AttributeError`.
+- **Import-Time Blocking I/O**: Replaced the import-time synchronous `manifest.json` file read in `const.py` with a static constant `VERSION = "1.7.0-dev1"`, preventing blocking disk I/O during Home Assistant component imports. Added a unit test pinning `VERSION` against `manifest.json`.
+
+---
+
+## [2.0.0-dev3] - 2026-07-22 - Unreleased
+
+### Added
+
+- **100% Test Suite Coverage**: Achieved 100% test coverage across all 15 source files with 212 unit tests, adding tests for store failure degradation, history overflow pruning, health drift strike lifecycle, repair issue synchronization, signal unit change logging, and event suppression caps.
+- **Three-Way Document Reconciliation Prompting**: Updated `sensor_review.md` to v2.5.0 with Category G 3-way document reconciliation (`all_sensors.md` vs `README.md` vs `value_min_max.md`), automated platform entity count comparison tables, and `README.md` write workflows.
+
+### Changed
+
+- **Documentation & Manifest Alignment**: Updated `docs/all_sensors.md` (v1.0.6), `docs/value_min_max.md` (v1.0.4), and `.notes/proj_structure.md` (v1.0.10) to reflect the full 18-entity manifest, 6 service actions, and single-boundary parsing architecture.
+- **README — Bus Event documented**: Added a **Bus Events** section documenting the `wifi_ssid_monitor_new_network` event — its per-network, restart-surviving, rate-limited semantics, the full payload table (`entry_id`, `key`, `ssid`, `bssid`, `band`, `channel`, `signal`, `hidden`, `ssid_anomaly`, `mode`, `first_seen`), and a `trigger: event` automation example.
+- **README — accuracy fixes**: Corrected the Band Filter feature description to the three Show 2.4/5/6 GHz switches (was the removed `scan_bands` enum); corrected the service count from five to six (adding `get_networks` and the denylist capability); added a **Default** column to the Switch and Number entity tables (Pause Off; Include Hidden and band switches On; Scan Interval 10 min; Proximity Threshold 80%); and fixed a breaking-changes cross-reference that pointed the wrong direction.
+
+---
+
+## [2.0.0-dev2] - 2026-07-22 - Unreleased
+
+### Summary
+
+A maintenance and refinement update adding BSSID pattern matching across known and denylist options, exposing network operating mode across sensors and actions, activating the interface missing health check, and fixing legacy option migration and recorder attribute exclusions.
+
+### Added
+
+- **BSSID Pattern Matching**: `known_wifi_ids` and `denylist_ssids` pattern matching now evaluates against both network keys (SSID / hidden label) and BSSID MAC addresses, allowing exact MACs or MAC wildcards (e.g. `AA:BB:CC:*`) in both lists.
+- **Operating Mode (`mode`) Attributes**: Exposed network operating mode (`infra`, `adhoc`) in `strongest_unknown_ssid` attributes, `get_networks` action responses, and `wifi_ssid_monitor_new_network` bus event payloads.
+- **`first_seen` Timestamp in Bus Events**: `wifi_ssid_monitor_new_network` event payload now carries the network's `first_seen` ISO timestamp.
+- **DevContainer Mock Supervisor Enhancements**: Updated `mock_supervisor.py` to support the `/network/info` endpoint for config flow auto-detection testing, with realistic 0–100% signal, MHz frequency, BSSID MACs, hidden APs, and mode test data.
+
+### Fixed
+
+- **Legacy Configuration Migration**: Fixed data-to-options migration in `async_setup_entry` to preserve `CONF_INTERFACE` (`wifi_interface`) when upgrading legacy entries that already have populated options.
+- **Recorder Attribute Exclusion**: Fixed `WifiScanSensor._unrecorded_attributes` to inherit from `WifiAboutEntity`, preventing static `about` documentation attributes from being recorded into history database logs.
+- **Interface Missing Health Check**: Connected `last_interface_present` API state to `ScanFacts`, enabling `check_interface_missing` in `health.py` to detect interface removal and raise the `interface_missing` Repair issue.
+
+---
+
+## [2.0.0-dev1] - 2026-07-22 - Unreleased
+
+### Breaking
+
+- **`sensor.…_strongest_unknown_rssi` removed**, replaced by `sensor.…_strongest_unknown_signal` (0–100%). The old entity goes unavailable; its LTS is retained. Reusing the key with a new unit would have raised an HA statistics unit-change repair, so a new key was used instead.
+- **Proximity threshold rescaled to 0–100%** and moved to the `number.…_proximity_signal_threshold` entity; the `proximity_rssi_threshold` option is migrated (dBm → %) automatically. Higher now means closer.
+- **Scan Interval, Include Hidden Networks and the band filter left the Configure dialog** and are now control entities; the `scan_bands` enum is migrated to three **Show 2.4/5/6 GHz** switches.
+- **Services renamed and merged:** `add_known_ssid`→`add_ssid`, `remove_known_ssid`→`remove_ssid`, `set_known_ssids`→`set_ssids`, each with a required `target: known|denylist` (and `known_ssids`→`values`). No aliases — update automations.
+
+### Added
+
+- **Payload normalization layer** (`parse.py`) — canonical percent signal, frequency→channel/band, hidden detection, SSID-anomaly flag; the single coercion boundary.
+- **Integration Health binary sensor** — a `problem` sensor, always available, that reports an unreachable Supervisor, a changed payload shape/unit, an unresolved band, or all known networks vanishing at once; two repairs (`interface_missing`, `signal_format_changed`).
+- **Pause Polling switch** with a force-refresh path so every explicit action still fetches while paused.
+- **Individual hidden-network naming** — `Hidden-<last 4 of BSSID>` with collision extension; retires the single `[hidden]` bucket.
+- **`get_networks` response action** — filtered, sorted, self-contained; works when the sensors are unavailable or capped.
+- **New Networks (24h) sensor**, **`wifi_ssid_monitor_new_network` bus event** (baselined, rate-limited), **6 GHz support**, and denylist management via the `target` argument on the list services.
+- **`_unrecorded_attributes`** on the churny map attributes; per-network detail relocated onto Strongest Unknown SSID, capped at 25.
+
+### Fixed
+
+- **Band filter no longer hides every network** — band is derived from `frequency`, and an unknown band passes rather than being dropped.
+- **Signal is read as a percentage** — the strongest-unknown sensor and proximity alert previously compared a 0–100 value against a negative dBm threshold, so the alert was permanently on whenever any unknown network was visible.
+- **Interface auto-detection works on Raspberry Pi** (accepts `type: wireless`).
+- **Diagnostics no longer leak third-party SSIDs** — a structural two-pass sanitizer pseudonymizes SSIDs and BSSIDs, including dictionary keys, while preserving signal/channel/band/counts.
+- **Storage writes coalesced** (`async_delay_save` + flush on unload) instead of three disk writes every scan; a hard entry cap bounds history growth.
+- **`strongest_unknown_ssid` reads `None Detected`** when nothing is in range, instead of a broken-looking `unknown`.
 
 ---
 

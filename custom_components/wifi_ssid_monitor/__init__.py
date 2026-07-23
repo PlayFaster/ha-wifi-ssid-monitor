@@ -1,14 +1,14 @@
 """The WiFi SSID Monitor integration."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from datetime import timedelta
 from typing import Any
 
-import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
@@ -16,175 +16,102 @@ from homeassistant.helpers.typing import ConfigType
 
 from .api import WifiScanAPI
 from .const import (
+    CONF_DENYLIST_SSIDS,
+    CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
+    CONF_PROXIMITY_SIGNAL_THRESHOLD,
     CONF_SCAN_INTERVAL,
+    CONF_SHOW_5GHZ,
+    CONF_SHOW_6GHZ,
+    CONF_SHOW_24GHZ,
     DEFAULT_NAME,
+    DEFAULT_PROXIMITY_SIGNAL_THRESHOLD,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD,
+    LEGACY_CONF_SCAN_BANDS,
+    LIVE_OPTION_KEYS,
+    STORAGE_VERSION,
     VERSION,
+    all_storage_keys,
 )
 from .coordinator import WifiScanCoordinator
+from .parse import dbm_to_pct
+from .services import async_register_services
 
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-PLATFORMS: list[str] = ["sensor", "binary_sensor", "number", "button"]
-
-SERVICE_ADD_KNOWN_SSID = "add_known_ssid"
-SERVICE_SCHEMA_ADD_KNOWN_SSID = vol.Schema(
-    {
-        vol.Required("ssid"): cv.string,
-        vol.Optional("config_entry_id"): cv.string,
-    }
-)
-
-SERVICE_REMOVE_KNOWN_SSID = "remove_known_ssid"
-SERVICE_SCHEMA_REMOVE_KNOWN_SSID = vol.Schema(
-    {
-        vol.Required("ssid"): cv.string,
-        vol.Optional("config_entry_id"): cv.string,
-    }
-)
-
-SERVICE_SCAN_NOW = "scan_now"
-SERVICE_SCHEMA_SCAN_NOW = vol.Schema({vol.Optional("config_entry_id"): cv.string})
-
-SERVICE_CLEAR_LAST_SEEN = "clear_last_seen"
-SERVICE_SCHEMA_CLEAR_LAST_SEEN = vol.Schema(
-    {vol.Optional("config_entry_id"): cv.string}
-)
-
-SERVICE_SET_KNOWN_SSIDS = "set_known_ssids"
-SERVICE_SCHEMA_SET_KNOWN_SSIDS = vol.Schema(
-    {
-        vol.Required("known_ssids"): cv.string,
-        vol.Optional("config_entry_id"): cv.string,
-    }
-)
-
-
-def _resolve_entries(
-    hass: HomeAssistant, target_entry_id: str | None
-) -> list[ConfigEntry]:
-    """Return the target entries, raising HomeAssistantError if ID not found."""
-    entries = hass.config_entries.async_entries(DOMAIN)
-    if target_entry_id:
-        entries = [e for e in entries if e.entry_id == target_entry_id]
-        if not entries:
-            raise HomeAssistantError(
-                f"No {DOMAIN} entry found with ID '{target_entry_id}'",
-                translation_domain=DOMAIN,
-                translation_key="entry_not_found",
-                translation_placeholders={"entry_id": target_entry_id},
-            )
-    return entries
+PLATFORMS: list[str] = ["sensor", "binary_sensor", "number", "button", "switch"]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the WiFi SSID Monitor domain."""
-
-    async def _handle_add_known_ssid(call: ServiceCall) -> None:
-        ssid = call.data["ssid"].strip()
-        for target_entry in _resolve_entries(hass, call.data.get("config_entry_id")):
-            current = target_entry.options.get(CONF_KNOWN_SSIDS, "")
-            existing = [x.strip() for x in current.split(",") if x.strip()]
-            if ssid in existing:
-                continue
-            existing.append(ssid)
-            new_options = dict(target_entry.options)
-            new_options[CONF_KNOWN_SSIDS] = ", ".join(existing)
-            hass.config_entries.async_update_entry(target_entry, options=new_options)
-
-    async def _handle_remove_known_ssid(call: ServiceCall) -> None:
-        ssid = call.data["ssid"].strip()
-        for target_entry in _resolve_entries(hass, call.data.get("config_entry_id")):
-            current = target_entry.options.get(CONF_KNOWN_SSIDS, "")
-            existing = [x.strip() for x in current.split(",") if x.strip()]
-            new_list = [x for x in existing if x != ssid]
-            if new_list == existing:
-                continue  # SSID not present in this entry — silent success
-            new_options = dict(target_entry.options)
-            new_options[CONF_KNOWN_SSIDS] = ", ".join(new_list)
-            hass.config_entries.async_update_entry(target_entry, options=new_options)
-
-    async def _handle_scan_now(call: ServiceCall) -> None:
-        for target_entry in _resolve_entries(hass, call.data.get("config_entry_id")):
-            coordinator: WifiScanCoordinator = target_entry.runtime_data
-            await coordinator.async_refresh()
-
-    async def _handle_clear_last_seen(call: ServiceCall) -> None:
-        for target_entry in _resolve_entries(hass, call.data.get("config_entry_id")):
-            coordinator: WifiScanCoordinator = target_entry.runtime_data
-            await coordinator.async_clear_history()
-
-    async def _handle_set_known_ssids(call: ServiceCall) -> dict[str, Any]:
-        new_ssids_str = call.data["known_ssids"].strip()
-        old_entries: dict[str, str] = {}
-        new_entries: dict[str, str] = {}
-        for target_entry in _resolve_entries(hass, call.data.get("config_entry_id")):
-            old_entries[target_entry.entry_id] = target_entry.options.get(
-                CONF_KNOWN_SSIDS, ""
-            )
-            new_options = dict(target_entry.options)
-            new_options[CONF_KNOWN_SSIDS] = new_ssids_str
-            hass.config_entries.async_update_entry(target_entry, options=new_options)
-            new_entries[target_entry.entry_id] = new_ssids_str
-        return {"new_entries": new_entries, "old_entries": old_entries}
-
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_ADD_KNOWN_SSID,
-        _handle_add_known_ssid,
-        schema=SERVICE_SCHEMA_ADD_KNOWN_SSID,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_REMOVE_KNOWN_SSID,
-        _handle_remove_known_ssid,
-        schema=SERVICE_SCHEMA_REMOVE_KNOWN_SSID,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_SCAN_NOW,
-        _handle_scan_now,
-        schema=SERVICE_SCHEMA_SCAN_NOW,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_CLEAR_LAST_SEEN,
-        _handle_clear_last_seen,
-        schema=SERVICE_SCHEMA_CLEAR_LAST_SEEN,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_SET_KNOWN_SSIDS,
-        _handle_set_known_ssids,
-        schema=SERVICE_SCHEMA_SET_KNOWN_SSIDS,
-        supports_response=SupportsResponse.OPTIONAL,
-    )
-
+    async_register_services(hass)
     return True
+
+
+def _migrate_options(options: dict[str, Any]) -> dict[str, Any]:
+    """Bring an entry's options onto the current schema, once.
+
+    Two settings changed meaning in this release and are migrated here so the
+    control entities and the coordinator only ever see the new keys:
+
+    * The proximity threshold moved from a negative dBm value to a 0-100
+      percentage. A stored negative value is converted; the old key is dropped.
+    * The single ``scan_bands`` enum became three per-band switches.
+    """
+    migrated = dict(options)
+
+    # Proximity threshold: dBm -> percent.
+    if LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD in migrated:
+        legacy = migrated.pop(LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD)
+        if CONF_PROXIMITY_SIGNAL_THRESHOLD not in migrated:
+            try:
+                value = float(legacy)
+            except (TypeError, ValueError):
+                value = None
+            if value is not None and value < 0:
+                migrated[CONF_PROXIMITY_SIGNAL_THRESHOLD] = dbm_to_pct(value)
+            elif value is not None:
+                migrated[CONF_PROXIMITY_SIGNAL_THRESHOLD] = int(max(0, min(100, value)))
+            else:
+                migrated[CONF_PROXIMITY_SIGNAL_THRESHOLD] = (
+                    DEFAULT_PROXIMITY_SIGNAL_THRESHOLD
+                )
+
+    # Band enum -> three switches.
+    if LEGACY_CONF_SCAN_BANDS in migrated:
+        bands = migrated.pop(LEGACY_CONF_SCAN_BANDS)
+        if CONF_SHOW_24GHZ not in migrated:
+            migrated[CONF_SHOW_24GHZ] = bands in ("all", "2.4")
+            migrated[CONF_SHOW_5GHZ] = bands in ("all", "5")
+            # No 6 GHz existed under the old enum; default it on to match "all".
+            migrated[CONF_SHOW_6GHZ] = bands == "all"
+
+    return migrated
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up WiFi SSID Monitor from a config entry."""
-    # Migrate from entry.data to entry.options if needed
-    if entry.data and not entry.options:
+    # Migrate data -> options (legacy installs) then run the option migration.
+    options = dict(entry.options)
+    if entry.data:
         _LOGGER.debug("Migrating configuration from data to options")
-        hass.config_entries.async_update_entry(
-            entry,
-            data={},
-            options={
-                CONF_INTERFACE: entry.data.get(CONF_INTERFACE, "wlan0"),
-                CONF_KNOWN_SSIDS: entry.data.get(CONF_KNOWN_SSIDS, ""),
-                CONF_SCAN_INTERVAL: 600,
-            },
-        )
+        options = {**entry.data, **options}
+        if CONF_SCAN_INTERVAL not in options:
+            options[CONF_SCAN_INTERVAL] = DEFAULT_SCAN_INTERVAL
 
-    # Migrate title if it's the only entry and has the old format
-    entries = hass.config_entries.async_entries(DOMAIN)
+    migrated = _migrate_options(options)
+    if migrated != dict(entry.options) or entry.data:
+        hass.config_entries.async_update_entry(entry, data={}, options=migrated)
+
     interface = entry.options.get(CONF_INTERFACE, "wlan0")
+
+    # Migrate the single-entry legacy title.
+    entries = hass.config_entries.async_entries(DOMAIN)
     if len(entries) == 1 and entry.title == f"{DEFAULT_NAME} ({interface})":
         _LOGGER.debug("Migrating config entry title to %s", DEFAULT_NAME)
         hass.config_entries.async_update_entry(entry, title=DEFAULT_NAME)
@@ -193,15 +120,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api = WifiScanAPI(session, interface)
 
     coordinator = WifiScanCoordinator(hass, entry, api, VERSION)
-
-    # Load persisted history before the first scan
     await coordinator.async_initialize()
-
     entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Trigger the first refresh in the background to avoid blocking HA startup
+    # First fetch runs in the background so setup returns instantly. Platforms
+    # are already forwarded, so entities exist (unavailable) if it fails, and
+    # the Integration Health sensor reports the reason — no probe needed.
     entry.async_create_background_task(
         hass, coordinator.async_refresh(), "wifi-ssid-monitor-setup"
     )
@@ -213,49 +139,77 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry and release resources."""
+    coordinator: WifiScanCoordinator = entry.runtime_data
+    # A reload fires no HOMEASSISTANT_STOP, so a pending coalesced save would be
+    # lost. Flush (not delete) before teardown; removal is a separate event.
+    await coordinator.async_flush_stores()
     return bool(await hass.config_entries.async_unload_platforms(entry, PLATFORMS))
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove all stored data when the config entry is deleted."""
+    """Remove all stored data when the config entry is deleted.
+
+    Keys come from the shared helpers so the delete side cannot drift from the
+    write side in the coordinator.
+    """
     await asyncio.gather(
-        Store(
-            hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.last_seen"
-        ).async_remove(),
-        Store(
-            hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.first_seen"
-        ).async_remove(),
-        Store(
-            hass, version=1, key=f"{DOMAIN}.{entry.entry_id}.visit_counts"
-        ).async_remove(),
+        *(
+            Store(hass, version=STORAGE_VERSION, key=key).async_remove()
+            for key in all_storage_keys(entry.entry_id)
+        )
     )
 
 
+REFRESH_ON_CHANGE_KEYS: frozenset[str] = frozenset(
+    {
+        CONF_KNOWN_SSIDS,
+        CONF_DENYLIST_SSIDS,
+        CONF_INCLUDE_HIDDEN,
+        CONF_PROXIMITY_SIGNAL_THRESHOLD,
+        CONF_SHOW_24GHZ,
+        CONF_SHOW_5GHZ,
+        CONF_SHOW_6GHZ,
+    }
+)
+
+
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload config entry when options are updated."""
+    """Apply option changes, reloading only when a structural option changed.
+
+    Live options — the ones read fresh each poll or applied by a control — are
+    handled without a reload. Everything else reloads, so a future structural
+    option cannot silently default to live and desync the entity set.
+    """
     coordinator: WifiScanCoordinator = entry.runtime_data
 
-    new_interface = entry.options.get(CONF_INTERFACE)
+    changed = _changed_option_keys(coordinator, entry)
 
-    if coordinator.api.interface != new_interface:
-        _LOGGER.debug(
-            "Interface changed from %s to %s, reloading",
-            coordinator.api.interface,
-            new_interface,
-        )
+    if changed - LIVE_OPTION_KEYS:
+        # A structural option changed (interface, name, or anything new).
         await hass.config_entries.async_reload(entry.entry_id)
         return
 
-    # Update coordinator interval if it changed
-    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, 600)
+    # Live-only change: apply in place.
+    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     new_delta = timedelta(seconds=scan_interval)
     if coordinator.update_interval != new_delta:
         _LOGGER.debug("Updating scan interval to %s seconds", scan_interval)
         coordinator.update_interval = new_delta
 
-    # Refresh the coordinator ONLY if known_wifi_ids changed.
-    # Changing ONLY the scan interval will NOT trigger an immediate re-scan.
-    new_known_ssids = entry.options.get(CONF_KNOWN_SSIDS, "")
-    if coordinator.last_known_ssids != new_known_ssids:
-        _LOGGER.debug("Known SSIDs changed, refreshing data")
-        await coordinator.async_refresh()
+    coordinator.last_reload_options = dict(entry.options)
+
+    # Re-scan on any filter, list, or threshold change so the effect is immediate;
+    # bare interval changes and pause-polling toggles do not force a fetch.
+    if changed & REFRESH_ON_CHANGE_KEYS:
+        await coordinator.async_force_refresh()
+
+
+def _changed_option_keys(
+    coordinator: WifiScanCoordinator, entry: ConfigEntry
+) -> set[str]:
+    """Return the option keys whose value changed since the last reload."""
+    previous = coordinator.last_reload_options
+    current = dict(entry.options)
+    coordinator.last_reload_options = current
+    keys = set(previous) | set(current)
+    return {k for k in keys if previous.get(k) != current.get(k)}

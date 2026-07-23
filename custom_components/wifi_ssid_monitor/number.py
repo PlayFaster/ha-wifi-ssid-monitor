@@ -1,30 +1,89 @@
-"""Number platform for WiFi SSID Monitor."""
+"""Number platform for WiFi SSID Monitor.
+
+Both numbers are option-backed and read ``entry.options`` in their property
+rather than caching a value at construction — a cached copy goes stale the
+moment the option is changed from anywhere else.
+"""
+
+from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
+from typing import Final
 
-from homeassistant.components.number import NumberEntity, NumberEntityDescription
+from homeassistant.components.number import (
+    NumberEntity,
+    NumberEntityDescription,
+    NumberMode,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory, UnitOfTime
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_NAME, CONF_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_PROXIMITY_SIGNAL_THRESHOLD,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_PROXIMITY_SIGNAL_THRESHOLD,
+    DEFAULT_SCAN_INTERVAL,
+)
 from .coordinator import WifiScanCoordinator
+from .entity import WifiScanEntity
 
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 0
 
-SCAN_INTERVAL_DESCRIPTION = NumberEntityDescription(
-    key="scan_interval",
-    translation_key="scan_interval",
-    native_min_value=1,
-    native_max_value=180,
-    native_step=1,
-    native_unit_of_measurement=UnitOfTime.MINUTES,
-    entity_category=EntityCategory.CONFIG,
+_DEBOUNCE_SECONDS = 2
+
+
+@dataclass(frozen=True, kw_only=True)
+class WifiNumberEntityDescription(NumberEntityDescription):
+    """Describes an option-backed number."""
+
+    option_key: str
+    option_default: float
+    # Options are stored in seconds but shown in minutes; the scale keeps the
+    # stored unit and the displayed unit from drifting apart.
+    scale: int = 1
+    about: str | None = None
+
+
+NUMBER_TYPES: Final[tuple[WifiNumberEntityDescription, ...]] = (
+    WifiNumberEntityDescription(
+        key="scan_interval",
+        translation_key="scan_interval",
+        native_min_value=1,
+        native_max_value=180,
+        native_step=1,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
+        option_key=CONF_SCAN_INTERVAL,
+        option_default=DEFAULT_SCAN_INTERVAL,
+        scale=60,
+        about=(
+            "How often a scheduled scan runs. This is the only place the scan "
+            "interval is set — it is no longer in the Configure dialog."
+        ),
+    ),
+    WifiNumberEntityDescription(
+        key="proximity_signal_threshold",
+        translation_key="proximity_signal_threshold",
+        native_min_value=0,
+        native_max_value=100,
+        native_step=1,
+        native_unit_of_measurement=PERCENTAGE,
+        mode=NumberMode.SLIDER,
+        entity_category=EntityCategory.CONFIG,
+        option_key=CONF_PROXIMITY_SIGNAL_THRESHOLD,
+        option_default=DEFAULT_PROXIMITY_SIGNAL_THRESHOLD,
+        about=(
+            "Signal quality at which the Proximity Alert fires, 0-100%. Higher "
+            "means the network must be closer. Raise it if the alert is noisy."
+        ),
+    ),
 )
 
 
@@ -33,94 +92,81 @@ async def async_setup_entry(
 ) -> None:
     """Set up the number platform."""
     coordinator: WifiScanCoordinator = entry.runtime_data
-
-    # Read initial value from entry options (in minutes)
-    # Default to 10 if not set (600 seconds).
-    # Use round() to handle any non-minute-aligned intervals gracefully
-    raw_val = entry.options.get(CONF_SCAN_INTERVAL, 600)
-    initial_value = max(1, round(raw_val / 60))
-
     async_add_entities(
-        [
-            WifiScanIntervalNumber(
-                coordinator, entry, SCAN_INTERVAL_DESCRIPTION, initial_value
-            )
-        ]
+        WifiOptionNumber(coordinator, entry, description)
+        for description in NUMBER_TYPES
     )
 
 
-class WifiScanIntervalNumber(NumberEntity):
-    """Number entity to control the scan interval in minutes."""
+class WifiOptionNumber(WifiScanEntity, NumberEntity):
+    """A number whose value is a config-entry option."""
 
-    _attr_has_entity_name = True
-    _attr_should_poll = False
+    entity_description: WifiNumberEntityDescription
 
     def __init__(
         self,
         coordinator: WifiScanCoordinator,
         entry: ConfigEntry,
-        description: NumberEntityDescription,
-        initial_value: float,
+        description: WifiNumberEntityDescription,
     ) -> None:
         """Initialize the number entity."""
-        self._coordinator = coordinator
-        self._entry = entry
+        super().__init__(coordinator, entry)
         self.entity_description = description
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
-        self._attr_native_value = initial_value
-        self._refresh_task: asyncio.Task[None] | None = None
+        self._pending: asyncio.Task[None] | None = None
+        self._optimistic: float | None = None
+
+    @property
+    def available(self) -> bool:
+        """Remain available while the coordinator is down — this is a control."""
+        return True
+
+    @property
+    def native_value(self) -> float:
+        """Return the stored option, converted to the displayed unit."""
+        if self._optimistic is not None:
+            return self._optimistic
+        description = self.entity_description
+        stored = self._entry.options.get(
+            description.option_key, description.option_default
+        )
+        if description.scale == 1:
+            return float(stored)
+        return float(max(1, round(stored / description.scale)))
 
     async def async_set_native_value(self, value: float) -> None:
-        """Update the scan interval."""
-        self._attr_native_value = value
+        """Update the option behind this number, debounced."""
+        # Show the new value immediately; the debounce only delays the write,
+        # and a slider that lags the user's finger feels broken.
+        self._optimistic = value
         self.async_write_ha_state()
 
-        if self._refresh_task:
-            self._refresh_task.cancel()
-
-        self._refresh_task = self.hass.async_create_task(
-            self._async_debounced_apply(value)
-        )
+        if self._pending:
+            self._pending.cancel()
+        self._pending = self.hass.async_create_task(self._async_debounced_apply(value))
 
     async def async_will_remove_from_hass(self) -> None:
-        """Cancel any pending debounced update tasks on removal."""
-        if self._refresh_task:
-            self._refresh_task.cancel()
+        """Cancel any pending debounced update on removal."""
+        if self._pending:
+            self._pending.cancel()
 
     async def _async_debounced_apply(self, value: float) -> None:
-        """Apply the new interval with a debounce."""
+        """Persist the option after the debounce window."""
+        description = self.entity_description
         try:
-            await asyncio.sleep(2)
-            val_minutes = int(value)
-            val_seconds = val_minutes * 60
+            await asyncio.sleep(_DEBOUNCE_SECONDS)
+            stored = int(value) * description.scale
 
-            _LOGGER.debug("Applying new scan interval: %s minutes", val_minutes)
-
-            # Persist to options. This will trigger the update listener in __init__.py
-            new_options = dict(self._entry.options)
-            new_options[CONF_SCAN_INTERVAL] = val_seconds
+            new_options = {**self._entry.options, description.option_key: stored}
             self.hass.config_entries.async_update_entry(
                 self._entry, options=new_options
             )
-
-        except asyncio.CancelledError:
-            _LOGGER.debug("Scan interval change cancelled (debounced)")
-        except Exception:
-            _LOGGER.exception("Failed to apply scan interval change")
-            # Revert the UI value on failure (use round to match initial value logic)
-            self._attr_native_value = max(
-                1, round(self._entry.options.get(CONF_SCAN_INTERVAL, 600) / 60)
-            )
+            self._optimistic = None
             self.async_write_ha_state()
 
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device information."""
-        name = self._entry.options.get(CONF_NAME, self._entry.title)
-        model = f"v{self._coordinator.version} ({self._coordinator.api.interface})"
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": name,
-            "manufacturer": "PlayFaster",
-            "model": model,
-        }
+        except asyncio.CancelledError:
+            _LOGGER.debug("%s change superseded (debounced)", description.key)
+        except Exception:
+            _LOGGER.exception("Failed to apply %s change", description.key)
+            self._optimistic = None
+            self.async_write_ha_state()

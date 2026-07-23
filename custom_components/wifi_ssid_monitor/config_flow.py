@@ -1,5 +1,7 @@
 """Config flow for WiFi SSID Monitor integration."""
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Mapping
 from typing import Any
@@ -14,44 +16,33 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import WifiScanAPI, WifiScanError
 from .const import (
     CONF_DENYLIST_SSIDS,
-    CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
     CONF_LAST_SEEN_TTL_DAYS,
     CONF_NAME,
-    CONF_PROXIMITY_RSSI_THRESHOLD,
-    CONF_SCAN_BANDS,
     CONF_SCAN_INTERVAL,
-    DEFAULT_INCLUDE_HIDDEN,
     DEFAULT_LAST_SEEN_TTL_DAYS,
     DEFAULT_NAME,
-    DEFAULT_PROXIMITY_RSSI_THRESHOLD,
-    DEFAULT_SCAN_BANDS,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def _validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> None:
-    """Validate user input."""
-    session = async_get_clientsession(hass)
-    api = WifiScanAPI(session, user_input[CONF_INTERFACE])
+async def _validate_input(hass: HomeAssistant, interface: str) -> None:
+    """Validate the API connection for an interface."""
+    api = WifiScanAPI(async_get_clientsession(hass), interface)
     await api.validate()
 
 
 async def _get_wifi_interfaces(hass: HomeAssistant) -> list[str]:
-    """Fetch available WiFi interfaces.
-
-    Returns a list of interface names, or empty list if fetch fails.
-    """
+    """Fetch available WiFi interfaces, or an empty list if the fetch fails."""
     try:
-        session = async_get_clientsession(hass)
-        # Use a dummy interface name since get_interfaces doesn't depend on it
-        api = WifiScanAPI(session, "")
+        api = WifiScanAPI(async_get_clientsession(hass), "")
         return await api.get_interfaces()
-    except WifiScanError as e:
-        _LOGGER.debug("Could not fetch available WiFi interfaces: %s", e)
+    except WifiScanError as err:
+        _LOGGER.debug("Could not fetch available WiFi interfaces: %s", err)
         return []
 
 
@@ -61,10 +52,13 @@ def _build_settings_schema(
     current_interface: str,
     name_fallback: str,
 ) -> vol.Schema:
-    """Build the full settings schema shared by the reconfigure and options flows.
+    """Build the reconfigure/options schema.
 
-    Both the ⋮ → Reconfigure step and the gear → Configure (options) step render
-    the same fields from this single definition so the two paths never drift.
+    The frequently-tuned settings — scan interval, band filter, hidden
+    networks, proximity threshold — are Home Assistant entities now, not fields
+    here, so they are deliberately absent. This flow keeps identity (name,
+    interface) and the two things that are genuinely lists (known / denylist)
+    plus the history retention window.
     """
     return vol.Schema(
         {
@@ -74,23 +68,6 @@ def _build_settings_schema(
             vol.Optional(
                 CONF_KNOWN_SSIDS, default=options.get(CONF_KNOWN_SSIDS, "")
             ): cv.string,
-            vol.Required(
-                CONF_SCAN_INTERVAL, default=options.get(CONF_SCAN_INTERVAL, 600)
-            ): vol.All(vol.Coerce(int), vol.Range(min=60)),
-            vol.Optional(
-                CONF_INCLUDE_HIDDEN,
-                default=options.get(CONF_INCLUDE_HIDDEN, DEFAULT_INCLUDE_HIDDEN),
-            ): cv.boolean,
-            vol.Required(
-                CONF_PROXIMITY_RSSI_THRESHOLD,
-                default=options.get(
-                    CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
-                ),
-            ): vol.All(vol.Coerce(int), vol.Range(min=-100, max=-30)),
-            vol.Required(
-                CONF_SCAN_BANDS,
-                default=options.get(CONF_SCAN_BANDS, DEFAULT_SCAN_BANDS),
-            ): vol.In(["all", "2.4", "5"]),
             vol.Optional(
                 CONF_DENYLIST_SSIDS,
                 default=options.get(CONF_DENYLIST_SSIDS, ""),
@@ -117,27 +94,26 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle the initial step."""
-        errors = {}
+        errors: dict[str, str] = {}
         interfaces = await _get_wifi_interfaces(self.hass)
 
         if user_input is not None:
             try:
-                await _validate_input(self.hass, user_input)
+                await _validate_input(self.hass, user_input[CONF_INTERFACE])
                 await self.async_set_unique_id(
                     f"wifi_ssid_monitor_{user_input[CONF_INTERFACE]}"
                 )
                 self._abort_if_unique_id_configured()
 
                 name = user_input.get(CONF_NAME, DEFAULT_NAME)
-
                 return self.async_create_entry(
                     title=name,
                     data={},
                     options={
                         CONF_NAME: name,
                         CONF_INTERFACE: user_input[CONF_INTERFACE],
-                        CONF_KNOWN_SSIDS: user_input[CONF_KNOWN_SSIDS],
-                        CONF_SCAN_INTERVAL: 600,
+                        CONF_KNOWN_SSIDS: user_input.get(CONF_KNOWN_SSIDS, ""),
+                        CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
                     },
                 )
             except WifiScanError:
@@ -148,11 +124,10 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected error")
                 errors["base"] = "unknown"
 
-        data_schema = {
+        data_schema: dict[Any, Any] = {
             vol.Required(CONF_NAME, default=DEFAULT_NAME): cv.string,
             vol.Optional(CONF_KNOWN_SSIDS, default=""): cv.string,
         }
-
         if interfaces:
             data_schema[vol.Required(CONF_INTERFACE, default=interfaces[0])] = vol.In(
                 interfaces
@@ -161,13 +136,11 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema[vol.Required(CONF_INTERFACE, default="wlan0")] = cv.string
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(data_schema),
-            errors=errors,
+            step_id="user", data_schema=vol.Schema(data_schema), errors=errors
         )
 
     async def async_step_reauth(
-        self, entry_data: dict[str, Any]
+        self, entry_data: Mapping[str, Any]
     ) -> config_entries.ConfigFlowResult:
         """Handle reauthentication."""
         return await self.async_step_reauth_confirm()
@@ -176,14 +149,13 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Confirm reauthentication."""
-        errors = {}
+        errors: dict[str, str] = {}
         if user_input is not None:
             try:
-                # Use current interface for validation
                 interface = self._get_reauth_entry().options.get(
                     CONF_INTERFACE, "wlan0"
                 )
-                await _validate_input(self.hass, {CONF_INTERFACE: interface})
+                await _validate_input(self.hass, interface)
                 return self.async_update_reload_and_abort(self._get_reauth_entry())
             except WifiScanError:
                 errors["base"] = "cannot_connect"
@@ -197,22 +169,20 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle reconfiguration."""
-        errors = {}
+        errors: dict[str, str] = {}
         entry = self._get_reconfigure_entry()
         interfaces = await _get_wifi_interfaces(self.hass)
 
         if user_input is not None:
             try:
-                await _validate_input(self.hass, user_input)
+                await _validate_input(self.hass, user_input[CONF_INTERFACE])
 
-                # Check if interface changed and if it's already used by another entry
                 new_interface = user_input[CONF_INTERFACE]
                 if new_interface != entry.options.get(CONF_INTERFACE):
                     await self.async_set_unique_id(f"wifi_ssid_monitor_{new_interface}")
                     self._abort_if_unique_id_configured()
 
                 name = user_input.get(CONF_NAME, entry.title)
-
                 return self.async_update_reload_and_abort(
                     entry,
                     title=name,
@@ -227,17 +197,14 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "unknown"
 
         current_interface = entry.options.get(CONF_INTERFACE, "wlan0")
-        available_interfaces = list(interfaces) if interfaces else []
-        if current_interface not in available_interfaces:
-            available_interfaces.append(current_interface)
+        available = list(interfaces) if interfaces else []
+        if current_interface not in available:
+            available.append(current_interface)
 
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=_build_settings_schema(
-                entry.options,
-                available_interfaces,
-                current_interface,
-                entry.title,
+                entry.options, available, current_interface, entry.title
             ),
             errors=errors,
         )
@@ -246,7 +213,7 @@ class WifiScanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> "WifiScanOptionsFlowHandler":
+    ) -> WifiScanOptionsFlowHandler:
         """Get the options flow for this handler."""
         return WifiScanOptionsFlowHandler(config_entry)
 
@@ -262,18 +229,16 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Manage the options."""
-        errors = {}
+        errors: dict[str, str] = {}
         interfaces = await _get_wifi_interfaces(self.hass)
 
         if user_input is not None:
             try:
-                # Only validate if interface changed
                 if user_input[CONF_INTERFACE] != self._config_entry.options.get(
                     CONF_INTERFACE
                 ):
-                    await _validate_input(self.hass, user_input)
+                    await _validate_input(self.hass, user_input[CONF_INTERFACE])
 
-                # Update entry title if name changed
                 if user_input.get(CONF_NAME) != self._config_entry.options.get(
                     CONF_NAME
                 ):
@@ -281,29 +246,24 @@ class WifiScanOptionsFlowHandler(config_entries.OptionsFlow):
                         self._config_entry, title=user_input[CONF_NAME]
                     )
 
-                return self.async_create_entry(title="", data=user_input)
+                return self.async_create_entry(
+                    title="", data={**self._config_entry.options, **user_input}
+                )
             except WifiScanError:
                 errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected error validating options")
                 errors["base"] = "unknown"
 
-        current_interface = self._config_entry.options.get(
-            CONF_INTERFACE, self._config_entry.data.get(CONF_INTERFACE, "wlan0")
-        )
-
-        # Ensure current interface is in the list even if it's not detected as wifi
-        available_interfaces = list(interfaces) if interfaces else []
-        if current_interface not in available_interfaces:
-            available_interfaces.append(current_interface)
+        current_interface = self._config_entry.options.get(CONF_INTERFACE, "wlan0")
+        available = list(interfaces) if interfaces else []
+        if current_interface not in available:
+            available.append(current_interface)
 
         return self.async_show_form(
             step_id="init",
             data_schema=_build_settings_schema(
-                self._config_entry.options,
-                available_interfaces,
-                current_interface,
-                DEFAULT_NAME,
+                self._config_entry.options, available, current_interface, DEFAULT_NAME
             ),
             errors=errors,
         )

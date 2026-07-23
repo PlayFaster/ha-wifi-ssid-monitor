@@ -21,7 +21,7 @@ We use a **Declarative Validation** approach. Limits are defined directly within
 | :-- | :-- | :-- | :-- | :-- |
 | **Network Counters** | Total SSID Count | 0 | 256 | Set to `Unavailable` |
 |  | Unknown SSID Count | 0 | 256 | Set to `Unavailable` |
-| **Signal Strength** | Strongest Unknown RSSI | −100 dBm | 0 dBm | Set to `Unavailable` |
+| **Signal Strength** | Strongest Unknown Signal | 0 % | 100 % | Clamped in parse boundary (0–100%) |
 | **Diagnostics** | Scan Interval | 1 | 180 | Enforced by UI (1-180 min) |
 
 ---
@@ -67,3 +67,4 @@ While the core counters are now protected, future updates may include:
 - **v1.0.1** (2026-05-05) - Created.
 - **v1.0.2** (2026-06-11) - Added `Strongest Unknown RSSI` guard band entry (−100 to 0 dBm). Removed stale "Future Extensions" note — signal strength sensor is now implemented (v1.6.0-dev4).
 - **v1.0.3** (2026-06-12) - Updated network counter names and keys to `Total SSID Count` (`total_ssid_count`) and `Unknown SSID Count` (`unknown_ssid_count`) to match HA runtime.
+- **v1.0.4** (2026-07-23) - Updated signal metric to `Strongest Unknown Signal` (0–100%) clamped via `parse.py` boundary.

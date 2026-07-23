@@ -7,11 +7,20 @@
       "unknown_count": {
         "default": "mdi:wifi-off"
       },
+      "new_24h": {
+        "default": "mdi:wifi-plus"
+      },
       "interface": {
         "default": "mdi:lan"
       },
       "last_updated": {
         "default": "mdi:update"
+      },
+      "strongest_unknown_ssid": {
+        "default": "mdi:wifi-alert"
+      },
+      "strongest_unknown_signal": {
+        "default": "mdi:wifi-strength-3-alert"
       }
     },
     "binary_sensor": {
@@ -28,11 +37,38 @@
           "on": "mdi:wifi-strength-4-alert",
           "off": "mdi:wifi-strength-outline"
         }
+      },
+      "integration_health": {
+        "default": "mdi:heart-pulse",
+        "state": {
+          "on": "mdi:heart-broken",
+          "off": "mdi:heart-pulse"
+        }
       }
     },
     "number": {
       "scan_interval": {
         "default": "mdi:timer-cog-outline"
+      },
+      "proximity_signal_threshold": {
+        "default": "mdi:signal-distance-variant"
+      }
+    },
+    "switch": {
+      "stop_polling": {
+        "default": "mdi:pause-octagon"
+      },
+      "include_hidden": {
+        "default": "mdi:wifi-lock"
+      },
+      "show_24ghz": {
+        "default": "mdi:wifi-arrow-up-down"
+      },
+      "show_5ghz": {
+        "default": "mdi:wifi-arrow-up-down"
+      },
+      "show_6ghz": {
+        "default": "mdi:wifi-arrow-up-down"
       }
     },
     "button": {

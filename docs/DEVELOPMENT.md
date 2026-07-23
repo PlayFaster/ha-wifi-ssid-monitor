@@ -10,13 +10,16 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 
 ### Core Files (`custom_components/wifi_ssid_monitor/`)
 
-- **`api.py`**: Async wrapper for the Supervisor Network API using `aiohttp`.
-- **`coordinator.py`**: `DataUpdateCoordinator` implementation. Centralizes polling logic, handles deduplication, and manages comparison against known SSIDs.
-- **`__init__.py`**: Manages the integration lifecycle (setup/unload).
-- **`sensor.py`**: Defines sensors for total count and unknown count.
-- **`binary_sensor.py`**: Implements the "New Network Alert" logic.
-- **`number.py`**: Provides UI control over the scan interval with persistent storage.
-- **`config_flow.py`**: Manages initial setup and reconfiguration via `OptionsFlow`.
+- **`api.py`**: Async wrapper for the Supervisor Network API using `aiohttp`. Sets `last_response_had_ap_key` for the health checks and accepts `type: wifi|wireless` in interface discovery.
+- **`parse.py`**: The **payload normalization layer** — the single boundary that turns the raw Supervisor access-point dict into the internal shape (`normalize_access_point`), plus `frequency_to_channel`, `dbm_to_pct`, `normalize_essid`, `hidden_label`, `history_key`. Every downstream reader uses this shape; nothing touches raw keys.
+- **`health.py`**: The self-diagnosis check catalogue — small pure functions over a `ScanFacts` snapshot, run by `run_checks`. A future contract check is a one-line addition to `CHECKS`.
+- **`coordinator.py`**: `DataUpdateCoordinator`. Fetch → normalize → filter → history → health. Holds `health_snapshot` **outside** `self.data`, the force-refresh flag, coalesced store saves, and the composite history key.
+- **`entity.py`**: Shared `WifiScanEntity` base + `WifiAboutEntity` mixin + `build_device_info`. All platforms delegate `device_info` here — previously copy-pasted five times.
+- **`services.py`**: Domain-global services (`add_ssid`/`remove_ssid`/`set_ssids` with `target`, `scan_now`, `clear_last_seen`, `get_networks`).
+- **`__init__.py`**: Lifecycle, the one-time option migration (dBm→% threshold, `scan_bands`→switches), the `_LIVE_OPTION_KEYS` allow-list reload, flush-on-unload, delete-on-remove.
+- **`sensor.py` / `binary_sensor.py` / `number.py` / `switch.py` / `button.py`**: Declarative platforms. Band/hidden/pause/threshold/interval are option-backed control entities.
+- **`config_flow.py`**: Setup and reconfigure. Keeps identity + the two text lists + TTL; the tuned settings are entities now.
+- **`diagnostics.py`**: Two-pass structural sanitizer — learns SSIDs/BSSIDs from the payload, pseudonymizes them everywhere including dict keys, preserves the diagnostic substance.
 
 ## 3. Success Patterns (v1.5.0-dev1 additions in this section)
 
@@ -54,6 +57,15 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **`SupportsResponse.OPTIONAL` — Service Response Data (v1.6.0-dev4)**: Services that optionally return data import `SupportsResponse` from `homeassistant.core` and pass `supports_response=SupportsResponse.OPTIONAL` to `hass.services.async_register`. The handler must return `dict[str, Any]` (not `None`). The `services.yaml` entry does **not** need a `response:` key — the HASSFest schema version used by this project does not support it, and the Python declaration is sufficient for runtime behavior.
 - **`_resolve_entries()` Helper — Multi-Entry Service Handlers (v1.6.0-dev4)**: Domain services that accept an optional `config_entry_id` share the same resolution logic: if provided, find the matching entry and raise `HomeAssistantError(translation_key="entry_not_found")` if absent; if omitted, return all entries. Extract this into a `_resolve_entries(hass, target_entry_id)` helper in `__init__.py` to avoid duplication across all service handlers.
 
+## 3a. Architecture Decisions (v1.7.0)
+
+- **Payload normalization as the seam.** The three v1.6 bugs (band always null, signal treated as dBm, Pi interface type) shared one root: code read raw Supervisor keys that had changed. `parse.py` is now the only place that touches raw keys. Its cardinal rule: an unresolved field becomes `None`, and **every downstream filter treats `None` as pass, never drop** — treating "unknown band" as a failed match is exactly what hid every network. `_safe_int`/`_safe_float` coercion (dev_standards §6) lives here rather than in a separate helper.
+- **Signal is canonically 0–100%.** The Supervisor sends a percentage; a negative value is converted via `dbm_to_pct` and the unit actually seen is recorded (`signal_unit`) so a future flip is a health finding, not silent corruption. The old `strongest_unknown_rssi` sensor was **removed, not renamed** — reusing the key with a new unit raises HA's statistics unit-change repair on every install, so a fresh `strongest_unknown_signal` key was used and the old entity left to be deleted by the user (its LTS survives).
+- **Composite history key** (`parse.history_key`): named networks key on the SSID, cloaked ones on `hidden:<bssid>`. This preserves pre-existing history, keeps dual-band APs single, and makes the new-network event immune to a phone hotspot's rotating MAC (a named SSID never puts the MAC in the key). MAC randomization is a client-probe behavior and never appears in an AP scan, so it is not a flood source — the event rate limit exists only for ordinary hotspot churn.
+- **Health snapshot lives outside `coordinator.data`** (dev_standards §19). `data` is `None` before first success and frozen at last-good values during an outage, so a verdict held there cannot describe the failure that stopped it updating. It is written on both the success and failure paths, and the sensor overrides `available` to `True` unconditionally so it can report the outage that takes every other entity down. Total-outage flags immediately at cold start, at the Nth strike at runtime, cleared same-cycle on success.
+- **§3 identity-ladder exception.** Neither rung of the dev_standards §3 ladder is available: the Supervisor exposes no MAC for the scanning host and there is no IP (it monitors the HA machine itself). The device stays keyed on `(DOMAIN, entry.entry_id)` — deliberately unchanged, since churning it would orphan every existing user's entities. Recorded here so a future review does not re-raise it.
+- **Diagnostics: structural, not key-name (dev_standards §20).** The payload is keyed by SSID, and neighbor SSIDs are third-party data `async_redact_data` cannot reach (it rewrites values, not keys). The sanitizer learns identifiers from the payload, allocates stable tokens, and rewrites SSIDs/BSSIDs everywhere including dict keys, while preserving signal/channel/band/counts. `"None Detected"` and `Hidden-<last4>` pass through as themselves.
+
 ## 4. Technical Pitfalls & Fixes
 
 - **Line-Ending Sensitivity**: Alpine Linux shell scripts in the devcontainer are highly sensitive to Windows-style carriage returns (`\r\n`). The `setup.sh` script has been hardened to avoid `if/fi` syntax (which breaks on corrupted line endings) and uses a series of `&&` commands with clean path resolution via `tr -d '\r'`.
@@ -90,3 +102,4 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **[2026-06-08]** — Added VS16 compound emoji in README headings pitfall entry.
 - **v1.0.7** (2026-06-11) - Added persistent Store lifecycle pattern, `BaseException` narrowing, `SupportsResponse.OPTIONAL`, and `_resolve_entries()` helper patterns (v1.6.0-dev1/dev4).
 - **v1.0.8** (2026-07-02) - Added explicit coordinator `config_entry=entry` pattern (honours the "Enable polling for changes" system option via `pref_disable_polling`; required as HA removes implicit context detection in 2026.8). Minimum HA raised to 2024.8.0 (v1.6.1-dev8).
+- **[2026-07-22]** — **v1.7.0 overhaul.** Payload normalization layer (`parse.py`) fixing the three live-verified bugs (frequency→band, percent signal, `wireless` interface type); `strongest_unknown_signal` sensor replacing the removed dBm `rssi` sensor; BSSID-aware composite history keying + `Hidden-<last4>` naming + `ssid_anomaly`; Integration Health self-diagnosis (`health.py` catalogue + snapshot outside `data` + always-available sensor + `interface_missing`/`signal_format_changed` repairs); band/hidden/pause/threshold/interval moved to control entities with a force-refresh flag; `get_networks` action, New Networks (24h) sensor, `new_network` bus event; coalesced store writes + flush-on-unload + shared key helpers; structural diagnostics sanitizer. Plan and decision log: `.notes/issues/changes_20260722/wifi_updates_20260722.md`. Breaking changes documented in the README and CHANGELOG.

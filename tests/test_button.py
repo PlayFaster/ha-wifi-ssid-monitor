@@ -20,7 +20,7 @@ async def test_button_scan_now(
     """Test button press triggers a scan."""
     button = WifiScanButton(mock_coordinator, mock_config_entry, SCAN_NOW_DESCRIPTION)
 
-    with patch.object(mock_coordinator, "async_refresh", return_value=True):
+    with patch.object(mock_coordinator, "async_force_refresh", return_value=None):
         mock_coordinator.last_update_success = True
         await button.async_press()
         # No exception means success
@@ -39,7 +39,7 @@ async def test_button_scan_failure_raises_error(
     """Test button press raises HomeAssistantError when scan fails."""
     button = WifiScanButton(mock_coordinator, mock_config_entry, SCAN_NOW_DESCRIPTION)
 
-    with patch.object(mock_coordinator, "async_refresh", return_value=False):
+    with patch.object(mock_coordinator, "async_force_refresh", return_value=None):
         mock_coordinator.last_update_success = False
         with pytest.raises(HomeAssistantError, match="WiFi scan failed"):
             await button.async_press()

@@ -6,7 +6,7 @@
     },
     "codespell": {
       "pins": ["pre-commit", "dockerfile", "requirements_test"],
-      "version": "2.4.2"
+      "version": "2.4.3"
     },
     "mypy": {
       "pins": ["dockerfile"],

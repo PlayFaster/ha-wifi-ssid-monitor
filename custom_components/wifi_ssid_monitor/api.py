@@ -24,6 +24,12 @@ class WifiScanAPI:
         self.session = session
         self.interface = interface
         self.token = os.environ.get("SUPERVISOR_TOKEN")
+        # Set on every successful fetch. False means the response parsed but
+        # carried no ``accesspoints`` key at all — a contract change, which is
+        # a different fact from "the key was there and the list was empty".
+        # The health checks read this; nothing else should.
+        self.last_response_had_ap_key: bool = True
+        self.last_interface_present: bool | None = True
 
     async def validate(self) -> bool:
         """Validate the API connection."""
@@ -52,12 +58,15 @@ class WifiScanAPI:
             ) as response:
                 status = response.status
                 if status == 200:
+                    self.last_interface_present = True
                     try:
                         res_data = await response.json()
                     except (aiohttp.ContentTypeError, ValueError) as e:
                         _LOGGER.error("Invalid JSON response from API: %s", e)
                         raise WifiScanError(f"Invalid API response: {e}") from e
                 else:
+                    if status in (400, 404):
+                        self.last_interface_present = False
                     text = await response.text()
                     _LOGGER.error(
                         "Failed to fetch access points: %s - %s", status, text
@@ -76,7 +85,22 @@ class WifiScanAPI:
             raise WifiScanError(f"API returned status {status}")
 
         data_block = res_data.get("data") or {}
-        access_points: list[dict[str, Any]] = data_block.get("accesspoints", [])
+        raw_aps = data_block.get("accesspoints")
+        if not isinstance(raw_aps, list):
+            self.last_response_had_ap_key = False
+            _LOGGER.debug(
+                "Supervisor response carried no 'accesspoints' list (keys: %s)",
+                sorted(data_block)
+                if isinstance(data_block, dict)
+                else type(data_block),
+            )
+            return []
+        self.last_response_had_ap_key = True
+        access_points: list[dict[str, Any]] = raw_aps
+        # One-off shape capture for support: the Supervisor's AccessPoint model
+        # is not versioned, so the raw key set is the only evidence of drift.
+        if access_points:
+            _LOGGER.debug("raw AP sample: %s", access_points[0])
         return access_points
 
     async def get_interfaces(self) -> list[str]:
@@ -122,9 +146,12 @@ class WifiScanAPI:
         data_block = res_data.get("data") or {}
         interfaces = data_block.get("interfaces", [])
 
-        # Filter for wireless interfaces
+        # Filter for wireless interfaces. The Supervisor reports "wifi" on
+        # generic-x86-64 but "wireless" on a Raspberry Pi 4 — matching only the
+        # former made auto-detection return nothing on Pi hardware, forcing
+        # every Pi user to type the interface name manually.
         return [
             iface.get("interface", "")
             for iface in interfaces
-            if iface.get("type") == "wifi" and iface.get("interface")
+            if iface.get("type") in ("wifi", "wireless") and iface.get("interface")
         ]

@@ -1,5 +1,7 @@
 """Sensor platform for WiFi SSID Monitor."""
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -12,14 +14,13 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
+from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_NAME, DOMAIN
+from .const import NETWORK_ATTR_MAX, NO_NETWORKS_SENTINEL
 from .coordinator import WifiScanCoordinator
+from .entity import WifiScanEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class WifiSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[Any], Any]
     min_limit: float | None = None
     max_limit: float | None = None
+    about: str | None = None
 
 
 SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
@@ -43,6 +45,10 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
         min_limit=0,
         max_limit=256,
         value_fn=lambda data: data.get("count"),
+        about=(
+            "Every network in range after your band and hidden-network filters. "
+            "Unknown SSID Count is the subset not matching your known list."
+        ),
     ),
     WifiSensorEntityDescription(
         key="unknown_count",
@@ -51,6 +57,22 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
         min_limit=0,
         max_limit=256,
         value_fn=lambda data: data.get("unknown_count"),
+        about=(
+            "Networks in range that do not match your Known SSIDs list, plus any "
+            "on the denylist. The per-network detail is on Strongest Unknown SSID."
+        ),
+    ),
+    WifiSensorEntityDescription(
+        key="new_24h",
+        translation_key="new_24h",
+        state_class=SensorStateClass.MEASUREMENT,
+        min_limit=0,
+        max_limit=4096,
+        value_fn=lambda data: data.get("new_24h"),
+        about=(
+            "Networks first seen by this integration in the last 24 hours — not "
+            "by your hardware. Resets if you clear the history."
+        ),
     ),
     WifiSensorEntityDescription(
         key="interface",
@@ -69,16 +91,23 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
         key="strongest_unknown_ssid",
         translation_key="strongest_unknown_ssid",
         value_fn=lambda data: data.get("strongest_unknown_ssid"),
+        about=(
+            "The closest unknown network by signal. Carries the per-network "
+            "detail attributes. Reads 'None Detected' when nothing is in range."
+        ),
     ),
     WifiSensorEntityDescription(
-        key="strongest_unknown_rssi",
-        translation_key="strongest_unknown_rssi",
-        device_class=SensorDeviceClass.SIGNAL_STRENGTH,
-        native_unit_of_measurement="dBm",
+        key="strongest_unknown_signal",
+        translation_key="strongest_unknown_signal",
+        native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        min_limit=-100,
-        max_limit=0,
-        value_fn=lambda data: data.get("strongest_unknown_rssi"),
+        min_limit=0,
+        max_limit=100,
+        value_fn=lambda data: data.get("strongest_unknown_signal"),
+        about=(
+            "Signal quality of the closest unknown network, 0-100%. Higher is "
+            "closer. Replaces the old dBm 'RSSI' sensor."
+        ),
     ),
 )
 
@@ -90,42 +119,57 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor platform."""
     coordinator: WifiScanCoordinator = entry.runtime_data
-    entities = [
+    async_add_entities(
         WifiScanSensor(coordinator, entry, description) for description in SENSOR_TYPES
-    ]
-    async_add_entities(entities)
+    )
 
 
-class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
+class WifiScanSensor(WifiScanEntity, SensorEntity):
     """Implementation of WiFi SSID Monitor sensors."""
 
-    _attr_has_entity_name = True
     entity_description: WifiSensorEntityDescription
+
+    # These are lists and maps that change on every scan. The sensor states are
+    # still recorded and keep full history; only the attributes are dropped,
+    # which keeps the recorder lean and the state well clear of HA's 16 KB
+    # per-state limit in a dense WiFi environment.
+    _unrecorded_attributes = WifiScanEntity._unrecorded_attributes | frozenset(
+        {
+            "networks",
+            "networks_truncated",
+            "ssids",
+            "signal_strengths",
+            "bands",
+            "channels",
+            "bssids",
+            "last_seen",
+            "first_seen",
+            "visit_counts",
+        }
+    )
 
     def __init__(
         self,
         coordinator: WifiScanCoordinator,
         entry: ConfigEntry,
         description: WifiSensorEntityDescription,
-    ):
+    ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator)
+        super().__init__(coordinator, entry)
         self.entity_description = description
-        self._entry = entry
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
 
     @property
     def native_value(self) -> Any | None:
         """Return the value of the sensor."""
-        if not self.coordinator.data:
-            return None
-
         description = self.entity_description
         key = description.key
 
-        # Special case: Last Updated
         if key == "last_updated":
             return self.coordinator.last_update_success_time
+
+        if not self.coordinator.data:
+            return None
 
         try:
             value = description.value_fn(self.coordinator.data)
@@ -133,9 +177,14 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
             return None
 
         if value is None:
+            # "Nothing in range" is a meaningful, reassuring answer for the SSID
+            # sensor, and a bare `unknown` there reads as a broken sensor. The
+            # numeric partner deliberately stays `unknown` — inventing a zero
+            # would imply a measurement that was never taken.
+            if key == "strongest_unknown_ssid":
+                return NO_NETWORKS_SENTINEL
             return None
 
-        # Apply Guard Bands (Standard 4)
         if isinstance(value, int | float):
             if description.min_limit is not None and value < description.min_limit:
                 return None
@@ -146,83 +195,72 @@ class WifiScanSensor(CoordinatorEntity[WifiScanCoordinator], SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return SSIDs with signal and band data as attributes."""
-        if not self.coordinator.data or not isinstance(self.coordinator.data, dict):
-            return {}
+        """Return the per-network detail, on the sensors that warrant it."""
+        data = self.coordinator.data
+        if not data or not isinstance(data, dict):
+            return self._with_about(None)
 
-        networks: dict[str, Any] = self.coordinator.data.get("networks", {})
+        key = self.entity_description.key
 
-        if self.entity_description.key == "count":
-            ssids: list[str] = self.coordinator.data.get("ssids") or []
-            attrs: dict[str, Any] = {"ssids": ssids}
-            signal_data = {
-                ssid: networks[ssid]["rssi"]
-                for ssid in ssids
-                if ssid in networks and networks[ssid].get("rssi") is not None
-            }
-            if signal_data:
-                attrs["signal_strengths"] = signal_data
-            band_data = {
-                ssid: networks[ssid]["band"]
-                for ssid in ssids
-                if ssid in networks and networks[ssid].get("band")
-            }
-            if band_data:
-                attrs["bands"] = band_data
-            return attrs
+        if key == "strongest_unknown_ssid":
+            return self._with_about(self._network_detail(data))
 
-        if self.entity_description.key == "unknown_count":
-            unknown_ssids: list[str] = self.coordinator.data.get("unknown_ssids") or []
-            last_seen: dict[str, Any] = self.coordinator.data.get("last_seen", {})
-            first_seen: dict[str, Any] = self.coordinator.data.get("first_seen", {})
-            visit_counts: dict[str, Any] = self.coordinator.data.get("visit_counts", {})
-            u_attrs: dict[str, Any] = {"ssids": unknown_ssids}
-            u_signal = {
-                ssid: networks[ssid]["rssi"]
-                for ssid in unknown_ssids
-                if ssid in networks and networks[ssid].get("rssi") is not None
-            }
-            if u_signal:
-                u_attrs["signal_strengths"] = u_signal
-            u_bands = {
-                ssid: networks[ssid]["band"]
-                for ssid in unknown_ssids
-                if ssid in networks and networks[ssid].get("band")
-            }
-            if u_bands:
-                u_attrs["bands"] = u_bands
-            u_last_seen = {
-                ssid: last_seen[ssid].isoformat()
-                for ssid in unknown_ssids
-                if ssid in last_seen
-            }
-            if u_last_seen:
-                u_attrs["last_seen"] = u_last_seen
-            u_first_seen = {
-                ssid: first_seen[ssid].isoformat()
-                for ssid in unknown_ssids
-                if ssid in first_seen
-            }
-            if u_first_seen:
-                u_attrs["first_seen"] = u_first_seen
-            u_visit_counts = {
-                ssid: visit_counts[ssid]
-                for ssid in unknown_ssids
-                if ssid in visit_counts
-            }
-            if u_visit_counts:
-                u_attrs["visit_counts"] = u_visit_counts
-            return u_attrs
+        if key == "unknown_count":
+            return self._with_about({"ssids": list(data.get("unknown_ssids") or [])})
 
-        return {}
+        if key == "count":
+            return self._with_about({"ssids": list(data.get("ssids") or [])})
 
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device information."""
-        name = self._entry.options.get(CONF_NAME, self._entry.title)
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": name,
-            "manufacturer": "PlayFaster",
-            "model": f"v{self.coordinator.version} ({self.coordinator.api.interface})",
-        }
+        return self._with_about(None)
+
+    def _network_detail(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Build the unknown-network detail block.
+
+        Capped at the strongest few. The full list is available through the
+        get_networks action, which is the right tool for a long list — an
+        attribute is not.
+        """
+        networks: dict[str, Any] = data.get("networks", {})
+        unknown: list[str] = list(data.get("unknown_ssids") or [])
+        last_seen: dict[str, Any] = data.get("last_seen", {})
+        first_seen: dict[str, Any] = data.get("first_seen", {})
+        visit_counts: dict[str, Any] = data.get("visit_counts", {})
+
+        ranked = sorted(
+            (label for label in unknown if label in networks),
+            key=lambda label: (
+                networks[label].get("signal") is None,
+                -(networks[label].get("signal") or 0),
+            ),
+        )
+        capped = ranked[:NETWORK_ATTR_MAX]
+
+        detail: list[dict[str, Any]] = []
+        for label in capped:
+            net = networks[label]
+            history_id = net.get("key")
+            detail.append(
+                {
+                    "ssid": label,
+                    "bssid": net.get("bssid"),
+                    "signal": net.get("signal"),
+                    "channel": net.get("channel"),
+                    "band": net.get("band"),
+                    "hidden": net.get("hidden"),
+                    "ssid_anomaly": net.get("ssid_anomaly"),
+                    "mode": net.get("mode"),
+                    "first_seen": _iso(first_seen.get(history_id)),
+                    "last_seen": _iso(last_seen.get(history_id)),
+                    "visit_count": visit_counts.get(history_id),
+                }
+            )
+
+        attrs: dict[str, Any] = {"networks": detail}
+        if len(ranked) > len(capped):
+            attrs["networks_truncated"] = True
+        return attrs
+
+
+def _iso(value: Any) -> str | None:
+    """Render a stored datetime as ISO text, tolerating a missing value."""
+    return value.isoformat() if hasattr(value, "isoformat") else None

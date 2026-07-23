@@ -1,22 +1,25 @@
 """Binary sensor platform for WiFi SSID Monitor."""
 
+from __future__ import annotations
+
+from typing import Any
+
 from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    CONF_NAME,
-    CONF_PROXIMITY_RSSI_THRESHOLD,
-    DEFAULT_PROXIMITY_RSSI_THRESHOLD,
-    DOMAIN,
+    CONF_PROXIMITY_SIGNAL_THRESHOLD,
+    DEFAULT_PROXIMITY_SIGNAL_THRESHOLD,
 )
 from .coordinator import WifiScanCoordinator
+from .entity import WifiScanEntity
 
 PARALLEL_UPDATES = 0
 
@@ -28,6 +31,14 @@ NEW_NETWORK_DESCRIPTION = BinarySensorEntityDescription(
 PROXIMITY_ALERT_DESCRIPTION = BinarySensorEntityDescription(
     key="proximity_alert",
     translation_key="proximity_alert",
+    device_class=BinarySensorDeviceClass.PROBLEM,
+)
+
+HEALTH_DESCRIPTION = BinarySensorEntityDescription(
+    key="integration_health",
+    translation_key="integration_health",
+    device_class=BinarySensorDeviceClass.PROBLEM,
+    entity_category=EntityCategory.DIAGNOSTIC,
 )
 
 
@@ -42,14 +53,19 @@ async def async_setup_entry(
         [
             WifiScanBinarySensor(coordinator, entry, NEW_NETWORK_DESCRIPTION),
             WifiProximityBinarySensor(coordinator, entry, PROXIMITY_ALERT_DESCRIPTION),
+            WifiHealthBinarySensor(coordinator, entry, HEALTH_DESCRIPTION),
         ]
     )
 
 
-class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorEntity):
-    """Implementation of WiFi SSID Monitor binary sensors."""
+class WifiScanBinarySensor(WifiScanEntity, BinarySensorEntity):
+    """On when any unknown network is currently detected."""
 
-    _attr_has_entity_name = True
+    _attr_about = (
+        "On whenever at least one unknown network is in range. For a one-shot "
+        "trigger per newly-seen network, use the wifi_ssid_monitor_new_network "
+        "bus event instead."
+    )
 
     def __init__(
         self,
@@ -58,9 +74,8 @@ class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorE
         description: BinarySensorEntityDescription,
     ) -> None:
         """Initialize the binary sensor."""
-        super().__init__(coordinator)
+        super().__init__(coordinator, entry)
         self.entity_description = description
-        self._entry = entry
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
 
     @property
@@ -70,24 +85,18 @@ class WifiScanBinarySensor(CoordinatorEntity[WifiScanCoordinator], BinarySensorE
             return False
         return bool(self.coordinator.data.get("unknown_count", 0) > 0)
 
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device information."""
-        name = self._entry.options.get(CONF_NAME, self._entry.title)
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": name,
-            "manufacturer": "PlayFaster",
-            "model": f"v{self.coordinator.version} ({self.coordinator.api.interface})",
-        }
 
+class WifiProximityBinarySensor(WifiScanEntity, BinarySensorEntity):
+    """On when an unknown network's signal is at or above the threshold."""
 
-class WifiProximityBinarySensor(
-    CoordinatorEntity[WifiScanCoordinator], BinarySensorEntity
-):
-    """Binary sensor that triggers when an unknown network exceeds RSSI threshold."""
+    _attr_about = (
+        "On when the closest unknown network's signal reaches the Proximity "
+        "Threshold. Signal is a 0-100% quality figure — higher means closer."
+    )
 
-    _attr_has_entity_name = True
+    _unrecorded_attributes = WifiScanEntity._unrecorded_attributes | frozenset(
+        {"strongest_unknown_signal", "threshold"}
+    )
 
     def __init__(
         self,
@@ -96,47 +105,100 @@ class WifiProximityBinarySensor(
         description: BinarySensorEntityDescription,
     ) -> None:
         """Initialize the proximity alert binary sensor."""
-        super().__init__(coordinator)
+        super().__init__(coordinator, entry)
         self.entity_description = description
-        self._entry = entry
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
 
     @property
-    def is_on(self) -> bool:
-        """Return true when the strongest unknown signal exceeds the threshold."""
+    def _threshold(self) -> int:
+        return int(
+            self._entry.options.get(
+                CONF_PROXIMITY_SIGNAL_THRESHOLD, DEFAULT_PROXIMITY_SIGNAL_THRESHOLD
+            )
+        )
+
+    @property
+    def _strongest(self) -> int | None:
         if not self.coordinator.data:
-            return False
-        strongest_rssi: int | None = self.coordinator.data.get("strongest_unknown_rssi")
-        if strongest_rssi is None:
-            return False
-        threshold: int = self._entry.options.get(
-            CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
-        )
-        return strongest_rssi >= threshold
+            return None
+        value = self.coordinator.data.get("strongest_unknown_signal")
+        return int(value) if isinstance(value, int | float) else None
 
     @property
-    def extra_state_attributes(self) -> dict[str, int | None]:
-        """Expose the strongest RSSI and configured threshold."""
-        threshold: int = self._entry.options.get(
-            CONF_PROXIMITY_RSSI_THRESHOLD, DEFAULT_PROXIMITY_RSSI_THRESHOLD
-        )
-        strongest_rssi: int | None = (
-            self.coordinator.data.get("strongest_unknown_rssi")
-            if self.coordinator.data
-            else None
-        )
-        return {
-            "strongest_unknown_rssi": strongest_rssi,
-            "threshold": threshold,
-        }
+    def is_on(self) -> bool:
+        """Return true when the strongest unknown signal meets the threshold."""
+        strongest = self._strongest
+        if strongest is None:
+            return False
+        return strongest >= self._threshold
 
     @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device information."""
-        name = self._entry.options.get(CONF_NAME, self._entry.title)
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": name,
-            "manufacturer": "PlayFaster",
-            "model": f"v{self.coordinator.version} ({self.coordinator.api.interface})",
-        }
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the strongest signal and the configured threshold."""
+        return self._with_about(
+            {
+                "strongest_unknown_signal": self._strongest,
+                "threshold": self._threshold,
+            }
+        )
+
+
+class WifiHealthBinarySensor(WifiScanEntity, BinarySensorEntity):
+    """Self-diagnosis sensor: on when the integration detects a problem.
+
+    This exists for the failure Home Assistant cannot see — a scan that
+    succeeds while the data underneath has changed shape or meaning.
+    """
+
+    _attr_about = (
+        "On when the integration detects a problem with its own data — an "
+        "unreachable Supervisor, a changed payload, or all known networks "
+        "vanishing at once. Details are in the issues attribute."
+    )
+
+    _unrecorded_attributes = frozenset(
+        {"about", "issues", "checks_failed", "signal_unit", "last_good_scan"}
+    )
+
+    def __init__(
+        self,
+        coordinator: WifiScanCoordinator,
+        entry: ConfigEntry,
+        description: BinarySensorEntityDescription,
+    ) -> None:
+        """Initialize the health sensor."""
+        super().__init__(coordinator, entry)
+        self.entity_description = description
+        self._attr_unique_id = f"{entry.unique_id}_{description.key}"
+
+    @property
+    def available(self) -> bool:
+        """Always available — including when nothing else is.
+
+        The default CoordinatorEntity.available returns last_update_success,
+        which would take this sensor down at precisely the moment it has
+        something to report. A health sensor that disappears during an outage
+        is worse than no health sensor at all, because its silence is
+        indistinguishable from health.
+        """
+        return True
+
+    @property
+    def is_on(self) -> bool:
+        """Return true when a problem has been detected."""
+        return bool(self.coordinator.health_snapshot.get("problem"))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the health snapshot detail."""
+        snapshot = self.coordinator.health_snapshot
+        return self._with_about(
+            {
+                "issues": list(snapshot.get("issues") or []),
+                "severity": snapshot.get("severity"),
+                "checks_failed": list(snapshot.get("checks_failed") or []),
+                "signal_unit": snapshot.get("signal_unit"),
+                "last_good_scan": snapshot.get("last_good_scan"),
+                "networks_scanned": snapshot.get("networks_scanned"),
+            }
+        )

@@ -4,6 +4,67 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.0.0] - 2026-07-23
+
+> **This release has breaking changes — see the Breaking section.**
+
+### Summary
+
+A major update, with significant capability improvements and fixes BUT also some **breaking changes** unfortunately. The integration was originally developed with SSID signal as RSSI in dBm [-100 to -30], but most HA installs report Signal Quality in % [0 to 100]. This meant that the proximity threshold checking was not working on most systems.
+
+**THE FIX**: SSID Signal is now as a **0–100% quality figure** (not dBm), and Proximity Signal Threshold is also % to match.
+
+**NEW**: Hidden networks are now identified individually, BSSID is captured and matchable, an **Integration Health** sensor catches silent errors, and several frequently-tuned settings became control entities. A new `get_networks` action allows current SSID status to be captured and used in automations and scripts.
+
+### Breaking
+
+> **Upgrading from 1.6.x to 2.0.0 or above — breaking changes.** This release corrects long-standing signal-unit and band-filter bugs, which required renaming several things. There are also some moves. This was not done lightly, but the previous set-up was incorrect for most systems.
+>
+> 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable — delete it when convenient; its long-term statistics are kept (delete in Developer Tools > Statistics). Update any dashboard or automation referencing it.
+> 2. **Signal is now a 0–100% quality figure** everywhere. Higher means closer. The Proximity Alert now compares on this scale, and its threshold moved to the **Proximity Signal Threshold** number entity (default 80%). A stored dBm threshold is migrated automatically.
+> 3. **The list-management services were renamed and merged.** `add_known_ssid` → `add_ssid`, `remove_known_ssid` → `remove_ssid`, `set_known_ssids` → `set_ssids`, each now taking a required `target: known | denylist` (and `set_known_ssids`'s `known_ssids` field is now `values`). **There are no aliases** — automations calling the old names will fail. Update them, including any copied from the guest-network example below.
+> 4. **Four settings moved out of the Configure dialog** and are now entities on the device page: **Scan Interval**, **Include Hidden Networks**, and the band filter (now three **Show 2.4/5/6 GHz** switches). The old `scan_bands` option is migrated.
+
+### Added
+
+- **Integration Health binary sensor** — a `problem` sensor that stays available even during an outage, reporting an unreachable Supervisor, a changed payload shape or unit, an unresolved band, or all known networks vanishing at once. Backed by `interface_missing`, `signal_format_changed`, and `supervisor_unavailable` repair issues.
+- **`about` notes**: All sensor entities now have an "about:" attribute (visible in details) that explains the sensor. This information is set as `unrecorded` which prevents it being written to the Home Assistant database and taking up unnecessary space.
+- **Pause Polling switch** — halt scheduled scanning; explicit actions still fetch while paused.
+- **6 GHz support** and per-band **Show 2.4 / 5 / 6 GHz** switches replacing the single-choice band filter. Obviously this only has an impact if your Home Assistant system WiFi is 6GHz capable.
+- **Individual hidden-network naming** — cloaked networks are identified as `Hidden-<last 4 of BSSID>` instead of collapsing into one `[hidden]` entry.
+- **`get_networks` action** — a response action returning the current networks filtered by scope, band, signal and keyword; reads live scan data, so it works when the sensors are unavailable or their attribute list is capped.
+- **New Networks (24h) sensor** and the **`wifi_ssid_monitor_new_network` bus event** — fires once per genuinely-new network, survives restarts, baselined on first scan and rate-limited.
+- **BSSID exposure and matching** — `bssid` on the per-network detail, the action response and the event payload; `known_wifi_ids` and `denylist_ssids` now match against the BSSID as well as the name, so exact MACs and MAC wildcards (`AA:BB:CC:*`) are valid in both lists.
+- **`ssid_anomaly` flag** — set when a name is hidden or contains control, zero-width, or right-to-left characters (the toolkit for spoofing a network name).
+- **Operating mode (`mode`)** on the per-network detail, action response, and event payload.
+- **Denylist management from automations** via the `target` argument on the list actions.
+- **Refreshed icons and branding.**
+
+### Changed
+
+- **Signal is a 0–100% quality figure throughout** — sensors, the proximity threshold, and the action filters all use the same scale.
+- **Channel / Band Correct**: The channel and band detail (Strongest Unknown SSID - Networks attribute) was being misreported on many systems (conflating frequency and channel).
+- **Per-network detail relocated** onto **Strongest Unknown SSID** as a `networks` list capped at the 25 strongest (with a `networks_truncated` flag), and excluded from the recorder along with the other high-churn attributes.
+- **Strongest Unknown SSID reads `None Detected`** when nothing unknown is in range, instead of `unknown`.
+- **History writes are coalesced** rather than written on every scan, with a hard entry cap bounding growth in SSID-heavy locations.
+- **First-run setup failures raise `ConfigEntryNotReady`**, so Home Assistant shows its native retry behavior instead of marking the entry set up. The 3-strike hold still applies once running.
+- **Documentation overhauled** — the README gained a detection deep-dive, an entity/action reference, architecture and self-diagnosis sections, and a restructured FAQ.
+- **All Attributes `unrecorded`**: All attributes of sensor entities are now written as `unrecorded`, which prevents them being written to the Home Assistant database and taking up unnecessary space.
+
+### Fixed
+
+- **The band filter no longer hides every network** — band is derived from `frequency`, and an unresolved band passes rather than being dropped.
+- **The Proximity Alert no longer fires permanently** — it previously compared a 0–100 value against a negative dBm threshold, so it was on whenever any unknown network was visible.
+- **Interface auto-detection works on Raspberry Pi** — the Supervisor reports `wireless` there rather than `wifi`.
+- **Diagnostics redacts neighboring SSIDs** — a structural sanitizer pseudonymizes SSIDs and BSSIDs, including where they are used as dictionary keys, while preserving signal, channel, band and counts.
+- **Action calls targeting an unloaded entry** return a clear, translated error instead of an internal failure.
+
+### Removed
+
+- **`sensor.…_strongest_unknown_rssi`** — superseded by `…_strongest_unknown_signal` (see Breaking).
+
+---
+
 ## [1.6.1] - 2026-07-04 - Release
 
 ### Summary

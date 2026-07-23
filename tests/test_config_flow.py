@@ -11,17 +11,10 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.wifi_ssid_monitor.api import WifiScanError
 from custom_components.wifi_ssid_monitor.const import (
     CONF_DENYLIST_SSIDS,
-    CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
     CONF_LAST_SEEN_TTL_DAYS,
-    CONF_PROXIMITY_RSSI_THRESHOLD,
-    CONF_SCAN_BANDS,
-    CONF_SCAN_INTERVAL,
-    DEFAULT_INCLUDE_HIDDEN,
     DEFAULT_LAST_SEEN_TTL_DAYS,
-    DEFAULT_PROXIMITY_RSSI_THRESHOLD,
-    DEFAULT_SCAN_BANDS,
     DOMAIN,
 )
 
@@ -61,7 +54,7 @@ async def test_user_flow(hass: HomeAssistant):
         "name": "WiFi SSID Monitor",
         CONF_INTERFACE: "wlan0",
         CONF_KNOWN_SSIDS: "MyNet1,MyNet2",
-        CONF_SCAN_INTERVAL: 600,
+        "scan_interval": 600,
     }
     assert len(mock_setup_entry.mock_calls) == 1
 
@@ -248,10 +241,6 @@ async def test_options_flow(hass: HomeAssistant, mock_config_entry):
                 "name": "WiFi SSID Monitor",
                 CONF_INTERFACE: "wlan1",
                 CONF_KNOWN_SSIDS: "NewNet1",
-                CONF_SCAN_INTERVAL: 60,
-                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
-                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
-                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
                 CONF_DENYLIST_SSIDS: "",
                 CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
@@ -262,12 +251,9 @@ async def test_options_flow(hass: HomeAssistant, mock_config_entry):
         "name": "WiFi SSID Monitor",
         CONF_INTERFACE: "wlan1",
         CONF_KNOWN_SSIDS: "NewNet1",
-        CONF_SCAN_INTERVAL: 60,
-        CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
-        CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
-        CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
         CONF_DENYLIST_SSIDS: "",
         CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
+        "scan_interval": 60,
     }
 
 
@@ -298,12 +284,8 @@ async def test_options_flow_cannot_connect(hass: HomeAssistant, mock_config_entr
             result["flow_id"],
             user_input={
                 "name": "WiFi SSID Monitor",
-                CONF_INTERFACE: "wlan1",  # Changed interface to trigger validation
+                CONF_INTERFACE: "wlan1",
                 CONF_KNOWN_SSIDS: "NewNet1",
-                CONF_SCAN_INTERVAL: 60,
-                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
-                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
-                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
                 CONF_DENYLIST_SSIDS: "",
                 CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
@@ -342,10 +324,6 @@ async def test_options_flow_unknown_exception(hass: HomeAssistant, mock_config_e
                 "name": "WiFi SSID Monitor",
                 CONF_INTERFACE: "wlan1",
                 CONF_KNOWN_SSIDS: "NewNet1",
-                CONF_SCAN_INTERVAL: 60,
-                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
-                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
-                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
                 CONF_DENYLIST_SSIDS: "",
                 CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
@@ -765,10 +743,6 @@ async def test_options_flow_name_change(hass: HomeAssistant, mock_config_entry):
                 "name": "New Name",
                 CONF_INTERFACE: "wlan0",
                 CONF_KNOWN_SSIDS: "NewNet1",
-                CONF_SCAN_INTERVAL: 60,
-                CONF_INCLUDE_HIDDEN: DEFAULT_INCLUDE_HIDDEN,
-                CONF_PROXIMITY_RSSI_THRESHOLD: DEFAULT_PROXIMITY_RSSI_THRESHOLD,
-                CONF_SCAN_BANDS: DEFAULT_SCAN_BANDS,
                 CONF_DENYLIST_SSIDS: "",
                 CONF_LAST_SEEN_TTL_DAYS: DEFAULT_LAST_SEEN_TTL_DAYS,
             },
@@ -826,10 +800,8 @@ async def test_reconfigure_exposes_full_settings(
     assert result["step_id"] == "reconfigure"
     keys = {str(k) for k in result["data_schema"].schema}
     for field in (
-        CONF_SCAN_INTERVAL,
-        CONF_INCLUDE_HIDDEN,
-        CONF_PROXIMITY_RSSI_THRESHOLD,
-        CONF_SCAN_BANDS,
+        CONF_INTERFACE,
+        CONF_KNOWN_SSIDS,
         CONF_DENYLIST_SSIDS,
         CONF_LAST_SEEN_TTL_DAYS,
     ):
@@ -901,14 +873,12 @@ async def test_reconfigure_persists_extra_settings(
                 "name": "WiFi SSID Monitor",
                 CONF_INTERFACE: "wlan0",
                 CONF_KNOWN_SSIDS: "MyNetwork1,MyNetwork2",
-                CONF_SCAN_INTERVAL: 300,
-                CONF_SCAN_BANDS: "5",
+                CONF_DENYLIST_SSIDS: "DenyNet",
                 CONF_LAST_SEEN_TTL_DAYS: 30,
             },
         )
         await hass.async_block_till_done()
 
     assert result["reason"] == "reconfigure_successful"
-    assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 300
-    assert mock_config_entry.options[CONF_SCAN_BANDS] == "5"
+    assert mock_config_entry.options[CONF_DENYLIST_SSIDS] == "DenyNet"
     assert mock_config_entry.options[CONF_LAST_SEEN_TTL_DAYS] == 30
