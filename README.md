@@ -1669,7 +1669,7 @@ To remove the integration from Home Assistant:
 >
 > This integration's entities and devices are removed, along with the three [`config/.storage` files](#-files-written-to-configstorage) it created - which means your SSID history is discarded.
 >
-> Home Assistant keeps your recorded history and entity customizations independently, so re-adding later picks up much where it left off. If that matters to you, see [why settings and history come back](#-i-deleted-and-re-added-the-integration--why-did-my-settings-and-history-come-back).
+> Home Assistant keeps your recorded history and entity customizations independently, so re-adding later picks up much where it left off. If that matters to you, see [why settings and history come back](#-i-deleted-and-re-added-the-integration---why-did-my-settings-and-history-come-back).
 
 ---
 
