@@ -71,10 +71,17 @@ def _safe_float(value: Any, default: float | None = None) -> float | None:
 
 
 def dbm_to_pct(dbm: float) -> int:
-    """Convert a dBm signal level to NetworkManager's 0-100 percentage.
+    """Convert a dBm signal level to an approximate 0-100 percentage.
 
-    Matches the formula NetworkManager itself uses, so a converted value is
-    comparable with one the Supervisor reports directly.
+    A defensive fallback only: the Supervisor reports signal as a percentage
+    and sends no dBm field at all (verified on Intel x86-64 and Raspberry Pi 4),
+    so this should never run in normal operation. It exists so a future upstream
+    switch to dBm degrades to a usable value rather than corrupt data — and
+    ``normalize_signal`` records which unit was actually seen so the health
+    checks can flag the change.
+
+    Uses the common linear approximation, not a formula verified against any
+    specific driver: different WiFi drivers derive their percentage differently.
     """
     return max(0, min(100, round(2 * (dbm + 100))))
 

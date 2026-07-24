@@ -10,15 +10,25 @@ All notable changes to this project will be documented in this file.
 
 ### Summary
 
-A major update, with significant capability improvements and fixes BUT also some **breaking changes** unfortunately. The integration was originally developed with SSID signal as RSSI in dBm [-100 to -30], but most HA installs report Signal Quality in % [0 to 100]. This meant that the proximity threshold checking was not working on most systems.
+A major update, with significant capability improvements and fixes BUT also some **breaking changes** unfortunately. The integration was originally developed taking SSID signal as RSSI in dBm [-100 to -30], but this number is actually Signal Quality in % [0 to 100]. This meant that the proximity threshold checking was not working as expected.
 
 **THE FIX**: SSID Signal is now as a **0–100% quality figure** (not dBm), and Proximity Signal Threshold is also % to match.
 
-**NEW**: Hidden networks are now identified individually, BSSID is captured and matchable, an **Integration Health** sensor catches silent errors, and several frequently-tuned settings became control entities. A new `get_networks` action allows current SSID status to be captured and used in automations and scripts.
+**NEW**: Hidden networks are now identified individually, BSSID is captured and matchable, an **Integration Health** sensor catches silent errors, and several set-up controls move to became control entities. A new `get_networks` action allows current SSID status to be captured and used in automations and scripts.
+
+- Hidden Network Labelled - Hidden networks now get a name label, using the hidden BSSID, so you can distinguish between always on, repeat and new hidden networks
+
+- Sharper identification — hardware addresses (BSSIDs) usable in your known and blocked lists, spoofed-looking names flagged, and a New Networks (24h) sensor for what's appeared recently.
+
+- Integration Health sensor — stays visible even when everything else goes unavailable, and tells you when a WiFi adapter has disappeared, a Home Assistant update changed the data underneath, or all your known networks vanished at once. Raises a Repair notification where there's something you can act on.
+
+- Controls on the device page — scan interval, per-band 2.4/5/6 GHz switches, hidden-network handling, proximity threshold and a new Pause Polling switch, all usable from a dashboard or an automation instead of the settings dialog.
+
+- Get Networks action and New Network event — ask for exactly the networks you want (by band, signal, keyword, known or unknown) and get data automations can use; the event fires once per genuinely new arrival and remembers across restarts.
 
 ### Breaking
 
-> **Upgrading from 1.6.x to 2.0.0 or above — breaking changes.** This release corrects long-standing signal-unit and band-filter bugs, which required renaming several things. There are also some moves. This was not done lightly, but the previous set-up was incorrect for most systems.
+> **Upgrading from 1.6.x to 2.0.0 or above — breaking changes.** This release corrects long-standing signal-unit and band-filter bugs, which required renaming several things. There are also some moves. This was not done lightly, but the previous set-up was incorrect.
 >
 > 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable — delete it when convenient; its long-term statistics are kept (delete in Developer Tools > Statistics). Update any dashboard or automation referencing it.
 > 2. **Signal is now a 0–100% quality figure** everywhere. Higher means closer. The Proximity Alert now compares on this scale, and its threshold moved to the **Proximity Signal Threshold** number entity (default 80%). A stored dBm threshold is migrated automatically.

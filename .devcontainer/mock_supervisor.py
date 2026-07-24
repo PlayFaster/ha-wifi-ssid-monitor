@@ -23,21 +23,28 @@ class MockSupervisorHandler(BaseHTTPRequestHandler):
                     "accesspoints": [
                         {
                             "mac": "AA:BB:CC:DD:EE:01",
-                            "ssid": "Mock_WiFi_24G",
-                            "signal": 85,
+                            "ssid": "My_WiFi_24G",
+                            "signal": 94,
                             "frequency": 2412,
                             "mode": "infra",
                         },
                         {
-                            "mac": "AA:BB:CC:DD:EE:02",
-                            "ssid": "Mock_WiFi_5G",
-                            "signal": 65,
+                            "mac": "AA:BB:CC:DD:EE:06",
+                            "ssid": "My_WiFi_5G",
+                            "signal": 88,
                             "frequency": 5180,
                             "mode": "infra",
                         },
                         {
+                            "mac": "AA:BB:CC:DD:EE:02",
+                            "ssid": "Neighbors_WiFi_5G",
+                            "signal": 65,
+                            "frequency": 2412,
+                            "mode": "infra",
+                        },
+                        {
                             "mac": "AA:BB:CC:DD:EE:03",
-                            "ssid": "Mock_WiFi_6G",
+                            "ssid": "Unknown_WiFi_6G",
                             "signal": 45,
                             "frequency": 6105,
                             "mode": "infra",
@@ -52,7 +59,7 @@ class MockSupervisorHandler(BaseHTTPRequestHandler):
                         {
                             "mac": "AA:BB:CC:DD:EE:05",
                             "ssid": "Evil\u200bTwin",
-                            "signal": 90,
+                            "signal": 84,
                             "frequency": 2462,
                             "mode": "infra",
                         },
