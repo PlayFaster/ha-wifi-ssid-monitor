@@ -88,6 +88,34 @@ With the `parse.py` normalization boundary, BSSID identity, persisted history, t
 
 ---
 
+### Track Your WiFi Online
+
+**Difficulty:** Medium **Benefit:** High — a first-class "are my own networks up?" feature, replacing the base-count template automation (**Home WiFi Offline Alert** in the README) with something that cannot be fooled and needs no per-install tuning.
+
+**Why the automation is not enough:** the offline alert infers "one of my networks went down" from a count — it takes the total network count, subtracts the unknown count, and watches that base for a drop. That works, but it is indirect and fragile:
+
+- **It counts, it does not name.** The base falling from 3 to 2 tells the user _a_ network is missing, never _which_ one. If two of their networks are down and one previously-unknown neighbour joins the known list, the base can even stay flat and hide the outage entirely.
+- **It needs a hand-set magic number.** The `< 3` threshold is specific to one location and must be re-tuned whenever the user adds a network, disables a band, or moves house. A wrong number means silent failure or constant false alarms.
+- **It cannot see a swap.** If one of the user's APs dies at the same moment a new unknown one appears, the total is unchanged and the base is unchanged, so nothing fires.
+
+Tracking the user's own SSIDs explicitly removes all three problems: the integration knows exactly which named networks _should_ be present and can report precisely which are missing, with no threshold to set.
+
+**What it needs:**
+
+- **A "my WiFi" list option** — the networks the user considers their own infrastructure. This is a narrower, more deliberate list than the known list: the known list suppresses noise (guest networks, a neighbour the user has whitelisted), whereas the my-WiFi list asserts "these should always be up." It should accept the same identity forms as the other lists (SSID, `fnmatch` pattern, or BSSID), with a BSSID entry being the strongest form here because it pins a specific radio and cannot be satisfied by a spoofed name.
+- **A `My WiFi Online` count sensor** — how many of the my-WiFi entries are currently broadcasting, with the matched and missing SSID names as attributes so the state is legible, not just numeric. An LTS-friendly integer that graphs cleanly.
+- **A `My WiFi Offline` problem binary sensor** — `on` when one or more my-WiFi entries are not currently seen, with the missing names as an attribute. This is the direct trigger the offline automation approximates, but self-configuring: no threshold, and the notification can name the down network.
+- **Presence hold / debounce** — a network must be absent for a configurable number of scans (or minutes) before it counts as offline, so a single unlucky scan does not raise a false outage. This is the `for:` duration the automation currently carries, moved into the integration where it belongs.
+- **Interaction with Integration Health** — a scan that fails wholesale (interface gone, Supervisor unreachable) makes _every_ my-WiFi entry look absent at once. The offline sensor must defer to Integration Health in that case rather than reporting a total outage, exactly as the README automation's health condition does — but built in, so the user does not have to wire it.
+
+**Relationship to the other roadmap items:**
+
+- If **Per-SSID Presence Binary Sensors** above is built, this becomes largely a _rollup_ of it: the my-WiFi list is the natural input to per-network presence sensors, and `My WiFi Online` is their aggregate. The presence sensors answer "is network X up?" one at a time; this answers "is all of my infrastructure up?" in a single count and a single problem sensor. Build the per-network presence mechanism first, then layer this aggregate on top — do not build a second, parallel presence path.
+- If **Per-SSID Signal Quality Sensors** is built, the my-WiFi list should be shared with it rather than duplicated: the same nominated networks a user wants signal trends for are the ones they want online-tracking for. One "my networks" list feeding presence, signal, and online-count is the coherent design; three separate lists is not.
+- Unlike those two, this item does **not** require dynamic entity creation — `My WiFi Online` and `My WiFi Offline` are two fixed entities regardless of list size, so it is a **Medium**, not Hard, and could ship ahead of the dynamic-entity work as a self-contained improvement that immediately retires the fragile automation.
+
+---
+
 ### Per-SSID Presence Binary Sensors
 
 **Difficulty:** Hard **Benefit:** High (for the right users) — auto-create a binary sensor for each SSID in the known list, showing whether it is currently visible. Enables direct "is my work laptop nearby?" automations without template sensors. Requires dynamic entity creation and teardown when the known list changes, which is significantly more complex than the current static entity model.

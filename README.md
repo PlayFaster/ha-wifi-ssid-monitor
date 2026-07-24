@@ -134,8 +134,10 @@ This integration provides its 18 entities under a single **WiFi SSID Monitor** d
 
 There are also six actions (services) and one event - details > [Actions & Events](#-actions-services)
 
-<details><summary>
-&nbsp; &nbsp; ➕ &nbsp; &nbsp; Clink to Expand Entity Screenshots:
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand Entity Screenshots:
 </summary><br>
 
 | Controls and Sensors | Configuration and Diagnostics |
@@ -145,6 +147,7 @@ There are also six actions (services) and one event - details > [Actions & Event
 ---
 
 </details>
+
 <br>
 
 <details>
@@ -270,7 +273,7 @@ The remaining sensors (text, timestamp, non-measurement, binary and control) do 
 
 ## 📸 Screenshots
 
-Screenshots are embedded throughout the document near relevant sections. This is just the the Integration Overview screen.
+Screenshots are embedded throughout the document near relevant sections. This is just the Integration Overview screen.
 
 ### Integration Overview
 
@@ -349,12 +352,10 @@ If you are used to reading WiFi signal in **RSSI (dBm)**, the table below shows 
 > While NetworkManager's conversion formula is fixed and deterministic, **expect normal fluctuations of ±5%** (up to even to ±10% in cases) in reported signal quality even for stationary hardware. These variations stem from two sources:
 >
 > 1. **Sequential Channel Scan Timing:** WiFi drivers scan channels sequentially. Because beacon frames for different SSIDs are captured at slightly different milliseconds, minor multipath reflections and ambient RF noise cause scan-to-scan variations of ~5% across identical physical networks.
->
 > 2. **Movement of People & Things:** A person or a chair etc., near your Home Assistant hardware and moving slightly will cause variations.
->
 > 3. **Hardware & Antenna Sensitivity:** Different WiFi card chip-sets and internal antenna orientations measure raw signal with slight variations. Two physical systems placed next to each other may easily report a ~5% reading difference for the exact same Access Point.
 >
-> **The Takeaway**: Even in a very static set-up, some variation is inevitable. With movement, this can increase. So, _"why is this signal fluctuating between 75% and 80%"_ is not a concern. When Super-Suspicious-SSID goes from 30% to 80% signal, that **IS WORTH** some investigation!
+> **The Takeaway**: Even in a very static set-up, some variation is inevitable. With movement, this can increase. So, _"why is this signal fluctuating between 75% and 80%"_ is not a concern. When _Super-Suspicious-SSID_ goes from 30% to 80% signal, that **IS WORTH** some investigation!
 >
 > **Calibrate against your own environment:** Run `wifi_ssid_monitor.get_networks` with `scope: unknown` and look at the spread of values your hardware actually reports — that is what should set your Proximity Threshold. In a dense area the 80% default may be too permissive; somewhere quiet it may be about right.
 
@@ -368,7 +369,9 @@ If you are used to reading WiFi signal in **RSSI (dBm)**, the table below shows 
 
 Several settings are exposed as control entities so you can drive them from dashboards or automations, rather than reopening Configure:
 
-<details><summary>
+<details>
+
+<summary>
 &nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
 </summary><br>
 
@@ -638,10 +641,7 @@ Payload fields:
 <details>
 
 <summary>&nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Notification Options:
-
-</summary>
-
-<br>
+</summary><br>
 
 Replace
 
@@ -669,7 +669,6 @@ target:
 
 <summary> &nbsp; &nbsp; Notify when an unknown network is detected.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
 ```yaml
@@ -677,6 +676,7 @@ alias: "WiFi SSID: Alert on Rogue WiFi Network"
 triggers:
   - trigger: state
     entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
+    from: "off"
     to: "on"
     note: |
       Fires on the transition to on - when at least one network not matching your known
@@ -702,7 +702,6 @@ actions:
 
 <summary> &nbsp; &nbsp; Alert when an unknown network is detected unusually close (signal at/above your threshold).<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
 ```yaml
@@ -711,6 +710,7 @@ description: "Fires when an unknown network signal exceeds the proximity thresho
 triggers:
   - trigger: state
     entity_id: binary_sensor.wifi_ssid_monitor_proximity_alert
+    from: "off"
     to: "on"
     note: |
       Fires when an unknown network's signal quality reaches the Proximity Alert Threshold
@@ -722,8 +722,8 @@ actions:
       message: |
         Unknown WiFi detected nearby! Signal: {{ state_attr('binary_sensor.wifi_ssid_monitor_proximity_alert', 'strongest_unknown_signal') }}%. Networks: {{ state_attr('sensor.wifi_ssid_monitor_unknown_ssid_count', 'ssids') | join(', ') }}
     note: |
-      Signal is a 0-100 quality percentage, not dBm - the Supervisor reports no dBm value.
-      Higher is closer. See the Signal Quality vs RSSI section for the approximate mapping.
+      Signal is a 0-100 quality percentage. Higher is closer.
+      See the Signal Quality vs RSSI section for the approximate mapping.
 ```
 
 ---
@@ -736,7 +736,6 @@ actions:
 
 <summary> &nbsp; &nbsp; Detect any new WiFi Network using the Event trigger. <br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
 ```yaml
@@ -751,7 +750,7 @@ triggers:
 actions:
   - action: persistent_notification.create
     data:
-      message: >
+      message: |
         New WiFi network seen: {{ trigger.event.data.ssid }} ({{ trigger.event.data.band }}, {{ trigger.event.data.signal }}%)
     note: |
       trigger.event.data also carries entry_id, key, bssid, channel, hidden, ssid_anomaly,
@@ -768,18 +767,13 @@ actions:
 
 <summary> &nbsp; &nbsp; Alert only when a new network's name contains characters used to impersonate another network.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
-A network name containing control, zero-width, or right-to-left characters can render as an
-existing network's name while being a different network entirely. This automation ignores
-ordinary new networks and fires only on that case.
+A network name containing control, zero-width, or right-to-left characters can render as an existing network's name while being a different network entirely. This automation ignores ordinary new networks and fires only on that case.
 
 > [!IMPORTANT]
 >
-> The `not trigger.event.data.hidden` condition is required. `ssid_anomaly` is also `true` for
-> every cloaked (non-broadcasting) network, so without this guard the automation fires for
-> ordinary hidden networks as well.
+> The `not trigger.event.data.hidden` condition is required. `ssid_anomaly` is also `true` for every cloaked (non-broadcasting) network, so without this guard the automation fires for ordinary hidden networks as well.
 
 ```yaml
 alias: "WiFi SSID: Alert on Disguised Network Name"
@@ -793,7 +787,7 @@ triggers:
 conditions:
   - condition: template
     alias: Anomalous name, but not merely a hidden network
-    value_template: >
+    value_template: |
       {{ trigger.event.data.ssid_anomaly and not trigger.event.data.hidden }}
     note: |
       ssid_anomaly is true for a name containing control, zero-width, or right-to-left
@@ -803,10 +797,8 @@ actions:
   - action: persistent_notification.create
     data:
       title: Possible spoofed WiFi network
-      message: >
-        A new network with a disguised name was seen: {{ trigger.event.data.ssid }}
-        (BSSID {{ trigger.event.data.bssid }}, {{ trigger.event.data.band }},
-        {{ trigger.event.data.signal }}%).
+      message: |
+        A new network with a disguised name was seen: {{ trigger.event.data.ssid }} (BSSID {{ trigger.event.data.bssid }}, {{ trigger.event.data.band }}, {{ trigger.event.data.signal }}%).
     note: |
       The BSSID matters more than the name here - the name is what is being disguised, so
       the access point MAC is the reliable identifier for tracking it down.
@@ -822,13 +814,9 @@ actions:
 
 <summary> &nbsp; &nbsp; Report unknown networks that keep coming back, ignoring one-off passers-by.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
-The `new_network_alert` binary sensor cannot tell a neighbour's permanent access point from a
-phone hotspot that drove past once. This uses the `get_networks` response action and its
-`visit_count` and `first_seen` fields to report only the networks that have been seen
-repeatedly.
+The `new_network_alert` binary sensor cannot tell a neighbour's permanent access point from a phone hotspot that drove past once. This uses the `get_networks` response action and its `visit_count` and `first_seen` fields to report only the networks that have been seen repeatedly.
 
 ```yaml
 alias: "WiFi SSID: Daily Persistent Unknown Network Digest"
@@ -850,7 +838,7 @@ actions:
       {count, total_matched, networks: [{ssid, signal, visit_count, first_seen, ...}]}.
       Add config_entry_id if you run more than one entry and want only one of them.
   - variables:
-      persistent: >
+      persistent: |
         {{ result.networks | selectattr('visit_count')
            | selectattr('visit_count', '>', 20) | list }}
     note: |
@@ -862,11 +850,8 @@ actions:
   - action: persistent_notification.create
     data:
       title: Recurring unknown WiFi networks
-      message: >
-        {% for net in persistent %}
-        {{ net.ssid }} — {{ net.signal }}%, seen {{ net.visit_count }} times since
-        {{ net.first_seen }}
-        {% endfor %}
+      message: |
+        {% for net in persistent %} {{ net.ssid }} — {{ net.signal }}%, seen {{ net.visit_count }} times since {{ net.first_seen }} {% endfor %}
     note: |
       One line per recurring network. Each net also carries bssid, band, channel, hidden,
       ssid_anomaly, mode, known, and last_seen.
@@ -874,8 +859,7 @@ actions:
 
 > [!TIP]
 >
-> Tune `visit_count` to your scan interval. At a 10 minute interval, `20` is roughly three
-> hours of presence; at a 60 minute interval it is closer to a day.
+> Tune `visit_count` to your scan interval. At a 10 minute interval, `20` is roughly three hours of presence; at a 60 minute interval it is closer to a day.
 
 ---
 
@@ -887,14 +871,14 @@ actions:
 
 <summary> &nbsp; &nbsp; Detect when a smart home device enters access point (pairing) mode.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
 ```yaml
-alias: Alert if Device in AP Mode
+alias: "WiFi SSID: Alert if Device in AP Mode"
 triggers:
   - trigger: state
     entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
+    from: "off"
     to: "on"
     note: |
       A device that has been reset, or is new out of the box, broadcasts its own setup
@@ -919,6 +903,10 @@ actions:
       device. Use the ssids attribute if you want to name the matches specifically.
 ```
 
+> [!TIP]
+>
+> Set the `device_aps` list above to meet your requirements, e.g. ['shelly' ,'esp32'] etc.
+
 ---
 
 </details>
@@ -929,49 +917,53 @@ actions:
 
 <summary> &nbsp; &nbsp; Monitor whether one of your own networks has stopped broadcasting.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
 > [!IMPORTANT]
 >
-> The `below:` threshold is **specific to your install** — see the trigger `note:` below.
+> The `3` in the trigger is **your own base count** — see the trigger `note:` below.
 
 ```yaml
 alias: "WiFi SSID: Alert if Home WiFi Offline"
-description: "Warns when the visible network count drops below normal for this location"
+description: "Warns when the number of your own networks drops below normal"
 triggers:
-  - trigger: numeric_state
-    entity_id: sensor.wifi_ssid_monitor_total_ssid_count
-    below: 2
+  - trigger: template
+    value_template: >
+      {{ (states('sensor.wifi_ssid_monitor_total_ssid_count') | int(0))
+         - (states('sensor.wifi_ssid_monitor_unknown_ssid_count') | int(0)) < 3 }}
+
+
     for:
-      minutes: 5
+      minutes: 10
     note: |
-      Set below: beneath the count you normally see at this location - it is not a fixed
-      number. If you have turned off a band with the Show 2.4/5/6 GHz switches your normal
-      count is permanently lower, and too high a threshold alerts continuously. The 5
-      minute duration rides out a single unlucky scan.
+      Watches your base count - total networks minus unknown ones - which is how many of
+      your own networks are broadcasting. Subtracting unknown means a neighbour's network
+      drifting in and out never moves it. Set the < 3 to your own base: if you normally see
+      4 total with 1 unknown, your base is 3, so < 3 fires the moment it drops to 2.
+      The 10 minute duration rides out a single unlucky scan - set it to about double your
+      scan interval.
 conditions:
-  - condition: state
-    entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
-    state: "off"
-    note: |
-      Skips the alert while an unknown network is present, since the count is then being
-      inflated by something that is not yours.
   - condition: state
     alias: Ignore a low count caused by the integration itself failing
     entity_id: binary_sensor.wifi_ssid_monitor_integration_health
     state: "off"
     note: |
-      A missing interface or a failed Supervisor call also drives the count to zero. That
-      is a fault in this integration's data, not evidence your router is down - Integration
-      Health reports it separately, so this stays silent for it.
+      A missing interface or a failed Supervisor call drives the total to zero, which would
+      also pull the base below the threshold. That is a fault in this integration's data,
+      not evidence your router is down - Integration Health reports it separately, so this
+      stays silent for it.
 actions:
   - action: persistent_notification.create
     data:
-      message: "WiFi network count has dropped — a home network may be offline"
+      message: >
+        A home network may be offline — only {{ (states('sensor.wifi_ssid_monitor_total_ssid_count') | int(0))
+           - (states('sensor.wifi_ssid_monitor_unknown_ssid_count') | int(0)) }}
+        of your networks are broadcasting.
+
+
     note: |
-      Only reaches here when the count is genuinely low and the integration itself is
-      healthy.
+      Only reaches here when the base is genuinely low and the integration itself is
+      healthy. The message recomputes the base so it names the current number.
 ```
 
 ---
@@ -980,13 +972,43 @@ actions:
 
 ### 🔄 Polling & Scanning Automations
 
+#### 🔍 Security Scan on Arrival
+
+<details>
+
+<summary> &nbsp; &nbsp; Trigger an immediate scan the moment someone arrives home.<br>
+&nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
+</summary><br>
+
+```yaml
+alias: "WiFi SSID: Scan on Arrival"
+description: "Runs an on-demand WiFi scan when someone arrives home"
+triggers:
+  - trigger: state
+    entity_id: person.your_name
+    from: "not_home"
+    to: "home"
+    note: Replace person.your_name with your own person or device_tracker entity.
+actions:
+  - action: button.press
+    target:
+      entity_id: button.wifi_ssid_monitor_scan_now
+    note: |
+      Runs a scan immediately rather than waiting for the next interval. It works even
+      while Stop Polling is on - an explicit request is always honoured - and raises an
+      error if the scan fails, so the automation reports rather than silently doing nothing.
+```
+
+---
+
+</details>
+
 #### 🔄 Dynamic Polling Control
 
 <details>
 
 <summary> &nbsp; &nbsp; Automatically adjust the scan frequency between day and evening hours.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
 ```yaml
@@ -1034,49 +1056,15 @@ actions:
 
 </details>
 
-#### 🔍 Security Scan on Arrival
-
-<details>
-
-<summary> &nbsp; &nbsp; Trigger an immediate scan the moment someone arrives home.<br>
-&nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
-</summary><br>
-
-```yaml
-alias: "WiFi SSID: Scan on Arrival"
-description: "Runs an on-demand WiFi scan when someone arrives home"
-triggers:
-  - trigger: state
-    entity_id: person.your_name
-    to: "home"
-    note: Replace person.your_name with your own person or device_tracker entity.
-actions:
-  - action: button.press
-    target:
-      entity_id: button.wifi_ssid_monitor_scan_now
-    note: |
-      Runs a scan immediately rather than waiting for the next interval. It works even
-      while Stop Polling is on - an explicit request is always honoured - and raises an
-      error if the scan fails, so the automation reports rather than silently doing nothing.
-```
-
----
-
-</details>
-
 #### ⏸️ Pause Scanning Overnight
 
 <details>
 
 <summary> &nbsp; &nbsp; Suspend polling during hours you do not care about, and resume in the morning.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
-While `Stop Polling` is on, no scans run at all and the sensors hold their last values. This is
-the lighter-touch alternative to lengthening the scan interval when you want *no* activity
-rather than less of it.
+While `Stop Polling` is on, no scans run at all and the sensors hold their last values. This is the lighter-touch alternative to lengthening the scan interval when you want _no_ activity rather than less of it.
 
 ```yaml
 alias: "WiFi SSID: Pause Scanning Overnight"
@@ -1131,7 +1119,6 @@ actions:
 
 <summary> &nbsp; &nbsp; Whitelist a guest network when its switch turns on, and remove it when it turns off.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
 ```yaml
@@ -1184,7 +1171,6 @@ actions:
 
 <summary> &nbsp; &nbsp; Prune the persistent scan history once a week.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
 Prevents the list of temporary, one-off unknown SSIDs from growing too large.
@@ -1222,13 +1208,9 @@ actions:
 
 <summary> &nbsp; &nbsp; Be told when the integration detects a fault in its own data.<br>
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
-
 </summary><br>
 
-The `Integration Health` binary sensor turns on when the integration's self-checks find a
-problem — a missing interface, a change in the shape or units of the Supervisor response, or a
-scan that returned nothing. It stays available even when scanning has failed, so it can report
-the fault that made the other entities unreliable.
+The `Integration Health` binary sensor turns on when the integration's self-checks find a problem — a missing interface, a change in the shape or units of the Supervisor response, or a scan that returned nothing. It stays available even when scanning has failed, so it can report the fault that made the other entities unreliable.
 
 ```yaml
 alias: "WiFi SSID: Integration Health Problem"
@@ -1237,6 +1219,7 @@ mode: single
 triggers:
   - trigger: state
     entity_id: binary_sensor.wifi_ssid_monitor_integration_health
+    from: "off"
     to: "on"
     for:
       minutes: 10
@@ -1248,12 +1231,10 @@ actions:
   - action: persistent_notification.create
     data:
       title: WiFi SSID Monitor needs attention
-      message: >
+      message: |
         {{ state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'issues')
-           | join(', ') }}
-
-        Last good scan:
-        {{ state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'last_good_scan') }}
+           | join(', ') }}        
+        Last good scan: {{ state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'last_good_scan') }}
     note: |
       issues is a list of human-readable problem descriptions. The sensor also carries
       severity, checks_failed (the check names, for filtering), signal_unit, and
