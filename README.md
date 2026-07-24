@@ -83,10 +83,10 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 ## 🎯 Use Cases
 
-- **Security Monitoring (Rogue Network Detection)**: Monitor for unexpected WiFi networks in your environment that could indicate unauthorized access points or security threats. Get alerted when unrecognized SSIDs are broadcast in range.
-- **Device Management (Smart Device Setup Detection)**: Identify when smart home devices enter pairing or recovery mode (broadcasting their own setup APs) due to a fresh installation or an unexpected reset.
-- **Network Uptime (Known Network Monitoring)**: Track whether your own home networks remain online. Get notified if one of your personal access points stops broadcasting or goes offline.
-- **Dynamic Performance Tuning**: Automatically lower the scan frequency during high-traffic or evening hours and speed it up during security cycles to minimize system load.
+- **Security Monitoring (Rogue Network Detection)**: Monitor for unexpected WiFi networks in your environment that could indicate unauthorized access points or security threats. Get alerted when unrecognized SSIDs are broadcast in range. → [Rogue Network Detection Alert](#-rogue-network-detection-alert) example.
+- **Device Management (Smart Device Setup Detection)**: Identify when smart home devices enter pairing or recovery mode (broadcasting their own setup APs) due to a fresh installation or an unexpected reset. → [Smart Device Setup Detection](#-smart-device-setup-detection) example.
+- **Network Uptime (Known Network Monitoring)**: Track whether your own home networks remain online. Get notified if one of your personal access points stops broadcasting or goes offline. → [Home WiFi Offline Alert](#-home-wifi-offline-alert) example.
+- **Dynamic Performance Tuning**: Automatically lower the scan frequency during high-traffic or evening hours and speed it up during security cycles to minimize system load. → [Dynamic Polling Control](#-dynamic-polling-control) example.
 
 ## ✅ Features
 
@@ -129,7 +129,7 @@ This integration provides its 18 entities under a single **WiFi SSID Monitor** d
 | 🔐 **Binary Sensors** | 3 / 3 | New Network Alert, Proximity Alert, Integration Health |
 | 🔢 **Number Entities** | 2 / 2 | Scan Interval (1–180 min), Proximity Signal Threshold (0–100%) |
 | 🔘 **Switch Entities** | 5 / 5 | Pause Polling, Include Hidden Networks, Show 2.4 / 5 / 6 GHz |
-| 🔘 **Button Entities** | 1 / 1 | Scan Now |
+| 👆 **Button Entities** | 1 / 1 | Scan Now |
 | **Total Base Install** | **18 / 18** | Complete integration entity set |
 
 There are also six actions (services) and one event - details > [Actions & Events](#-actions-services)
@@ -203,7 +203,7 @@ The `proximity_alert` sensor exposes `strongest_unknown_signal` (0–100% of the
 >
 > **Turning every band switch off shows no networks**, not all of them. Leave at least one band on.
 
-### 🔘 Button Entities
+### 👆 Button Entities
 
 | Entity | Description |
 | :-- | :-- |
@@ -289,45 +289,45 @@ Detecting **unknown** WiFi networks — SSIDs in range that are not on your know
 &nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
 </summary><br>
 
-### 📘 How to use it
+### 🧭 How to use it
 
 1. Look at the typical signal levels of your neighbors' WiFi in the **Strongest Unknown SSID** attributes or via `get_networks` action. _(Before you add them to your denylist, this is a good way to gauge what "nearby" signal levels look like in your setup.)_
 2. Set your **Proximity Signal Threshold** slightly above that normal background level (e.g. if neighbors sit around 50%, set the threshold to 70%).
 3. Optionally narrow the noise: add known-friendly SSIDs to the **denylist**, or turn off a band you don't care about.
 4. Set up an automation to notify you when the **Proximity Alert** turns `on`, or trigger on the `wifi_ssid_monitor_new_network` event (see the examples below).
 
-### 📘 Sensors & alert
+### 🔔 Sensors & Alert
 
 - **Unknown SSID Count (`sensor.wifi_ssid_monitor_unknown_ssid_count`)**: Count of networks in range that don't match your Known SSIDs list (plus any on the denylist), after your band and hidden-network filters.
 - **Strongest Unknown SSID (`sensor.wifi_ssid_monitor_strongest_unknown_ssid`)**: The name of the closest unknown network by signal; reads `None Detected` when nothing unknown is in range.
   - _Attributes_: a `networks` list (the strongest, up to 25 listed) with each network's `ssid`, `bssid`, `signal` (0–100%), `channel`, `band`, `hidden`, `ssid_anomaly`, `first_seen`, `last_seen`, and `visit_count`. `networks_truncated: true` flags if the list was capped — use the `get_networks` action for the complete set.
 - **Strongest Unknown Signal (`sensor.wifi_ssid_monitor_strongest_unknown_signal`)**: The signal quality (0–100%, higher is closer) of the strongest unknown network; `unknown` when nothing unknown is visible.
 - **New Networks (24h) (`sensor.wifi_ssid_monitor_new_networks_24h`)**: Count of networks this integration first saw within a rolling 24 hours (LTS-enabled for trends).
-- **Proximity Alert (`binary_sensor.wifi_ssid_monitor_proximity_alert`)**: A `PROBLEM` binary sensor that turns `on` when the strongest unknown network's signal is **at or above** your **Proximity Signal Threshold** (e.g. 90% is closer/stronger than 80%).
+- **Proximity Alert (`binary_sensor.wifi_ssid_monitor_proximity_alert`)**: A `PROBLEM` binary sensor that turns `on` when the strongest unknown network's signal is **at or above** your **Proximity Signal Threshold** (e.g. 90% is closer/stronger than 80%). See the [Proximity Alert Notification](#-proximity-alert-notification) example.
 
-### 📘 Hidden & spoofed networks
+### 🥸 Hidden & Spoofed Networks
 
 - **Individual hidden naming**: A network that does not broadcast a name is identified from its BSSID as `Hidden-<last 4 hex>` (e.g. `Hidden-A2D3`), so distinct cloaked APs stay distinguishable instead of collapsing into one entry. Only an AP that reports no BSSID at all falls back to a shared `[hidden]` label.
-- **Anomaly flag**: `ssid_anomaly` is set when a name is hidden **or** contains control, zero-width, or right-to-left characters — the toolkit for making one network's name render identically to another's. Those characters are replaced with a visible `·` marker so the difference is apparent rather than invisible.
+- **Anomaly flag**: `ssid_anomaly` is set when a name is hidden **or** contains control, zero-width, or right-to-left characters — the toolkit for making one network's name render identically to another's. Those characters are replaced with a visible `·` marker so the difference is apparent rather than invisible. See the [Spoofed or Disguised Network Alert](#-spoofed-or-disguised-network-alert) example to alert only on this case.
 
-### 📘 Tuning (control entities on the device page)
+### 🔧 Tuning (control entities on the device page)
 
 - **Show 2.4 / 5 / 6 GHz** (`switch`) — include or drop each band from all counts and lists.
 - **Include Hidden Networks** (`switch`) — count un-broadcast networks or ignore them entirely.
 - **Proximity Signal Threshold** (`number`, 0–100%) — the "nearby" cut-off; raise it to require a closer network before the alert fires.
 
-The **Known SSIDs** and **Always-Unknown (denylist)** lists are set in **Configure** (or via the `add_ssid` / `remove_ssid` / `set_ssids` actions). Both accept `fnmatch` wildcards and can match either the SSID or the BSSID. See [Runtime Options](#-runtime-options).
+The **Known SSIDs** and **Always-Unknown (denylist)** lists are set in **Configure** (or via the `add_ssid` / `remove_ssid` / `set_ssids` actions). Both accept `fnmatch` wildcards and can match either the SSID or the BSSID. See [Runtime Options](#-runtime-options). The [Dynamic Guest Network Whitelisting](#-dynamic-guest-network-whitelisting) example drives the known list from an automation.
 
-### 📘 On-demand & automations
+### 🤖 On-demand & Automations
 
 - **`get_networks` action** — query the current network set on demand with your own scope / band / signal / keyword / exclude filters (see [Actions](#-actions-services)).
 - **`wifi_ssid_monitor_new_network` event** — fires once per genuinely-new network, for triggering automations (see [Events](#-events)).
 
 ### 🕒 Network appearance history
 
-For each network, the integration keeps a small persisted record — `first_seen` (when HA first tracked it), `last_seen`, and `visit_count` (scan cycles seen) — pruned by the **Last Seen History TTL** option (default 90 days) plus a hard cap of 2,000 entries to bound total growth in busy locations. It powers the `first_seen` / `visit_count` fields on the `get_networks` response and the per-network detail attributes, and the **New Networks (24h)** sensor.
+For each network, the integration keeps a small persisted record — `first_seen` (when HA first tracked it), `last_seen`, and `visit_count` (scan cycles seen) — pruned by the **Last Seen History TTL** option (default 90 days) plus a hard cap of 2,000 entries to bound total growth in busy locations. It powers the `first_seen` / `visit_count` fields on the `get_networks` response and the per-network detail attributes, and the **New Networks (24h)** sensor. The [Persistent Unknown Network Digest](#-persistent-unknown-network-digest) example uses `visit_count` to report only the networks that keep returning.
 
-**Caveats:** `first_seen` is "first seen by _Home Assistant_", not by your hardware — on first install everything counts as new for 24 h. And devices using randomized MAC addresses can make **hidden** entries churn. Use `clear_last_seen` action to reset.
+**Caveats:** `first_seen` is "first seen by _Home Assistant_", not by your hardware — on first install everything counts as new for 24 h. And devices using randomized MAC addresses can make **hidden** entries churn. Use `clear_last_seen` action to reset — the [Weekly History Cleanup](#-weekly-history-cleanup) example does this on a schedule.
 
 ### 📶 Signal Quality (%) vs RSSI (dBm)
 
@@ -375,14 +375,14 @@ Several settings are exposed as control entities so you can drive them from dash
 &nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
 </summary><br>
 
-### 🔘 Runtime Controls & Settings (Entities)
+### 🔩 Runtime Controls & Settings (Entities)
 
-- **Pause Polling** (`switch`) — halt scheduled scanning temporarily. Manual actions (Scan Now, a control change, `scan_now`) still fetch while paused.
-- **Scan Interval** (`number`) — minutes between scheduled scans (1–180, default 10). This is the only place the interval is set.
+- **Pause Polling** (`switch`) — halt scheduled scanning temporarily. Manual actions (Scan Now, a control change, `scan_now`) still fetch while paused. See the [Pause Scanning Overnight](#-pause-scanning-overnight) example.
+- **Scan Interval** (`number`) — minutes between scheduled scans (1–180, default 10). This is the only place the interval is set. See the [Dynamic Polling Control](#-dynamic-polling-control) example.
 - **Proximity Signal Threshold** (`number`) — signal quality (0–100%) at or above which an unknown network trips the Proximity Alert (default 80%).
 - **Include Hidden Networks** (`switch`) — count un-broadcast networks or ignore them entirely (default on).
 - **Show 2.4 GHz / Show 5 GHz / Show 6 GHz** (`switch` × 3) — include or drop each band from all counts and lists (all default on).
-- **Scan Now** (`button`) — an immediate on-demand scan (works even while Pause Polling is on).
+- **Scan Now** (`button`) — an immediate on-demand scan (works even while Pause Polling is on). See the [Security Scan on Arrival](#-security-scan-on-arrival) example.
 
 Changing any of these applies **immediately** — even while Pause Polling is on, an explicit change triggers a fresh scan (a bare scan-interval change just re-arms the timer).
 
@@ -402,7 +402,7 @@ SSID matching supports standard shell wildcards (`fnmatch` patterns):
 - `?` — Matches any single character (e.g., `IoT_?` matches `IoT_1` but not `IoT_12`).
 - `[seq]` — Matches any character in the sequence (e.g., `Home_[12]` matches `Home_1` and `Home_2`).
 
-#### 2. Proximity Alert Threshold & Signal Quality
+#### 2. Proximity Signal Threshold & Signal Quality
 
 The Supervisor reports signal as a **0–100% quality figure**, and the Proximity Threshold is set on the same scale. Higher is closer:
 
@@ -560,7 +560,25 @@ data:
   min_signal: 60
 ```
 
-The response carries `networks` (the capped list), `count`, and `total_matched` (the true match count before the `quantity` cap).
+The response carries `networks` (the capped list), `count` (the number returned, after the `quantity` cap), and `total_matched` (the true match count before the cap).
+
+Each entry in `networks` carries the following fields:
+
+| Field | Description |
+| :-- | :-- |
+| `entry_id` | The config entry that saw the network |
+| `ssid` | Display name (`Hidden-<last 4 of BSSID>` for a cloaked network) |
+| `bssid` | Access point MAC, where reported |
+| `signal` | Signal quality 0–100% (higher is closer); the list is sorted by this, strongest first |
+| `channel` | WiFi channel, where derivable |
+| `band` | `2.4 GHz` / `5 GHz` / `6 GHz`, or `null` if undetermined |
+| `hidden` | `true` if the network does not broadcast a name |
+| `ssid_anomaly` | `true` if the name is hidden or contains control/zero-width/RTL characters |
+| `mode` | Reported AP mode, where present |
+| `known` | `true` if the network matches your known list (and is not on the denylist) |
+| `first_seen` | ISO timestamp this integration first saw the network |
+| `last_seen` | ISO timestamp of the most recent scan the network was seen |
+| `visit_count` | Number of scan cycles the network has been seen in |
 
 <details>
 
@@ -713,7 +731,7 @@ triggers:
     from: "off"
     to: "on"
     note: |
-      Fires when an unknown network's signal quality reaches the Proximity Alert Threshold
+      Fires when an unknown network's signal quality reaches the Proximity Signal Threshold
       number entity (80% by default). Raise that number to alert only on very close
       networks, lower it to catch weaker ones.
 actions:
@@ -761,7 +779,7 @@ actions:
 
 </details>
 
-#### 🕵️ Spoofed or Disguised Network Alert
+#### 🎭 Spoofed or Disguised Network Alert
 
 <details>
 
@@ -816,7 +834,7 @@ actions:
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
 </summary><br>
 
-The `new_network_alert` binary sensor cannot tell a neighbour's permanent access point from a phone hotspot that drove past once. This uses the `get_networks` response action and its `visit_count` and `first_seen` fields to report only the networks that have been seen repeatedly.
+The `new_network_alert` binary sensor cannot tell a neighbor's permanent access point from a phone hotspot that drove past once. This uses the `get_networks` response action and its `visit_count` and `first_seen` fields to report only the networks that have been seen repeatedly.
 
 ```yaml
 alias: "WiFi SSID: Daily Persistent Unknown Network Digest"
@@ -928,11 +946,9 @@ alias: "WiFi SSID: Alert if Home WiFi Offline"
 description: "Warns when the number of your own networks drops below normal"
 triggers:
   - trigger: template
-    value_template: >
+    value_template: |
       {{ (states('sensor.wifi_ssid_monitor_total_ssid_count') | int(0))
          - (states('sensor.wifi_ssid_monitor_unknown_ssid_count') | int(0)) < 3 }}
-
-
     for:
       minutes: 10
     note: |
@@ -955,12 +971,10 @@ conditions:
 actions:
   - action: persistent_notification.create
     data:
-      message: >
+      message: |
         A home network may be offline — only {{ (states('sensor.wifi_ssid_monitor_total_ssid_count') | int(0))
            - (states('sensor.wifi_ssid_monitor_unknown_ssid_count') | int(0)) }}
         of your networks are broadcasting.
-
-
     note: |
       Only reaches here when the base is genuinely low and the integration itself is
       healthy. The message recomputes the base so it names the current number.
@@ -995,7 +1009,7 @@ actions:
       entity_id: button.wifi_ssid_monitor_scan_now
     note: |
       Runs a scan immediately rather than waiting for the next interval. It works even
-      while Stop Polling is on - an explicit request is always honoured - and raises an
+      while Pause Polling is on - an explicit request is always honoured - and raises an
       error if the scan fails, so the automation reports rather than silently doing nothing.
 ```
 
@@ -1048,7 +1062,7 @@ actions:
             data:
               value: 20
             note: |
-              Scan every 20 minutes. Use the Stop Polling switch instead if you want no
+              Scan every 20 minutes. Use the Pause Polling switch instead if you want no
               scanning at all rather than less of it.
 ```
 
@@ -1056,7 +1070,7 @@ actions:
 
 </details>
 
-#### ⏸️ Pause Scanning Overnight
+#### 🌙 Pause Scanning Overnight
 
 <details>
 
@@ -1064,7 +1078,7 @@ actions:
 &nbsp; &nbsp; &nbsp; &nbsp; ➕ &nbsp; Click to Expand for Automation Detail:
 </summary><br>
 
-While `Stop Polling` is on, no scans run at all and the sensors hold their last values. This is the lighter-touch alternative to lengthening the scan interval when you want _no_ activity rather than less of it.
+While `Pause Polling` is on, no scans run at all and the sensors hold their last values. This is the lighter-touch alternative to lengthening the scan interval when you want _no_ activity rather than less of it.
 
 ```yaml
 alias: "WiFi SSID: Pause Scanning Overnight"
@@ -1087,7 +1101,7 @@ actions:
         sequence:
           - action: switch.turn_on
             target:
-              entity_id: switch.wifi_ssid_monitor_stop_polling
+              entity_id: switch.wifi_ssid_monitor_pause_polling
             note: |
               No scans run at all while this is on and the sensors hold their last values.
               The Scan Now button still works if you ask for a scan explicitly.
@@ -1097,7 +1111,7 @@ actions:
         sequence:
           - action: switch.turn_off
             target:
-              entity_id: switch.wifi_ssid_monitor_stop_polling
+              entity_id: switch.wifi_ssid_monitor_pause_polling
             note: |
               Resuming restores the normal schedule but does not fetch immediately, so the
               first fresh data would otherwise arrive up to one interval later.
@@ -1202,7 +1216,7 @@ actions:
 
 ### 🩺 Diagnostics & Health Automations
 
-#### 🩺 Integration Health Problem Alert
+#### 🩹 Integration Health Problem Alert
 
 <details>
 
@@ -1233,7 +1247,7 @@ actions:
       title: WiFi SSID Monitor needs attention
       message: |
         {{ state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'issues')
-           | join(', ') }}        
+           | join(', ') }}
         Last good scan: {{ state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'last_good_scan') }}
     note: |
       issues is a list of human-readable problem descriptions. The sensor also carries
@@ -1294,7 +1308,7 @@ Standard HACS custom-repository integration update behavior:
 
 ## 🔧 Configuration
 
-### 🔧 Initial Setup
+### 🚀 Initial Setup
 
 Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**.
 
@@ -1392,7 +1406,7 @@ Some failures are **silent** — a scan succeeds but the data is wrong (e.g. a S
 - **`on`** when the integration detects a problem with its own data — an unreachable Supervisor, a payload that parsed to nothing, an interface that vanished, a signal-unit change, or every known network disappearing at once.
 - **Repair issues** are raised for the few conditions you can act on: **`interface_missing`** (the monitored interface is no longer reported — reconfigure to pick the right one), **`signal_format_changed`** (the Supervisor changed how it reports signal — review the Proximity Threshold), and **`supervisor_unavailable`** (repeated fetch failures).
 
-It's deliberately cautious: it gives startup grace before judging drift, requires a condition to persist over several cycles before flipping, and auto-recovers on the next clean scan. Details — `issues`, `severity`, `checks_failed`, `signal_unit`, `last_good_scan` — live in the sensor's attributes; put it on a dashboard or alert on it to catch breakage early instead of months later.
+It's deliberately cautious: it gives startup grace before judging drift, requires a condition to persist over several cycles before flipping, and auto-recovers on the next clean scan. Details — `issues`, `severity`, `checks_failed`, `signal_unit`, `last_good_scan` — live in the sensor's attributes; put it on a dashboard or alert on it to catch breakage early instead of months later — see the [Integration Health Problem Alert](#-integration-health-problem-alert) example.
 
 ### 🔄 Data Polling & 3-Strike Resilience
 
@@ -1435,7 +1449,7 @@ Entries older than the **Last Seen History TTL** (default 90 days) are pruned au
 
 ### 🔌 Setup & Connectivity
 
-#### 🔌 **Integration Fails to Load ("Failed to connect to Supervisor API")**
+#### 🚫 **Integration Fails to Load ("Failed to connect to Supervisor API")**
 
 <details>
 
@@ -1462,7 +1476,7 @@ Entries older than the **Last Seen History TTL** (default 90 days) are pruned au
 - Verify the interface name is correct for your system under **Settings > System > Network**.
 - Ensure WiFi is enabled and the interface is active.
 - Check that networks are actively broadcasting in range of the system.
-- Check the **Integration Health** binary sensor — its `issues` attribute names what it detected (e.g. a missing interface).
+- Check the **Integration Health** binary sensor — its `issues` attribute names what it detected (e.g. a missing interface). The [Integration Health Problem Alert](#-integration-health-problem-alert) example notifies you automatically.
 - Review the Home Assistant logs for detailed error messages.
 - Its a computer, turning it off and on again never hurts.
 

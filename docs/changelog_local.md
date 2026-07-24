@@ -75,6 +75,12 @@ A major update, with significant capability improvements and fixes BUT also some
 
 ---
 
+## [2.0.0-dev8] - 2026-07-24 - Readme Automations and Edits
+
+### Changed
+
+- **README**: Further tweaks and enhancements, error fixes and automation improvements. Also, linkning of automation examples to relevent parts of file.
+
 ## [2.0.0-dev7] - 2026-07-24 - Readme Screenshots and Automations
 
 ### Changed
