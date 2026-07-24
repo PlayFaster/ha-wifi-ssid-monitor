@@ -79,7 +79,7 @@ A major update, with significant capability improvements and fixes BUT also some
 
 ### Changed
 
-- **README**: Further tweaks and enhancements, error fixes and automation improvements. Also, linkning of automation examples to relevent parts of file.
+- **README**: Further tweaks and enhancements, error fixes and automation improvements. Also, linkning of automation examples to relevant parts of file.
 
 ## [2.0.0-dev7] - 2026-07-24 - Readme Screenshots and Automations
 
