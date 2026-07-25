@@ -24,6 +24,12 @@ class WifiScanAPI:
         self.session = session
         self.interface = interface
         self.token = os.environ.get("SUPERVISOR_TOKEN")
+        # Set on every successful fetch. False means the response parsed but
+        # carried no ``accesspoints`` key at all — a contract change, which is
+        # a different fact from "the key was there and the list was empty".
+        # The health checks read this; nothing else should.
+        self.last_response_had_ap_key: bool = True
+        self.last_interface_present: bool | None = True
 
     async def validate(self) -> bool:
         """Validate the API connection."""
@@ -44,26 +50,27 @@ class WifiScanAPI:
             "Content-Type": "application/json",
         }
 
+        status = 200
+        res_data = {}
         try:
             async with self.session.get(
                 url, headers=headers, timeout=ClientTimeout(total=30)
             ) as response:
-                if response.status != 200:
+                status = response.status
+                if status == 200:
+                    self.last_interface_present = True
+                    try:
+                        res_data = await response.json()
+                    except (aiohttp.ContentTypeError, ValueError) as e:
+                        _LOGGER.error("Invalid JSON response from API: %s", e)
+                        raise WifiScanError(f"Invalid API response: {e}") from e
+                else:
+                    if status in (400, 404):
+                        self.last_interface_present = False
                     text = await response.text()
                     _LOGGER.error(
-                        "Failed to fetch access points: %s - %s", response.status, text
+                        "Failed to fetch access points: %s - %s", status, text
                     )
-                    raise WifiScanError(f"API returned status {response.status}")
-
-                try:
-                    res_data = await response.json()
-                except (aiohttp.ContentTypeError, ValueError) as e:
-                    _LOGGER.error("Invalid JSON response from API: %s", e)
-                    raise WifiScanError(f"Invalid API response: {e}") from e
-
-                data_block = res_data.get("data") or {}
-                access_points: list[dict[str, Any]] = data_block.get("accesspoints", [])
-                return access_points
         except WifiScanError:
             # Re-raise our custom errors without wrapping
             raise
@@ -73,6 +80,28 @@ class WifiScanAPI:
         except Exception as e:
             _LOGGER.error("Unexpected error fetching access points: %s", e)
             raise WifiScanError(f"Unexpected error: {e}") from e
+
+        if status != 200:
+            raise WifiScanError(f"API returned status {status}")
+
+        data_block = res_data.get("data") or {}
+        raw_aps = data_block.get("accesspoints")
+        if not isinstance(raw_aps, list):
+            self.last_response_had_ap_key = False
+            _LOGGER.debug(
+                "Supervisor response carried no 'accesspoints' list (keys: %s)",
+                sorted(data_block)
+                if isinstance(data_block, dict)
+                else type(data_block),
+            )
+            return []
+        self.last_response_had_ap_key = True
+        access_points: list[dict[str, Any]] = raw_aps
+        # One-off shape capture for support: the Supervisor's AccessPoint model
+        # is not versioned, so the raw key set is the only evidence of drift.
+        if access_points:
+            _LOGGER.debug("raw AP sample: %s", access_points[0])
+        return access_points
 
     async def get_interfaces(self) -> list[str]:
         """Fetch all network interfaces and return WiFi ones."""
@@ -86,29 +115,21 @@ class WifiScanAPI:
             "Content-Type": "application/json",
         }
 
+        status = 200
+        res_data = {}
         try:
             async with self.session.get(
                 url, headers=headers, timeout=ClientTimeout(total=30)
             ) as response:
-                if response.status != 200:
-                    _LOGGER.error("Failed to fetch network info: %s", response.status)
-                    raise WifiScanError(f"API returned status {response.status}")
-
-                try:
-                    res_data = await response.json()
-                except (aiohttp.ContentTypeError, ValueError) as e:
-                    _LOGGER.error("Invalid JSON response from API: %s", e)
-                    raise WifiScanError(f"Invalid API response: {e}") from e
-
-                data_block = res_data.get("data") or {}
-                interfaces = data_block.get("interfaces", [])
-
-                # Filter for wireless interfaces
-                return [
-                    iface.get("interface", "")
-                    for iface in interfaces
-                    if iface.get("type") == "wifi" and iface.get("interface")
-                ]
+                status = response.status
+                if status == 200:
+                    try:
+                        res_data = await response.json()
+                    except (aiohttp.ContentTypeError, ValueError) as e:
+                        _LOGGER.error("Invalid JSON response from API: %s", e)
+                        raise WifiScanError(f"Invalid API response: {e}") from e
+                else:
+                    _LOGGER.error("Failed to fetch network info: %s", status)
         except WifiScanError:
             # Re-raise our custom errors without wrapping
             raise
@@ -118,3 +139,19 @@ class WifiScanAPI:
         except Exception as e:
             _LOGGER.error("Unexpected error fetching interfaces: %s", e)
             raise WifiScanError(f"Unexpected error: {e}") from e
+
+        if status != 200:
+            raise WifiScanError(f"API returned status {status}")
+
+        data_block = res_data.get("data") or {}
+        interfaces = data_block.get("interfaces", [])
+
+        # Filter for wireless interfaces. The Supervisor reports "wifi" on
+        # generic-x86-64 but "wireless" on a Raspberry Pi 4 — matching only the
+        # former made auto-detection return nothing on Pi hardware, forcing
+        # every Pi user to type the interface name manually.
+        return [
+            iface.get("interface", "")
+            for iface in interfaces
+            if iface.get("type") in ("wifi", "wireless") and iface.get("interface")
+        ]

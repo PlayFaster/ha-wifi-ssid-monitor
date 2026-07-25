@@ -15,8 +15,90 @@ select = [
     "RUF",   # Ruff-specific rules
     "SIM",   # flake8-simplify
     "T20",   # flake8-print (forbids print statements)
+    "BLE",   # flake8-blind-except
+    "TRY",   # tryceratops exception handling
+    "S",     # flake8-bandit security checks
+    "DTZ",   # flake8-datetimez
+    "PT",    # flake8-pytest-style
+    "FURB",  # refurb (modernizing refactoring)
+    "FLY",   # flynt (f-strings conversion)
+    "PL",    # pylint rules
 ]
 ignore = [
-    "D203", # Conflict with D211 (HA prefers no blank line before class)
-    "D213", # Conflict with D212 (HA prefers summary on first line)
+    # Conflict with D211 (HA prefers no blank line before class)
+    "D203",
+    # Conflict with D212 (HA prefers summary on first line)
+    "D213",
+    
+    # Conflict with the formatter
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+    "Q",
+    "COM812",
+    "COM819",
+
+    # Voluptuous validators are function calls in default arguments
+    "B008",
+    # Cache on methods
+    "B019",
+    
+    # Docstring style issues
+    "D406",
+    "D407",
+    "D417",
+    
+    # Imports outside top-level (essential for fixtures and patching)
+    "PLC0415",
+    # Empty string simplification
+    "PLC1901",
+    # Redundant lambda
+    "PLW0108",
+    # eq without hash
+    "PLW1641",
+    # Variable overwritten
+    "PLW2901",
+    
+    # Pytest rules
+    "PT011",
+    "PT018",
+    
+    # Type checking rules
+    "TC001",
+    "TC002",
+    "TC003",
+    "TC006",
+    
+    # Complexity rules
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    
+    # Magic value used in comparison
+    "PLR2004",
+    
+    # Refurb rules
+    "FURB116",
+    
+    # Tryceratops exception rules
+    "TRY003",
+    "TRY400",
+    
+    # Ruff rules
+    "RUF001",
+    "RUF012",
+    "RUF015",
+    "RUF043",
+    
+    # Simplify rules
+    "SIM102",
+    "SIM103",
+    "SIM108",
+    "SIM115",
 ]
+
+

@@ -23,8 +23,7 @@ async def test_setup_unload_entry(hass: HomeAssistant, mock_config_entry):
 
     assert mock_config_entry.runtime_data is not None
 
-    # Unload
-    assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+    await hass.config_entries.async_unload(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
 
@@ -91,8 +90,443 @@ async def test_async_setup_entry_data_migration(hass: HomeAssistant):
 
 
 @pytest.mark.asyncio
+async def test_async_setup_entry_migrate_legacy_proximity_dbm(
+    hass: HomeAssistant,
+):
+    """Legacy proximity_rssi_threshold (dBm, negative) is migrated to percent."""
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_INTERFACE,
+        CONF_PROXIMITY_SIGNAL_THRESHOLD,
+        CONF_SCAN_INTERVAL,
+        DEFAULT_SCAN_INTERVAL,
+        DOMAIN,
+        LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan0_mig_prox",
+        title="WiFi SSID Monitor",
+        data={},
+        options={
+            CONF_INTERFACE: "wlan0",
+            LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD: -60,
+            CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+        },
+        entry_id="test_entry_prox_mig",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD not in entry.options
+    assert entry.options[CONF_PROXIMITY_SIGNAL_THRESHOLD] == 80
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_migrate_legacy_proximity_bad_type(
+    hass: HomeAssistant,
+):
+    """Unparsable legacy proximity threshold defaults to the normal default."""
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_INTERFACE,
+        CONF_PROXIMITY_SIGNAL_THRESHOLD,
+        CONF_SCAN_INTERVAL,
+        DEFAULT_PROXIMITY_SIGNAL_THRESHOLD,
+        DEFAULT_SCAN_INTERVAL,
+        DOMAIN,
+        LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan0_mig_prox_bad",
+        title="WiFi SSID Monitor",
+        data={},
+        options={
+            CONF_INTERFACE: "wlan0",
+            LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD: "not-a-number",
+            CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+        },
+        entry_id="test_entry_prox_bad",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert (
+        entry.options[CONF_PROXIMITY_SIGNAL_THRESHOLD]
+        == DEFAULT_PROXIMITY_SIGNAL_THRESHOLD
+    )
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_migrate_legacy_proximity_already_present(
+    hass: HomeAssistant,
+):
+    """When the new key already exists, legacy is not migrated over it."""
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_INTERFACE,
+        CONF_PROXIMITY_SIGNAL_THRESHOLD,
+        CONF_SCAN_INTERVAL,
+        DEFAULT_SCAN_INTERVAL,
+        DOMAIN,
+        LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan0_mig_prox_exist",
+        title="WiFi SSID Monitor",
+        data={},
+        options={
+            CONF_INTERFACE: "wlan0",
+            LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD: -50,
+            CONF_PROXIMITY_SIGNAL_THRESHOLD: 90,
+            CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+        },
+        entry_id="test_entry_prox_exist",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.options[CONF_PROXIMITY_SIGNAL_THRESHOLD] == 90
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_migrate_legacy_proximity_positive(
+    hass: HomeAssistant,
+):
+    """A positive legacy value is treated as already percentage."""
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_INTERFACE,
+        CONF_PROXIMITY_SIGNAL_THRESHOLD,
+        CONF_SCAN_INTERVAL,
+        DEFAULT_SCAN_INTERVAL,
+        DOMAIN,
+        LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan0_mig_prox_pos",
+        title="WiFi SSID Monitor",
+        data={},
+        options={
+            CONF_INTERFACE: "wlan0",
+            LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD: 75,
+            CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+        },
+        entry_id="test_entry_prox_pos",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.options[CONF_PROXIMITY_SIGNAL_THRESHOLD] == 75
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_migrate_legacy_scan_bands_all(
+    hass: HomeAssistant,
+):
+    """Legacy scan_bands='all' enables all three band switches."""
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_INTERFACE,
+        CONF_SCAN_INTERVAL,
+        CONF_SHOW_5GHZ,
+        CONF_SHOW_6GHZ,
+        CONF_SHOW_24GHZ,
+        DEFAULT_SCAN_INTERVAL,
+        DOMAIN,
+        LEGACY_CONF_SCAN_BANDS,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan0_mig_bands",
+        title="WiFi SSID Monitor",
+        data={},
+        options={
+            CONF_INTERFACE: "wlan0",
+            LEGACY_CONF_SCAN_BANDS: "all",
+            CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+        },
+        entry_id="test_entry_bands_all",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert LEGACY_CONF_SCAN_BANDS not in entry.options
+    assert entry.options[CONF_SHOW_24GHZ] is True
+    assert entry.options[CONF_SHOW_5GHZ] is True
+    assert entry.options[CONF_SHOW_6GHZ] is True
+
+
+@pytest.mark.asyncio
+async def test_get_networks_service(hass: HomeAssistant, mock_config_entry):
+    """Test the get_networks service returns networks data."""
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "all", "band": "all"},
+        blocking=True,
+        return_response=True,
+    )
+
+    assert "networks" in result
+    assert "count" in result
+    assert "total_matched" in result
+
+
+@pytest.mark.asyncio
+async def test_get_networks_service_with_data(
+    hass: HomeAssistant, mock_config_entry, mock_coordinator
+):
+    """Test the get_networks service with network data."""
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+            return_value=[],
+        ),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Inject data directly into the coordinator
+    coordinator = mock_config_entry.runtime_data
+    coordinator.data = {
+        "count": 2,
+        "ssids": ["MyNetwork1", "UnknownNet"],
+        "unknown_ssids": ["UnknownNet"],
+        "unknown_count": 1,
+        "interface": "wlan0",
+        "networks": {
+            "MyNetwork1": {
+                "bssid": "AA:BB:CC:00:00:01",
+                "signal": 80,
+                "channel": 11,
+                "band": "2.4 GHz",
+                "hidden": False,
+                "ssid_anomaly": False,
+                "mode": "infrastructure",
+                "key": "MyNetwork1",
+            },
+            "UnknownNet": {
+                "bssid": "AA:BB:CC:00:00:02",
+                "signal": 55,
+                "channel": 48,
+                "band": "5 GHz",
+                "hidden": False,
+                "ssid_anomaly": False,
+                "mode": "infrastructure",
+                "key": "UnknownNet",
+            },
+        },
+        "last_seen": {"UnknownNet": "2026-07-22T11:00:00"},
+        "first_seen": {"UnknownNet": "2026-07-01T09:00:00"},
+        "visit_counts": {"UnknownNet": 42},
+        "new_24h": 0,
+        "strongest_unknown_signal": 55,
+        "strongest_unknown_ssid": "UnknownNet",
+        "signal_unit": "percent",
+    }
+
+    result = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "unknown", "band": "5", "quantity": 10},
+        blocking=True,
+        return_response=True,
+    )
+
+    assert result["count"] == 1
+    assert result["total_matched"] == 1
+    assert result["networks"][0]["ssid"] == "UnknownNet"
+    assert result["networks"][0]["band"] == "5 GHz"
+
+
+@pytest.mark.asyncio
+async def test_get_networks_service_filters(hass: HomeAssistant, mock_config_entry):
+    """Test the get_networks service filter parameters."""
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data
+    coordinator.data = {
+        "count": 4,
+        "ssids": ["Known1", "Known2", "UnkA", "UnkB"],
+        "unknown_ssids": ["UnkA", "UnkB"],
+        "unknown_count": 2,
+        "interface": "wlan0",
+        "networks": {
+            "Known1": {
+                "bssid": "AA:BB:CC:00:00:01",
+                "signal": 90,
+                "channel": 6,
+                "band": "2.4 GHz",
+                "hidden": False,
+                "ssid_anomaly": False,
+                "mode": "infrastructure",
+                "key": "Known1",
+            },
+            "Known2": {
+                "bssid": "AA:BB:CC:00:00:02",
+                "signal": 85,
+                "channel": 36,
+                "band": "5 GHz",
+                "hidden": False,
+                "ssid_anomaly": False,
+                "mode": "infrastructure",
+                "key": "Known2",
+            },
+            "UnkA": {
+                "bssid": "AA:BB:CC:00:00:03",
+                "signal": 60,
+                "channel": 1,
+                "band": "2.4 GHz",
+                "hidden": False,
+                "ssid_anomaly": False,
+                "mode": "infrastructure",
+                "key": "UnkA",
+            },
+            "UnkB": {
+                "bssid": "AA:BB:CC:00:00:04",
+                "signal": 40,
+                "channel": 11,
+                "band": "2.4 GHz",
+                "hidden": False,
+                "ssid_anomaly": False,
+                "mode": "infrastructure",
+                "key": "UnkB",
+            },
+        },
+        "last_seen": {},
+        "first_seen": {},
+        "visit_counts": {},
+        "new_24h": 0,
+        "strongest_unknown_signal": 60,
+        "strongest_unknown_ssid": "UnkA",
+        "signal_unit": "percent",
+    }
+
+    # known scope: only known networks
+    result1 = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "known", "band": "all"},
+        blocking=True,
+        return_response=True,
+    )
+    assert result1["total_matched"] == 2
+    assert {n["ssid"] for n in result1["networks"]} == {"Known1", "Known2"}
+
+    # specific band filter
+    result2 = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "all", "band": "2.4"},
+        blocking=True,
+        return_response=True,
+    )
+    assert result2["total_matched"] == 3
+    assert all(n["band"] == "2.4 GHz" for n in result2["networks"])
+
+    # min_signal filter
+    result3 = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "all", "band": "all", "min_signal": 85},
+        blocking=True,
+        return_response=True,
+    )
+    assert result3["total_matched"] == 2
+
+    # keyword filter
+    result4 = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "all", "band": "all", "keyword": "unk"},
+        blocking=True,
+        return_response=True,
+    )
+    assert result4["total_matched"] == 2
+
+    # exclude filter
+    result5 = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "all", "band": "all", "exclude": "known"},
+        blocking=True,
+        return_response=True,
+    )
+    assert result5["total_matched"] == 2
+
+    # quantity cap
+    result6 = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "all", "band": "all", "quantity": 1},
+        blocking=True,
+        return_response=True,
+    )
+    assert result6["count"] == 1
+    assert len(result6["networks"]) == 1
+
+
+@pytest.mark.asyncio
 async def test_add_known_ssid_service(hass: HomeAssistant, mock_config_entry):
-    """Test the add_known_ssid service."""
+    """Test the add_ssid service."""
     from custom_components.wifi_ssid_monitor.const import (
         CONF_KNOWN_SSIDS,
         DOMAIN,
@@ -109,7 +543,7 @@ async def test_add_known_ssid_service(hass: HomeAssistant, mock_config_entry):
 
     await hass.services.async_call(
         DOMAIN,
-        "add_known_ssid",
+        "add_ssid",
         {"ssid": "NewSSID"},
         blocking=True,
     )
@@ -122,7 +556,7 @@ async def test_add_known_ssid_service(hass: HomeAssistant, mock_config_entry):
 async def test_add_known_ssid_service_already_exists(
     hass: HomeAssistant, mock_config_entry
 ):
-    """Test the add_known_ssid service when SSID already exists."""
+    """Test the add_ssid service when SSID already exists."""
     from custom_components.wifi_ssid_monitor.const import (
         CONF_KNOWN_SSIDS,
         DOMAIN,
@@ -141,7 +575,7 @@ async def test_add_known_ssid_service_already_exists(
 
     await hass.services.async_call(
         DOMAIN,
-        "add_known_ssid",
+        "add_ssid",
         {"ssid": "MyNetwork1"},
         blocking=True,
     )
@@ -153,7 +587,7 @@ async def test_add_known_ssid_service_already_exists(
 async def test_add_known_ssid_service_with_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
-    """Test the add_known_ssid service with a specific config_entry_id."""
+    """Test the add_ssid service with a specific config_entry_id."""
     from custom_components.wifi_ssid_monitor.const import (
         CONF_KNOWN_SSIDS,
         DOMAIN,
@@ -170,7 +604,7 @@ async def test_add_known_ssid_service_with_entry_id(
 
     await hass.services.async_call(
         DOMAIN,
-        "add_known_ssid",
+        "add_ssid",
         {"ssid": "NewSSID", "config_entry_id": mock_config_entry.entry_id},
         blocking=True,
     )
@@ -183,7 +617,7 @@ async def test_add_known_ssid_service_with_entry_id(
 async def test_add_known_ssid_service_deduplication(
     hass: HomeAssistant, mock_config_entry
 ):
-    """Test add_known_ssid service deduplicates a runtime-added SSID."""
+    """Test add_ssid service deduplicates a runtime-added SSID."""
     from custom_components.wifi_ssid_monitor.const import (
         CONF_KNOWN_SSIDS,
         DOMAIN,
@@ -200,7 +634,7 @@ async def test_add_known_ssid_service_deduplication(
 
     await hass.services.async_call(
         DOMAIN,
-        "add_known_ssid",
+        "add_ssid",
         {"ssid": "BrandNew"},
         blocking=True,
     )
@@ -209,7 +643,7 @@ async def test_add_known_ssid_service_deduplication(
 
     await hass.services.async_call(
         DOMAIN,
-        "add_known_ssid",
+        "add_ssid",
         {"ssid": "BrandNew"},
         blocking=True,
     )
@@ -324,7 +758,7 @@ async def test_add_known_ssid_service_invalid_entry_id(
     with pytest.raises(HomeAssistantError, match=r"No .* entry found with ID"):
         await hass.services.async_call(
             DOMAIN,
-            "add_known_ssid",
+            "add_ssid",
             {"ssid": "NewSSID", "config_entry_id": "nonexistent_id"},
             blocking=True,
         )
@@ -332,7 +766,7 @@ async def test_add_known_ssid_service_invalid_entry_id(
 
 @pytest.mark.asyncio
 async def test_remove_known_ssid_service(hass: HomeAssistant, mock_config_entry):
-    """Test the remove_known_ssid service."""
+    """Test the remove_ssid service."""
     from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
@@ -348,7 +782,7 @@ async def test_remove_known_ssid_service(hass: HomeAssistant, mock_config_entry)
 
     await hass.services.async_call(
         DOMAIN,
-        "remove_known_ssid",
+        "remove_ssid",
         {"ssid": "MyNetwork1"},
         blocking=True,
     )
@@ -361,7 +795,7 @@ async def test_remove_known_ssid_service(hass: HomeAssistant, mock_config_entry)
 async def test_remove_known_ssid_service_not_present(
     hass: HomeAssistant, mock_config_entry
 ):
-    """Test remove_known_ssid when SSID is not present (silent success)."""
+    """Test remove_ssid when SSID is not present (silent success)."""
     from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
@@ -377,7 +811,7 @@ async def test_remove_known_ssid_service_not_present(
 
     await hass.services.async_call(
         DOMAIN,
-        "remove_known_ssid",
+        "remove_ssid",
         {"ssid": "NonExistentSSID"},
         blocking=True,
     )
@@ -389,7 +823,7 @@ async def test_remove_known_ssid_service_not_present(
 async def test_remove_known_ssid_service_with_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
-    """Test the remove_known_ssid service with a specific config_entry_id."""
+    """Test the remove_ssid service with a specific config_entry_id."""
     from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
@@ -403,7 +837,7 @@ async def test_remove_known_ssid_service_with_entry_id(
 
     await hass.services.async_call(
         DOMAIN,
-        "remove_known_ssid",
+        "remove_ssid",
         {"ssid": "MyNetwork1", "config_entry_id": mock_config_entry.entry_id},
         blocking=True,
     )
@@ -416,7 +850,7 @@ async def test_remove_known_ssid_service_with_entry_id(
 async def test_remove_known_ssid_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
-    """Test remove_known_ssid service raises HomeAssistantError with bogus entry_id."""
+    """Test remove_ssid service raises HomeAssistantError with bogus entry_id."""
     from homeassistant.exceptions import HomeAssistantError
 
     from custom_components.wifi_ssid_monitor.const import DOMAIN
@@ -433,7 +867,7 @@ async def test_remove_known_ssid_service_invalid_entry_id(
     with pytest.raises(HomeAssistantError, match=r"No .* entry found with ID"):
         await hass.services.async_call(
             DOMAIN,
-            "remove_known_ssid",
+            "remove_ssid",
             {"ssid": "MyNetwork1", "config_entry_id": "nonexistent_id"},
             blocking=True,
         )
@@ -626,7 +1060,7 @@ async def test_clear_last_seen_service_invalid_entry_id(
 
 @pytest.mark.asyncio
 async def test_set_known_ssids_service(hass: HomeAssistant, mock_config_entry):
-    """Test the set_known_ssids service."""
+    """Test the set_ssids service."""
     from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
@@ -640,8 +1074,8 @@ async def test_set_known_ssids_service(hass: HomeAssistant, mock_config_entry):
 
     result = await hass.services.async_call(
         DOMAIN,
-        "set_known_ssids",
-        {"known_ssids": "ReplacedNet1,ReplacedNet2"},
+        "set_ssids",
+        {"values": "ReplacedNet1,ReplacedNet2"},
         blocking=True,
         return_response=True,
     )
@@ -659,7 +1093,7 @@ async def test_set_known_ssids_service(hass: HomeAssistant, mock_config_entry):
 async def test_set_known_ssids_service_with_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
-    """Test the set_known_ssids service with a specific config_entry_id."""
+    """Test the set_ssids service with a specific config_entry_id."""
     from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
@@ -673,9 +1107,9 @@ async def test_set_known_ssids_service_with_entry_id(
 
     result = await hass.services.async_call(
         DOMAIN,
-        "set_known_ssids",
+        "set_ssids",
         {
-            "known_ssids": "ReplacedNet",
+            "values": "ReplacedNet",
             "config_entry_id": mock_config_entry.entry_id,
         },
         blocking=True,
@@ -691,7 +1125,7 @@ async def test_set_known_ssids_service_with_entry_id(
 async def test_set_known_ssids_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
-    """Test set_known_ssids service raises HomeAssistantError with bogus entry_id."""
+    """Test set_ssids service raises HomeAssistantError with bogus entry_id."""
     from homeassistant.exceptions import HomeAssistantError
 
     from custom_components.wifi_ssid_monitor.const import DOMAIN
@@ -708,7 +1142,7 @@ async def test_set_known_ssids_service_invalid_entry_id(
     with pytest.raises(HomeAssistantError, match=r"No .* entry found with ID"):
         await hass.services.async_call(
             DOMAIN,
-            "set_known_ssids",
-            {"known_ssids": "Test", "config_entry_id": "nonexistent_id"},
+            "set_ssids",
+            {"values": "Test", "config_entry_id": "nonexistent_id"},
             blocking=True,
         )

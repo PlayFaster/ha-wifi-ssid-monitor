@@ -254,3 +254,23 @@ async def test_get_interfaces_json_value_error(mock_aiohttp_client):
 
         with pytest.raises(WifiScanError, match="Invalid API response"):
             await api.get_interfaces()
+
+
+@pytest.mark.asyncio
+async def test_get_access_points_no_accesspoints_key(mock_aiohttp_client):
+    """When the response has no 'accesspoints' key, returns [] and sets flag."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+
+        mock_response_data = {
+            "result": "ok",
+            "data": {"interfaces": []},
+        }
+        mock_aiohttp_client.get.return_value = MockResponse(
+            json_data=mock_response_data
+        )
+
+        aps = await api.get_access_points()
+
+        assert aps == []
+        assert api.last_response_had_ap_key is False

@@ -1,6 +1,293 @@
 # Internal Detailed Changelog: WiFi SSID Monitor
 
-All notable changes to this project will be documented in this file.
+All changes to this project will be documented in this file. This is the detailed changelog, to include non user facing changes and intra-release changes.
+
+---
+
+## [2.0.0] - 2026-07-25
+
+> **This release has breaking changes - see the Breaking section.**
+
+### Summary
+
+A major update, with significant capability improvements and fixes BUT also some **breaking changes** unfortunately. The integration was originally developed taking SSID signal as RSSI in dBm [-100 to -30], but this number is actually Signal Quality in % [0 to 100]. This meant that the proximity threshold checking was not working as expected.
+
+**THE FIX**: SSID Signal is now as a **0–100% quality figure** (not dBm), and Proximity Signal Threshold is also % to match.
+
+**NEW**: Hidden networks are now identified individually, BSSID is captured and matchable, an **Integration Health** sensor catches silent errors, and several set-up controls move to became control entities. A new `get_networks` action allows current SSID status to be captured and used in automations and scripts.
+
+- Hidden Network Labelled - Hidden networks now get a name label, using the hidden BSSID, so you can distinguish between always on, repeat and new hidden networks
+
+- Sharper identification - hardware addresses (BSSIDs) usable in your known and blocked lists, spoofed-looking names flagged, and a New Networks (24h) sensor for what's appeared recently.
+
+- Integration Health sensor - stays visible even when everything else goes unavailable, and tells you when a WiFi adapter has disappeared, a Home Assistant update changed the data underneath, or all your known networks vanished at once. Raises a Repair notification where there's something you can act on.
+
+- Controls on the device page - scan interval, per-band 2.4/5/6 GHz switches, hidden-network handling, proximity threshold and a new Pause Polling switch, all usable from a dashboard or an automation instead of the settings dialog.
+
+- Get Networks action and New Network event - ask for exactly the networks you want (by band, signal, keyword, known or unknown) and get data automations can use; the event fires once per genuinely new arrival and remembers across restarts.
+
+### Breaking
+
+> **Upgrading from 1.6.x to 2.0.0 or above - breaking changes.** This release corrects long-standing signal-unit and band-filter bugs, which required renaming several things. There are also some moves. This was not done lightly, but the previous set-up was incorrect.
+>
+> 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable - delete it when convenient; its long-term statistics are kept (delete in Developer Tools > Statistics). Update any dashboard or automation referencing it.
+> 2. **Signal is now a 0–100% quality figure** everywhere. Higher means closer. The Proximity Alert now compares on this scale, and its threshold moved to the **Proximity Signal Threshold** number entity (default 80%). A stored dBm threshold is migrated automatically.
+> 3. **The list-management services were renamed and merged.** `add_known_ssid` → `add_ssid`, `remove_known_ssid` → `remove_ssid`, `set_known_ssids` → `set_ssids`, each now taking a required `target: known | denylist` (and `set_known_ssids`'s `known_ssids` field is now `values`). **There are no aliases** - automations calling the old names will fail. Update them, including any copied from the guest-network example below.
+> 4. **Four settings moved out of the Configure dialog** and are now entities on the device page: **Scan Interval**, **Include Hidden Networks**, and the band filter (now three **Show 2.4/5/6 GHz** switches). The old `scan_bands` option is migrated.
+
+### Added
+
+- **Integration Health binary sensor** - a `problem` sensor that stays available even during an outage, reporting an unreachable Supervisor, a changed payload shape or unit, an unresolved band, or all known networks vanishing at once. Backed by `interface_missing`, `signal_format_changed`, and `supervisor_unavailable` repair issues.
+- **`about` notes**: All sensor entities now have an "about:" attribute (visible in details) that explains the sensor. This information is set as `unrecorded` which prevents it being written to the Home Assistant database and taking up unnecessary space.
+- **Pause Polling switch** - halt scheduled scanning; explicit actions still fetch while paused.
+- **6 GHz support** and per-band **Show 2.4 / 5 / 6 GHz** switches replacing the single-choice band filter. Obviously this only has an impact if your Home Assistant system WiFi is 6GHz capable.
+- **Individual hidden-network naming** - cloaked networks are identified as `Hidden-<last 4 of BSSID>` instead of collapsing into one `[hidden]` entry.
+- **`get_networks` action** - a response action returning the current networks filtered by scope, band, signal and keyword; reads live scan data, so it works when the sensors are unavailable or their attribute list is capped.
+- **New Networks (24h) sensor** and the **`wifi_ssid_monitor_new_network` bus event** - fires once per genuinely-new network, survives restarts, baselined on first scan and rate-limited.
+- **BSSID exposure and matching** - `bssid` on the per-network detail, the action response and the event payload; `known_wifi_ids` and `denylist_ssids` now match against the BSSID as well as the name, so exact MACs and MAC wildcards (`AA:BB:CC:*`) are valid in both lists.
+- **`ssid_anomaly` flag** - set when a name is hidden or contains control, zero-width, or right-to-left characters (the toolkit for spoofing a network name).
+- **Operating mode (`mode`)** on the per-network detail, action response, and event payload.
+- **Denylist management from automations** via the `target` argument on the list actions.
+- **Refreshed icons and branding.**
+
+### Changed
+
+- **Signal is a 0–100% quality figure throughout** - sensors, the proximity threshold, and the action filters all use the same scale.
+- **Channel / Band Correct**: The channel and band detail (Strongest Unknown SSID - Networks attribute) was being misreported on many systems (conflating frequency and channel).
+- **Per-network detail relocated** onto **Strongest Unknown SSID** as a `networks` list capped at the 25 strongest (with a `networks_truncated` flag), and excluded from the recorder along with the other high-churn attributes.
+- **Strongest Unknown SSID reads `None Detected`** when nothing unknown is in range, instead of `unknown`.
+- **History writes are coalesced** rather than written on every scan, with a hard entry cap bounding growth in SSID-heavy locations.
+- **First-run setup failures raise `ConfigEntryNotReady`**, so Home Assistant shows its native retry behavior instead of marking the entry set up. The 3-strike hold still applies once running.
+- **Documentation overhauled** - the README gained a detection deep-dive, an entity/action reference, architecture and self-diagnosis sections, and a restructured FAQ.
+- **All Attributes `unrecorded`**: All attributes of sensor entities are now written as `unrecorded`, which prevents them being written to the Home Assistant database and taking up unnecessary space.
+
+### Fixed
+
+- **The band filter no longer hides every network** - band is derived from `frequency`, and an unresolved band passes rather than being dropped.
+- **The Proximity Alert no longer fires permanently** - it previously compared a 0–100 value against a negative dBm threshold, so it was on whenever any unknown network was visible.
+- **Interface auto-detection works on Raspberry Pi** - the Supervisor reports `wireless` there rather than `wifi`.
+- **Diagnostics redacts neighboring SSIDs** - a structural sanitizer pseudonymizes SSIDs and BSSIDs, including where they are used as dictionary keys, while preserving signal, channel, band and counts.
+- **Action calls targeting an unloaded entry** return a clear, translated error instead of an internal failure.
+
+### Removed
+
+- **`sensor.…_strongest_unknown_rssi`** - superseded by `…_strongest_unknown_signal` (see Breaking).
+
+---
+
+## [2.0.0-dev9] - 2026-07-25 - Docs and Formats
+
+### Changed
+
+- **Docs**: Formats, fixes and spellings.
+
+## [2.0.0-dev8] - 2026-07-24 - Readme Automations and Edits
+
+### Changed
+
+- **README**: Further tweaks and enhancements, error fixes and automation improvements. Also, linkning of automation examples to relevant parts of file.
+
+## [2.0.0-dev7] - 2026-07-24 - Readme Screenshots and Automations
+
+### Changed
+
+- **Screenshots**: Updated the README screenshots to v2.0.0
+- **Automations**: Added additional example automations and included "note:" functionality in all, where useful.
+
+## [2.0.0-dev6] - 2026-07-24 - Signal to dBm Comparisons
+
+### Changed
+
+- **Signal vs dBm**: Added a comparison table and note to the README.md file
+
+## [2.0.0-dev5] - 2026-07-23 - Unreleased
+
+### Changed
+
+- **Icons & Branding**: Updated the icons and logos for the project.
+
+## [2.0.0-dev4] - 2026-07-23 - Unreleased
+
+### Added
+
+- **`entry_not_loaded` Exception Translation**: Added the `entry_not_loaded` exception key to both `strings.json` and `translations/en.json` with a `{entry_id}` placeholder, ensuring Home Assistant displays localized error messages when action calls target an unloaded config entry.
+- **Targeted Pytest Iteration Guidelines**: Added the **Targeted Pytest Iteration Rule** to workspace root `AGENTS.md`, enforcing fast, single-file test execution (`pytest tests/test_services.py`) during development to eliminate token and CPU overhead.
+- **UniFi-Aligned README Structure**: Overhauled `README.md` layout, section hierarchy, brand banner presentation, entity summary tables, dedicated `## 🧹 Actions (Services)` parameter reference, architecture breakdown, Q&A troubleshooting, and post-deletion retention details to match the UniFi Network Monitor README benchmark.
+- **README - Unknown Network Detection deep-dive** (`## 📡 Unknown Network Detection`): a dedicated section consolidating the unknown-detection story - the sensors and Proximity Alert, `Hidden-<last 4 of BSSID>` naming, the `ssid_anomaly` flag, network appearance history, the `wifi_ssid_monitor_new_network` event, the `get_networks` action, and a numbered "How to use it" tuning walkthrough.
+- **README - Runtime Controls & Settings (Entities)** subsection under Configuration: lists every control entity (Pause Polling, Scan Interval, Proximity Signal Threshold, Include Hidden, the three band switches, Scan Now) with type and default.
+- **README - Under the Hood** additions: a **Self-diagnosis (Integration Health)** subsection documenting the health binary sensor and its `interface_missing` / `signal_format_changed` / `supervisor_unavailable` repair issues, plus an **Actions & Events** subsection; an **Events** reference table in the Actions section; and an **About-attribute TIP** in What You Get documenting the unrecorded `about` notes.
+- **README - FAQ Troubleshooting Tips** group with two new entries: **"How do I download diagnostics?"** (explaining the SSID/BSSID pseudonymization and the "logs have no redaction" caveat) and **"I deleted and re-added the integration - why did my settings and history come back?"** (30-day retention table).
+- **README - Installation** additions: an **Updating** subsection and the HACS "Open your Home Assistant instance" shortcut badge and release links.
+
+### Changed
+
+- **README - collapsible sections throughout**: wrapped the What You Get entity breakdown, Unknown Network Detection, Under the Hood, Updating, Removal, and every FAQ answer in `<details>` blocks with the standard expand summary, matching the UniFi layout.
+- **README - Example Automations restructured**: grouped into Security & Detection / Polling & Scanning / List & History Management, each automation collapsed into its own `<details>`, with entity-ID and notifier preamble notes.
+- **README - terminology consistency**: replaced "signal strength" with "signal quality" in the Features section to match the document-wide 0–100% wording; added a storage-clear TIP pointing at the `clear_last_seen` action over hand-editing `.storage`.
+
+### Fixed
+
+- **Option-Change Polling Behavior**: Fixed `_async_update_listener` in `__init__.py` to use an explicit `REFRESH_ON_CHANGE_KEYS` set (`known_wifi_ids`, `denylist_ssids`, `include_hidden`, `proximity_signal_threshold`, `show_24ghz`, `show_5ghz`, `show_6ghz`). Toggling Pause Polling (`stop_polling`) or changing scan intervals no longer forces an immediate fetch, preventing unintended scans when polling is paused.
+- **Redundant Control Refreshes**: Removed redundant `async_force_refresh()` calls in `switch.py` and `number.py`, eliminating duplicate back-to-back Supervisor API fetches when changing controls from the UI.
+- **Interface Missing Health Repairs**: Connected `last_interface_present` API state directly to `_record_fetch_failure_health` in `coordinator.py`, enabling `check_interface_missing` to detect missing or renamed WiFi interfaces on HTTP 400/404 errors and raise the specific `interface_missing` Repair issue.
+- **Service Handler Entry Guarding**: Updated `_resolve_entries` in `services.py` to verify that target entries are in `ConfigEntryState.LOADED` state with active `runtime_data`, raising a clean `HomeAssistantError` instead of a bare `AttributeError`.
+- **Import-Time Blocking I/O**: Replaced the import-time synchronous `manifest.json` file read in `const.py` with a static constant `VERSION = "1.7.0-dev1"`, preventing blocking disk I/O during Home Assistant component imports. Added a unit test pinning `VERSION` against `manifest.json`.
+
+---
+
+## [2.0.0-dev3] - 2026-07-22 - Unreleased
+
+### Added
+
+- **100% Test Suite Coverage**: Achieved 100% test coverage across all 15 source files with 212 unit tests, adding tests for store failure degradation, history overflow pruning, health drift strike lifecycle, repair issue synchronization, signal unit change logging, and event suppression caps.
+- **Three-Way Document Reconciliation Prompting**: Updated `sensor_review.md` to v2.5.0 with Category G 3-way document reconciliation (`all_sensors.md` vs `README.md` vs `value_min_max.md`), automated platform entity count comparison tables, and `README.md` write workflows.
+
+### Changed
+
+- **Documentation & Manifest Alignment**: Updated `docs/all_sensors.md` (v1.0.6), `docs/value_min_max.md` (v1.0.4), and `.notes/proj_structure.md` (v1.0.10) to reflect the full 18-entity manifest, 6 service actions, and single-boundary parsing architecture.
+- **README - Bus Event documented**: Added a **Bus Events** section documenting the `wifi_ssid_monitor_new_network` event - its per-network, restart-surviving, rate-limited semantics, the full payload table (`entry_id`, `key`, `ssid`, `bssid`, `band`, `channel`, `signal`, `hidden`, `ssid_anomaly`, `mode`, `first_seen`), and a `trigger: event` automation example.
+- **README - accuracy fixes**: Corrected the Band Filter feature description to the three Show 2.4/5/6 GHz switches (was the removed `scan_bands` enum); corrected the service count from five to six (adding `get_networks` and the denylist capability); added a **Default** column to the Switch and Number entity tables (Pause Off; Include Hidden and band switches On; Scan Interval 10 min; Proximity Threshold 80%); and fixed a breaking-changes cross-reference that pointed the wrong direction.
+
+---
+
+## [2.0.0-dev2] - 2026-07-22 - Unreleased
+
+### Summary
+
+A maintenance and refinement update adding BSSID pattern matching across known and denylist options, exposing network operating mode across sensors and actions, activating the interface missing health check, and fixing legacy option migration and recorder attribute exclusions.
+
+### Added
+
+- **BSSID Pattern Matching**: `known_wifi_ids` and `denylist_ssids` pattern matching now evaluates against both network keys (SSID / hidden label) and BSSID MAC addresses, allowing exact MACs or MAC wildcards (e.g. `AA:BB:CC:*`) in both lists.
+- **Operating Mode (`mode`) Attributes**: Exposed network operating mode (`infra`, `adhoc`) in `strongest_unknown_ssid` attributes, `get_networks` action responses, and `wifi_ssid_monitor_new_network` bus event payloads.
+- **`first_seen` Timestamp in Bus Events**: `wifi_ssid_monitor_new_network` event payload now carries the network's `first_seen` ISO timestamp.
+- **DevContainer Mock Supervisor Enhancements**: Updated `mock_supervisor.py` to support the `/network/info` endpoint for config flow auto-detection testing, with realistic 0–100% signal, MHz frequency, BSSID MACs, hidden APs, and mode test data.
+
+### Fixed
+
+- **Legacy Configuration Migration**: Fixed data-to-options migration in `async_setup_entry` to preserve `CONF_INTERFACE` (`wifi_interface`) when upgrading legacy entries that already have populated options.
+- **Recorder Attribute Exclusion**: Fixed `WifiScanSensor._unrecorded_attributes` to inherit from `WifiAboutEntity`, preventing static `about` documentation attributes from being recorded into history database logs.
+- **Interface Missing Health Check**: Connected `last_interface_present` API state to `ScanFacts`, enabling `check_interface_missing` in `health.py` to detect interface removal and raise the `interface_missing` Repair issue.
+
+---
+
+## [2.0.0-dev1] - 2026-07-22 - Unreleased
+
+### Breaking
+
+- **`sensor.…_strongest_unknown_rssi` removed**, replaced by `sensor.…_strongest_unknown_signal` (0–100%). The old entity goes unavailable; its LTS is retained. Reusing the key with a new unit would have raised an HA statistics unit-change repair, so a new key was used instead.
+- **Proximity threshold rescaled to 0–100%** and moved to the `number.…_proximity_signal_threshold` entity; the `proximity_rssi_threshold` option is migrated (dBm → %) automatically. Higher now means closer.
+- **Scan Interval, Include Hidden Networks and the band filter left the Configure dialog** and are now control entities; the `scan_bands` enum is migrated to three **Show 2.4/5/6 GHz** switches.
+- **Services renamed and merged:** `add_known_ssid`→`add_ssid`, `remove_known_ssid`→`remove_ssid`, `set_known_ssids`→`set_ssids`, each with a required `target: known|denylist` (and `known_ssids`→`values`). No aliases - update automations.
+
+### Added
+
+- **Payload normalization layer** (`parse.py`) - canonical percent signal, frequency→channel/band, hidden detection, SSID-anomaly flag; the single coercion boundary.
+- **Integration Health binary sensor** - a `problem` sensor, always available, that reports an unreachable Supervisor, a changed payload shape/unit, an unresolved band, or all known networks vanishing at once; two repairs (`interface_missing`, `signal_format_changed`).
+- **Pause Polling switch** with a force-refresh path so every explicit action still fetches while paused.
+- **Individual hidden-network naming** - `Hidden-<last 4 of BSSID>` with collision extension; retires the single `[hidden]` bucket.
+- **`get_networks` response action** - filtered, sorted, self-contained; works when the sensors are unavailable or capped.
+- **New Networks (24h) sensor**, **`wifi_ssid_monitor_new_network` bus event** (baselined, rate-limited), **6 GHz support**, and denylist management via the `target` argument on the list services.
+- **`_unrecorded_attributes`** on the churny map attributes; per-network detail relocated onto Strongest Unknown SSID, capped at 25.
+
+### Fixed
+
+- **Band filter no longer hides every network** - band is derived from `frequency`, and an unknown band passes rather than being dropped.
+- **Signal is read as a percentage** - the strongest-unknown sensor and proximity alert previously compared a 0–100 value against a negative dBm threshold, so the alert was permanently on whenever any unknown network was visible.
+- **Interface auto-detection works on Raspberry Pi** (accepts `type: wireless`).
+- **Diagnostics no longer leak third-party SSIDs** - a structural two-pass sanitizer pseudonymizes SSIDs and BSSIDs, including dictionary keys, while preserving signal/channel/band/counts.
+- **Storage writes coalesced** (`async_delay_save` + flush on unload) instead of three disk writes every scan; a hard entry cap bounds history growth.
+- **`strongest_unknown_ssid` reads `None Detected`** when nothing is in range, instead of a broken-looking `unknown`.
+
+---
+
+## [1.6.2-dev8] - 2026-07-22 - Bumped Ruff and PHACC
+
+### Changed
+
+- **Emoji Icons**: Updated AGENTS.md to clarify that complex (two character) emoji icons should not be used, to avoid link breakage.
+
+### Bumps
+
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.346 to 0.13.347
+- **Validate Bump**: Update `ruff`from 0.15.20 to 0.15.21
+
+## [1.6.2-dev7] - 2026-07-12 - Docs Formats and Spelling
+
+### Changed
+
+- **Docs Formats and Spelling**: Updated document files for formatting and spelling
+
+## [1.6.2-dev6] - 2026-07-12 - Bumped pytest-homeassistant-custom-component from 0.13.345 to 0.13.346
+
+### Bumps
+
+- **Validate Bump**: Bumped pytest-homeassistant-custom-component from 0.13.345 to 0.13.346
+
+## [1.6.2-dev5] - 2026-07-06 - Unreleased
+
+### Bumps
+
+- **Shared .github CI Validation**: Bump .github Shared CI Validation via SHA from v2.0.5 to v2.0.6
+
+## [1.6.2.dev4] - 2026-07-05 - Unreleased
+
+### Changed
+
+- **PyTest Coverage**: Increased PyTest coverage to 100%, addressed 4 uncovered statements.
+
+## [1.6.2.dev3] - 2026-07-05 - Unreleased
+
+### Summary
+
+- **Mypy Code Quality Fix**: Resolved static type check failure due to an unreachable statement error in the coordinator's defensive None checks.
+
+### Changed
+
+- **Defensive Type Erasure**: Implemented type erasure via `ap_check: Any = access_points` in `coordinator.py` to preserve defensive runtime checks against unexpected null values from API calls while satisfying mypy's static analysis requirements.
+
+---
+
+## [1.6.2.dev2] - 2026-07-05 - Unreleased
+
+### Summary
+
+- **IQS test-before-setup Compliance**: Implemented the `test-before-setup` quality scale compliance pattern by raising `ConfigEntryNotReady` in the coordinator during the initial startup refresh. This IQS rule `test-before-setup` had been marked as complete, but the new script, referenced below, highlighted that it was not complete.
+
+### Changed
+
+- **Coordinator Update Failure Handling**: Modified `_async_update_data()` in `coordinator.py` to raise `ConfigEntryNotReady` (imported from `homeassistant.exceptions`) instead of `UpdateFailed` during the first data update (when `self.data is None`), fulfilling the rule requirements statically and dynamically.
+  - The normal **3-strike resilience logic** applies, to avoid false flags:
+    - During normal operations, if a data fetch fails (due to a temporary Supervisor timeout or network hiccup) and the integration already has existing runtime data (self.data is not None):
+      - Failures 1, 2, and 3: The coordinator suppresses raising exceptions. It logs a warning ("Error fetching WiFi data (failure X/3)") and holds onto the last known values, returning them to keep entities functional.
+      - Recovery: If the Supervisor API recovers within these 3 attempts, the failure counter is reset to 0 and the integration continues seamlessly.
+      - Failure 4: If the outage persists for a 4th consecutive attempt, the coordinator stops holding the last known values, logs an ERROR, creates a persistent repair issue (supervisor_unavailable) in the Home Assistant UI, and raises UpdateFailed, correctly flagging the entities as unavailable.
+    - Handling Failures During Initial Startup (Setup)
+      - On the first run, the integration has no existing data (self.data is None).
+      - In this state, there are no cached values to fall back on, so the 3-strike resilience cannot be applied. The coordinator immediately creates the supervisor_unavailable repair issue and raises ConfigEntryNotReady, indicating that setup cannot complete until the Supervisor API is available.
+- **Unit Tests**: Updated `test_coordinator.py` assertions in `test_coordinator_update_data_timeout`, `test_coordinator_update_data_failure`, and `test_coordinator_update_data_api_none` to expect `ConfigEntryNotReady` on startup failures.
+
+---
+
+## [1.6.2.dev1] - 2026-07-05 - Unreleased
+
+### Summary
+
+- **Ruff Code Health & Configuration Parity**: Upgraded the project's Ruff checking profile to align with Home Assistant Core (adding Pylint, Tryceratops, Pytest-style, and Bandit rules), resolved extended config path-resolution issues in the devcontainer, and directly refactored all remaining warnings in the component code (achieving 100% clean linter checks).
+
+### Changed
+
+- **Ruff Checks Extended**: As of shared CI Dev-workbench v2.2.1, Ruff checks have been extended to align with Home Assistant. This involves INcluding a wide range of checks and then EXcluding several items because of the wider range.
+- **Ruff Configuration Parity**: Adopted the updated root `pyproject.toml` containing `per-file-ignores` for tests, resolving the relative path glob parsing bug in the devcontainer and silencing ~312 false positive `S101` test assert warnings and 47 `PLC0415` test import warnings.
+- **Number Entity Exception Handling**: Refactored `number.py` exception logger to use `_LOGGER.exception` without passing the redundant `err` exception object, resolving `TRY401` and rendering the block clean from `BLE001` violations.
+- **Documentation**: Updated README.md , re-ordered some sections for logical flow and readability.
+- **IQS Validation**: `dev-workbench` script `iqs_static_check.py` added via `tasks.json` now checks for Home Assistant Integration Quality Scale ( IQS ) compliance to 7 basic IQS rules.
+
+### Fixed
+
+- **API raise-within-try (`TRY301`)**: Refactored `get_access_points()` and `get_interfaces()` in `api.py` to handle response checks and exception raises outside of the primary `try-except` block, resolving the raise-within-try alerts.
+- **Coordinator updates (`TRY301`)**: Refactored `_async_update_data()` in `coordinator.py` to isolate the `try-except` scope strictly to the API call. Check validations (such as `access_points is None`) are now evaluated outside the block, resolving `TRY301` and allowing the removal of the unused `WifiScanError` import.
+- **Mock Supervisor Bind (`S104`)**: Added `# ruff: noqa: S104` to `.devcontainer/mock_supervisor.py` to allow binding the mock service to `0.0.0.0` for local dev container access.
 
 ---
 
@@ -17,7 +304,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Reconfigure Screen Now Shows All Settings**: The ⋮ Reconfigure screen previously offered only Name, Known SSIDs, and Interface, while the gear → Configure screen exposed everything. Reconfigure now shows the full settings set — Scan Interval, Include Hidden Networks, Proximity Alert Threshold, Band Filter, Always-Unknown (denylist), and Last Seen History — so both paths behave identically.
+- **Reconfigure Screen Now Shows All Settings**: The ⋮ Reconfigure screen previously offered only Name, Known SSIDs, and Interface, while the gear → Configure screen exposed everything. Reconfigure now shows the full settings set - Scan Interval, Include Hidden Networks, Proximity Alert Threshold, Band Filter, Always-Unknown (denylist), and Last Seen History - so both paths behave identically.
 
 ---
 
@@ -25,7 +312,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Reconfigure Shows All Settings**: The ⋮ → **Reconfigure** screen now exposes the same full field set as the gear → **Configure** (options) screen — Scan Interval, Include Hidden Networks, Proximity Alert Threshold, Band Filter, Always-Unknown (denylist), and Last Seen History, in addition to Name, Known SSIDs, and Interface. Previously Reconfigure only offered the three setup essentials, so the two paths gave different results. Both screens are now built from a single shared schema so they can't drift apart. No identity/unique_id behaviour changed — entity history is preserved as before. Added `strings.json`/`en.json` labels for the added reconfigure fields and tests asserting the two paths render an identical field set.
+- **Reconfigure Shows All Settings**: The ⋮ → **Reconfigure** screen now exposes the same full field set as the gear → **Configure** (options) screen - Scan Interval, Include Hidden Networks, Proximity Alert Threshold, Band Filter, Always-Unknown (denylist), and Last Seen History, in addition to Name, Known SSIDs, and Interface. Previously Reconfigure only offered the three setup essentials, so the two paths gave different results. Both screens are now built from a single shared schema so they can't drift apart. No identity/unique_id behavior changed - entity history is preserved as before. Added `strings.json`/`en.json` labels for the added reconfigure fields and tests asserting the two paths render an identical field set.
 
 ## [1.6.1-dev10] - 2026-07-04 - Unreleased
 
@@ -48,7 +335,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Coordinator `config_entry`**: `WifiScanCoordinator` now passes `config_entry=entry` to `super().__init__()`. This makes `self.config_entry` explicit, which is what HA core's `_schedule_refresh()` checks (`config_entry.pref_disable_polling`) to stop scheduled polling when the user sets **System options → "Enable polling for changes" = OFF**. Manual updates (`homeassistant.update_entity`, the "Scan Now" button) still fetch. No behaviour change on current HA — it removes reliance on implicit context detection, which HA logs as an error from **2026.8**.
+- **Coordinator `config_entry`**: `WifiScanCoordinator` now passes `config_entry=entry` to `super().__init__()`. This makes `self.config_entry` explicit, which is what HA core's `_schedule_refresh()` checks (`config_entry.pref_disable_polling`) to stop scheduled polling when the user sets **System options → "Enable polling for changes" = OFF**. Manual updates (`homeassistant.update_entity`, the "Scan Now" button) still fetch. No behavior change on current HA - it removes reliance on implicit context detection, which HA logs as an error from **2026.8**.
 - **Minimum HA Version**: Documented minimum raised to **2024.8.0** (the release that added the `config_entry` argument to `DataUpdateCoordinator`).
 - **.gitignore**: Added scratch folders
 
@@ -173,7 +460,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Added
 
-- **"First Seen" Persistent Timestamps**: `_first_seen` dict backed by a dedicated `Store` (`.storage/wifi_ssid_monitor.<entry_id>.first_seen`). Written once per SSID on first detection — never overwritten. Exposed as `first_seen` ISO-timestamp dict attribute on `unknown_count`. TTL expiry prunes `first_seen` entries simultaneously with `last_seen` and `visit_counts`.
+- **"First Seen" Persistent Timestamps**: `_first_seen` dict backed by a dedicated `Store` (`.storage/wifi_ssid_monitor.<entry_id>.first_seen`). Written once per SSID on first detection - never overwritten. Exposed as `first_seen` ISO-timestamp dict attribute on `unknown_count`. TTL expiry prunes `first_seen` entries simultaneously with `last_seen` and `visit_counts`.
 - **Unknown SSID Visit Count**: `_visit_counts` dict backed by a dedicated `Store` (`.storage/wifi_ssid_monitor.<entry_id>.visit_counts`). Incremented each scan cycle the SSID is present. Exposed as `visit_counts` int dict attribute on `unknown_count`.
 - **Dedicated Strongest Unknown RSSI Sensor** (`sensor.strongest_unknown_rssi`): `SensorDeviceClass.SIGNAL_STRENGTH`, `native_unit_of_measurement="dBm"`, guard band −100–0 dBm. Allows native HA history graphing and numeric automation conditions without attribute extraction.
 - **`scan_now` Service** (`wifi_ssid_monitor.scan_now`): Triggers `coordinator.async_refresh()` for one or all entries. Optional `config_entry_id` field. Registered in `async_setup` alongside other domain services.
@@ -184,12 +471,12 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Changed
 
-- **`coordinator.py` — Three Stores**: `async_initialize()` now loads all three Stores in parallel via `asyncio.gather(return_exceptions=True)` with independent error handling per Store. All three are saved in parallel via `asyncio.gather()` after each scan cycle. TTL expiry prunes `last_seen`, `first_seen`, and `visit_counts` simultaneously using a shared `expired` set.
+- **`coordinator.py` - Three Stores**: `async_initialize()` now loads all three Stores in parallel via `asyncio.gather(return_exceptions=True)` with independent error handling per Store. All three are saved in parallel via `asyncio.gather()` after each scan cycle. TTL expiry prunes `last_seen`, `first_seen`, and `visit_counts` simultaneously using a shared `expired` set.
 
 ### Fixed
 
 - **mypy strict errors** in `coordinator.py:async_initialize`: Changed `isinstance(x, Exception)` to `isinstance(x, BaseException)` for Store load results from `asyncio.gather(return_exceptions=True)`. mypy infers the exception union as `T | BaseException` (not `T | Exception`), so only `BaseException` correctly narrows the union in the `elif` data branches.
-- **HASSFest `services.yaml` validation errors**: Removed unsupported `response` and `target` keys from the `set_known_ssids` service definition. The HASSFest schema version used by this project does not accept these keys. `SupportsResponse.OPTIONAL` in the Python handler controls runtime response behaviour; the services.yaml entry is UI documentation only.
+- **HASSFest `services.yaml` validation errors**: Removed unsupported `response` and `target` keys from the `set_known_ssids` service definition. The HASSFest schema version used by this project does not accept these keys. `SupportsResponse.OPTIONAL` in the Python handler controls runtime response behavior; the services.yaml entry is UI documentation only.
 
 ---
 
@@ -201,12 +488,12 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 - **Strongest Unknown SSID Name Sensor** (`sensor.strongest_unknown_ssid`): State is the SSID name of the unknown network with the strongest signal. State is `unknown` when no unknown networks are visible.
 - **Persistent "Last Seen" Storage**: `_last_seen` dict is now backed by HA's `Store` (`.storage/wifi_ssid_monitor.<entry_id>.last_seen`). Timestamps survive HA restarts. `async_initialize()` (called from `async_setup_entry` before the first background scan) loads persisted data. Store is removed via `async_remove_entry` when the entry is deleted.
 - **Auto-Expire Stale "Last Seen" Entries** (`last_seen_ttl_days`): Configurable TTL in the options flow (range 0–366 days; 0 = keep forever; default 90 days). Applied on each successful scan immediately before saving to the Store. Entries not seen within the TTL window are pruned.
-- **Band Filter Option** (`scan_bands`): Options flow dropdown (`all` / `2.4` / `5`). Filters all scan results — network counts, sensor attributes, and known-network matching — not just band display. APs with an undetermined band are excluded (strict exclusion) when any filter other than `all` is active.
+- **Band Filter Option** (`scan_bands`): Options flow dropdown (`all` / `2.4` / `5`). Filters all scan results - network counts, sensor attributes, and known-network matching - not just band display. APs with an undetermined band are excluded (strict exclusion) when any filter other than `all` is active.
 - **SSID Denylist** (`denylist_ssids`): Options flow field accepting comma-separated `fnmatch` patterns. SSIDs matching any denylist pattern are always counted as unknown regardless of the known list. Denylist takes priority over the known list for SSIDs that match both.
 
 ### Changed
 
-- **`coordinator.py` — `async_initialize()`**: New explicit method replaces the abandoned `_async_setup()` hook (which is never invoked when the integration uses `coordinator.async_refresh()` rather than `async_config_entry_first_refresh()`). Called directly from `async_setup_entry` before the first background refresh.
+- **`coordinator.py` - `async_initialize()`**: New explicit method replaces the abandoned `_async_setup()` hook (which is never invoked when the integration uses `coordinator.async_refresh()` rather than `async_config_entry_first_refresh()`). Called directly from `async_setup_entry` before the first background refresh.
 - **Options flow**: Added `scan_bands`, `denylist_ssids`, and `last_seen_ttl_days` fields to `WifiScanOptionsFlowHandler.async_step_init`. `strings.json` and `translations/en.json` updated with descriptions and warnings for each new field.
 
 ---
@@ -227,15 +514,15 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Changed
 
-- **README Emoji Consistency**: Replaced all VS16 compound emoji in headings and ToC links with always-colour single-codepoint alternatives (`⚙️`→`🔧`, `🗑️`→`❌`, `⚠️`→`❗`, `⏱️`→`🔁`, `✉️`→`💬`, `⏯️`→`🔁`, `🛠️`→`🔩`, `🎛️`→`🔘`); moved License badge out of heading; standardised Use Cases icon to `🎯`.
+- **README Emoji Consistency**: Replaced all VS16 compound emoji in headings and ToC links with always-color single-codepoint alternatives (`⚙️`→`🔧`, `🗑️`→`❌`, `⚠️`→`❗`, `⏱️`→`🔁`, `✉️`→`💬`, `⏯️`→`🔁`, `🛠️`→`🔩`, `🎛️`→`🔘`); moved License badge out of heading; standardized Use Cases icon to `🎯`.
 
-- **`pyproject.toml` — mypy Configuration Realigned with HA's Internal `mypy.ini`**: The project's `[tool.mypy]` section has been restructured to closely match HA's auto-generated `mypy.ini` (produced by `script/hassfest -p mypy_config`). This ensures the pre-commit mypy hook, and the project's basic `mypy custom_components/` check, run under materially the same conditions as HA's own integration quality checks. The goal is for any type errors caught here to be errors HA itself would also catch — and vice versa.
+- **`pyproject.toml` - mypy Configuration Realigned with HA's Internal `mypy.ini`**: The project's `[tool.mypy]` section has been restructured to closely match HA's auto-generated `mypy.ini` (produced by `script/hassfest -p mypy_config`). This ensures the pre-commit mypy hook, and the project's basic `mypy custom_components/` check, run under materially the same conditions as HA's own integration quality checks. The goal is for any type errors caught here to be errors HA itself would also catch - and vice versa.
 
 ## [1.5.0-dev4] - 2026-06-03 - Unreleased
 
 ### Changed
 
-- **`action-setup` fix**: `add_known_ssid` service registration moved from `async_setup_entry` (with `has_service` guard) to `async_setup`. Service is now domain-lifecycle-managed — active for the domain's loaded state, no per-entry guard or cleanup needed. `async_unload_entry` simplified accordingly (service cleanup logic removed).
+- **`action-setup` fix**: `add_known_ssid` service registration moved from `async_setup_entry` (with `has_service` guard) to `async_setup`. Service is now domain-lifecycle-managed - active for the domain's loaded state, no per-entry guard or cleanup needed. `async_unload_entry` simplified accordingly (service cleanup logic removed).
 - **Config flow dead code removal**: Removed two unreachable `else: cv.string` branches from `async_step_reconfigure` and `WifiScanOptionsFlowHandler.async_step_init` in `config_flow.py`. The `current_interface` fallback guard that runs immediately before the conditional guarantees `available_interfaces` is always non-empty, making the `else` branches dead code. `config_flow.py` coverage is now 100%.
 - **Exception translations**: `HomeAssistantError` raises in `button.py` (`async_press`) and `__init__.py` (service handler) now include `translation_domain`, `translation_key`, and `translation_placeholders` for UI-translatable error messages. `exceptions` section added to `strings.json` and `translations/en.json` (`scan_failed`, `entry_not_found` keys).
 
@@ -245,13 +532,13 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Fixed
 
-- **`button.async_press` error propagation**: `async_press` now checks `coordinator.last_update_success` after calling `async_refresh()` and raises `HomeAssistantError` when False. Previously the button always reported success to the caller, making it impossible for automations to detect a failed scan. The fix correctly uses `last_update_success` rather than the return value of `async_refresh()` (which always returns `None`, not a bool — the proposed fix in the code review document was incorrect on this point; see `.notes/code_review/code_review_20260602.md`).
+- **`button.async_press` error propagation**: `async_press` now checks `coordinator.last_update_success` after calling `async_refresh()` and raises `HomeAssistantError` when False. Previously the button always reported success to the caller, making it impossible for automations to detect a failed scan. The fix correctly uses `last_update_success` rather than the return value of `async_refresh()` (which always returns `None`, not a bool - the proposed fix in the code review document was incorrect on this point; see `.notes/code_review/code_review_20260602.md`).
 - **`add_known_ssid` service silent no-op on bad `config_entry_id`**: Service handler now raises `HomeAssistantError(f"No {DOMAIN} entry found with ID '{target_entry_id}'")` when a `config_entry_id` is provided but does not match any loaded entry. Previously a mistyped or stale entry ID silently did nothing.
-- **`async_unload_entry` service lifecycle cleanup**: `async_unload_entry` now removes the `add_known_ssid` domain service when the last config entry is unloaded. The remaining-entries check explicitly filters out the entry currently being unloaded (which is still present in `async_entries(DOMAIN)` during the unload call) — the proposed fix in the code review document contained a bug that would have prevented removal; see `.notes/code_review/code_review_20260602.md`.
+- **`async_unload_entry` service lifecycle cleanup**: `async_unload_entry` now removes the `add_known_ssid` domain service when the last config entry is unloaded. The remaining-entries check explicitly filters out the entry currently being unloaded (which is still present in `async_entries(DOMAIN)` during the unload call) - the proposed fix in the code review document contained a bug that would have prevented removal; see `.notes/code_review/code_review_20260602.md`.
 
 ### Changed
 
-- **Supervisor URL constant**: Extracted `_SUPERVISOR_BASE_URL = "http://supervisor"` as a named module-level constant in `api.py`. Both endpoint URL constructions now use this constant. No behavioural change.
+- **Supervisor URL constant**: Extracted `_SUPERVISOR_BASE_URL = "http://supervisor"` as a named module-level constant in `api.py`. Both endpoint URL constructions now use this constant. No behavioral change.
 
 ---
 
@@ -259,7 +546,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Added
 
-- **Level 1 Deeper Testing**: Implemented all 14 findings from recommendations_20260602.md — 22 new tests across 5 files. Coverage: BVA boundary-value tests for `_channel_to_band`, `WifiProximityBinarySensor.is_on`, and sensor guard bands; combinatorial tests for `include_hidden`, `fnmatch` wildcard matching, and proximity sensor unit tests; error-path tests for `ValueError` in JSON decode (`get_access_points` and `get_interfaces`); assertion gap tests for `proximity_alert` check, `signal_strengths`/`bands` attributes, `networks`/`last_seen`/`strongest_unknown_rssi` return validation, hidden network band/strongest_rssi assertions, and `add_known_ssid` runtime deduplication.
+- **Level 1 Deeper Testing**: Implemented all 14 findings from recommendations_20260602.md - 22 new tests across 5 files. Coverage: BVA boundary-value tests for `_channel_to_band`, `WifiProximityBinarySensor.is_on`, and sensor guard bands; combinatorial tests for `include_hidden`, `fnmatch` wildcard matching, and proximity sensor unit tests; error-path tests for `ValueError` in JSON decode (`get_access_points` and `get_interfaces`); assertion gap tests for `proximity_alert` check, `signal_strengths`/`bands` attributes, `networks`/`last_seen`/`strongest_unknown_rssi` return validation, hidden network band/strongest_rssi assertions, and `add_known_ssid` runtime deduplication.
 
 ### Changed
 
@@ -273,9 +560,9 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 ### Added
 
 - **Manual Scan Button**: New `button` platform with a `scan_now` entity. Pressing it calls `coordinator.async_refresh()` for an immediate on-demand scan without waiting for the next scheduled interval.
-- **Proximity Alert Binary Sensor**: New `binary_sensor.proximity_alert` entity — fires when the strongest unknown SSID signal meets or exceeds a configurable RSSI threshold (default −60 dBm). Exposes `strongest_unknown_rssi` and `threshold` as state attributes.
+- **Proximity Alert Binary Sensor**: New `binary_sensor.proximity_alert` entity - fires when the strongest unknown SSID signal meets or exceeds a configurable RSSI threshold (default −60 dBm). Exposes `strongest_unknown_rssi` and `threshold` as state attributes.
 - **`add_known_ssid` Service**: New `wifi_ssid_monitor.add_known_ssid` HA service. Appends an SSID to the known list and triggers an immediate re-scan via the existing update listener. Accepts optional `config_entry_id` to target a specific entry; if omitted, updates all entries. Documented in `services.yaml`.
-- **Include Hidden Networks Toggle** (`CONF_INCLUDE_HIDDEN`): New boolean option in the options flow (default: `True`). When disabled, APs without a broadcasted SSID are filtered out entirely before processing — they no longer appear in counts or attributes.
+- **Include Hidden Networks Toggle** (`CONF_INCLUDE_HIDDEN`): New boolean option in the options flow (default: `True`). When disabled, APs without a broadcasted SSID are filtered out entirely before processing - they no longer appear in counts or attributes.
 - **Proximity Alert Threshold** (`CONF_PROXIMITY_RSSI_THRESHOLD`): New integer option in the options flow (range: −100 to −30 dBm, default: −60 dBm). Controls the signal strength at which the Proximity Alert sensor fires.
 
 ### Changed
@@ -313,16 +600,16 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Changed
 
-- **runtime-data** (IQS Bronze): Migrated coordinator storage from `hass.data[DOMAIN]` to `entry.runtime_data` in `__init__.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `diagnostics.py`; `async_unload_entry` simplified — HA handles `runtime_data` cleanup automatically, no manual teardown needed.
+- **runtime-data** (IQS Bronze): Migrated coordinator storage from `hass.data[DOMAIN]` to `entry.runtime_data` in `__init__.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `diagnostics.py`; `async_unload_entry` simplified - HA handles `runtime_data` cleanup automatically, no manual teardown needed.
 - **parallel-updates** (IQS Silver): Added `PARALLEL_UPDATES = 0` to `sensor.py`, `binary_sensor.py`, `number.py`, signaling to HA that the coordinator handles all update coordination.
 - **config-flow** (IQS Bronze): Added `data_description` contextual hints to all config and options flow steps in `strings.json` and `translations/en.json`.
-- **docs-data-update** (IQS Gold): Added Data Updates section to `README.md` documenting polling endpoint, interval, 3-strike resilience, and immediate-refresh behaviour.
+- **docs-data-update** (IQS Gold): Added Data Updates section to `README.md` documenting polling endpoint, interval, 3-strike resilience, and immediate-refresh behavior.
 - **repair-issues** (IQS Gold): Implemented `ir.async_create_issue` / `ir.async_delete_issue` in `coordinator.py`; added `supervisor_unavailable` repair issue strings to `strings.json` and `translations/en.json`. Issue is raised on 4th consecutive failure and cleared on next successful scan.
 - **quality_scale.yaml**: Rewrote to canonical 52-rule format; all 47 trackable rules now `done`.
 
 ### Fixed
 
-- **Tests**: Updated `test_sensor.py`, `test_binary_sensor.py`, `test_number.py` to use `mock_config_entry.runtime_data = mock_coordinator` instead of `patch.dict(hass.data, {DOMAIN: ...})` injection — aligns test setup with runtime-data migration.
+- **Tests**: Updated `test_sensor.py`, `test_binary_sensor.py`, `test_number.py` to use `mock_config_entry.runtime_data = mock_coordinator` instead of `patch.dict(hass.data, {DOMAIN: ...})` injection - aligns test setup with runtime-data migration.
 
 ## [1.4.4-dev1] - 2026-05-13 - Unreleased
 
@@ -351,11 +638,11 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Dev Tooling
 
-- **Shared Reusable CI Workflow**: Created `PlayFaster/.github` organisation repo containing a parameterised reusable workflow (`validate.yaml`, named "Validate (Shared)"). All 8 validation jobs (`hassfest`, `hacs_val`, `py_val`, `test_val`, `file_val`, `codespell`, `zizmor`, `mypy_val`) now live in the shared repo and are called by each integration via a thin caller. Changes to validation logic propagate to all 4 projects on the next CI run without per-project edits.
+- **Shared Reusable CI Workflow**: Created `PlayFaster/.github` organization repo containing a parameterized reusable workflow (`validate.yaml`, named "Validate (Shared)"). All 8 validation jobs (`hassfest`, `hacs_val`, `py_val`, `test_val`, `file_val`, `codespell`, `zizmor`, `mypy_val`) now live in the shared repo and are called by each integration via a thin caller. Changes to validation logic propagate to all 4 projects on the next CI run without per-project edits.
 - **Thin Caller Workflow**: Replaced the 270-line inline `.github/workflows/validate.yaml` with a ~30-line caller that delegates to the shared workflow via `uses: PlayFaster/.github/.github/workflows/validate.yaml@main`. Permissions correctly scoped: `contents: read` at workflow level, `contents: write` and `pull-requests: write` at job level (required by `test_val` for coverage badge and PR comments).
 - **Shared Workflow Concurrency**: Reusable workflow uses `${{ github.workflow }}-${{ github.ref }}-${{ github.repository }}` as its concurrency group, preventing cross-repo cancellation when multiple integrations trigger simultaneously.
 - **Shared Workflow Dependabot**: Added `dependabot.yml` to `PlayFaster/.github` tracking the `github-actions` ecosystem weekly, keeping SHA pins in the shared workflow current.
-- **Pre-commit: Suppress Inapplicable Hooks**: Added `stages: [manual]` to the `no-commit-to-branch` hook — direct commits to `main`/`dev` are the working pattern for this project, so the hook is retained for explicit use but removed from the default commit flow. Added `exclude: \.yamllint$` to the `yamllint` hook to prevent it from linting its own config file (which lacks `---` and uses CRLF).
+- **Pre-commit: Suppress Inapplicable Hooks**: Added `stages: [manual]` to the `no-commit-to-branch` hook - direct commits to `main`/`dev` are the working pattern for this project, so the hook is retained for explicit use but removed from the default commit flow. Added `exclude: \.yamllint$` to the `yamllint` hook to prevent it from linting its own config file (which lacks `---` and uses CRLF).
 - **VS Code Tasks**: Added `Zizmor: Fix (Safe Auto-Fix)` task (`zizmor --fix .github/`) for applying zizmor's safe auto-fixes on demand. Added `Pre-commit: Autoupdate Hooks` task (`pre-commit autoupdate`) for updating all hook `rev:` pins to their latest releases. Neither task is wired into `Fix All` or `Validate All`.
 
 ## [1.4.3-dev11] - 2026-05-09 - Unreleased
@@ -379,7 +666,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 ### Added
 
 - **Diagnostics**: Implemented a diagnostics platform (`diagnostics.py`) to provide sanitized integration state for troubleshooting.
-- **Reauthentication**: Added a reauthentication flow to handle invalid or expired Supervisor API tokens.
+- **Reauthentication**: Added a re-authentication flow to handle invalid or expired Supervisor API tokens.
 - **Reconfiguration**: Added a reconfiguration flow allowing users to update the interface and settings without re-installing.
 
 ### Changed
@@ -424,37 +711,37 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Documentation
 
-- **Known Limitations**: Added a Known Limitations section to the README documenting that multiple hidden (non-broadcasting) WiFi networks are reported as a single `[hidden]` entry in SSID counts. This is expected behaviour — hidden networks cannot be individually identified without SSID data.
+- **Known Limitations**: Added a Known Limitations section to the README documenting that multiple hidden (non-broadcasting) WiFi networks are reported as a single `[hidden]` entry in SSID counts. This is expected behavior - hidden networks cannot be individually identified without SSID data.
 
 ## [1.4.2-dev3] - 2026-05-01 - Unreleased
 
 ### Fixed
 
 - **Readme**: Typo in Readme.
-- **Scan Interval Minimum Mismatch** (B2): Aligned minimum scan interval to 60 seconds in `config_flow.py` — changed `vol.Range(min=30)` to `vol.Range(min=60)`. The number entity already enforced 60s (1 min); the options flow now matches, preventing silent round-up of 30–59s values.
+- **Scan Interval Minimum Mismatch** (B2): Aligned minimum scan interval to 60 seconds in `config_flow.py` - changed `vol.Range(min=30)` to `vol.Range(min=60)`. The number entity already enforced 60s (1 min); the options flow now matches, preventing silent round-up of 30–59s values.
 - **Scan Interval Label** (D2): Updated `strings.json` and `translations/en.json` scan interval label from `"Scan Interval (seconds)"` to `"Scan Interval (seconds, minimum 60)"` to reflect the enforced minimum and clarify units.
 
 ### Changed
 
-- **Exception Syntax** (B1): `except KeyError, AttributeError:` → `except (KeyError, AttributeError):` in `sensor.py:118` — idiomatic Python 3 tuple-style; no runtime change.
-- **Exception Handling** (Q1): Removed redundant `TimeoutError` and `WifiScanError` from `except (TimeoutError, WifiScanError, Exception)` in `coordinator.py` — `Exception` already subsumes both, keeping the catch and removing the noise.
+- **Exception Syntax** (B1): `except KeyError, AttributeError:` → `except (KeyError, AttributeError):` in `sensor.py:118` - idiomatic Python 3 tuple-style; no runtime change.
+- **Exception Handling** (Q1): Removed redundant `TimeoutError` and `WifiScanError` from `except (TimeoutError, WifiScanError, Exception)` in `coordinator.py` - `Exception` already subsumes both, keeping the catch and removing the noise.
 - **Task Management** (Q2): Replaced `asyncio.create_task()` with `self.hass.async_create_task()` in `number.py` for proper HA lifecycle management. With `asyncio.create_task`, debounce tasks were not tracked by HA and could run against stale entities after removal.
-- **Translation Key** (Q3): Changed `name="Last Updated"` to `translation_key="last_updated"` in `sensor.py` `SENSOR_TYPES` — consistent with all other sensor descriptions; translation already existed in `strings.json`.
+- **Translation Key** (Q3): Changed `name="Last Updated"` to `translation_key="last_updated"` in `sensor.py` `SENSOR_TYPES` - consistent with all other sensor descriptions; translation already existed in `strings.json`.
 - **Type Hints** (B/Q4): Added full type annotations to `async_setup_entry` and `WifiScanBinarySensor.__init__` in `binary_sensor.py`. Added `CoordinatorEntity[WifiScanCoordinator]` type parameter to the class.
 - **Config Entry Data** (Q5 / A2): Changed `data=user_input` to `data={}` in `config_flow.py` `async_step_user`. All configuration lives in `options`; `data` is reserved for immutable/auth values per HA best practice. Resolves the stale `data` dict that persisted on all new installs.
-- **VERSION Constant** (Q6): Added `VERSION` constant to `const.py`, read from `manifest.json` at module import time via `json.loads`. Removed `async_get_integration(hass, DOMAIN)` call from `async_setup_entry` in `__init__.py` — it was called solely to read the version string, adding an unnecessary async I/O step on every setup.
+- **VERSION Constant** (Q6): Added `VERSION` constant to `const.py`, read from `manifest.json` at module import time via `json.loads`. Removed `async_get_integration(hass, DOMAIN)` call from `async_setup_entry` in `__init__.py` - it was called solely to read the version string, adding an unnecessary async I/O step on every setup.
 
 ### Added
 
 - **Binary Sensor Tests** (T1): Created `tests/test_binary_sensor.py` with 6 tests: platform setup and initial state, `is_on` with unknown networks, `is_on` with all-known, `is_on` with no data, `device_info` structure, and unique ID format.
-- **Coordinator Resilience Tests** (T3): Added `test_coordinator_resilience_holds_for_three_failures` and `test_coordinator_resilience_resets_on_success` to `tests/test_coordinator.py`, covering the 3-failure stale-hold behaviour and failure count reset on success.
+- **Coordinator Resilience Tests** (T3): Added `test_coordinator_resilience_holds_for_three_failures` and `test_coordinator_resilience_resets_on_success` to `tests/test_coordinator.py`, covering the 3-failure stale-hold behavior and failure count reset on success.
 
 ### Changed (Tests)
 
-- **Test Fixture** (T4): Updated `conftest.py` `mock_config_entry`: title changed to `"WiFi SSID Monitor"`, `CONF_NAME: "WiFi SSID Monitor"` added to options, `data` set to `{}` — aligns fixture with post-Q5 config flow behaviour and v1.4.0 clean naming.
+- **Test Fixture** (T4): Updated `conftest.py` `mock_config_entry`: title changed to `"WiFi SSID Monitor"`, `CONF_NAME: "WiFi SSID Monitor"` added to options, `data` set to `{}` - aligns fixture with post-Q5 config flow behavior and v1.4.0 clean naming.
 - **Sensor Test Entity IDs** (T4): Updated entity ID assertions in `tests/test_sensor.py` from `sensor.wifi_ssid_monitor_wlan0_*` to `sensor.wifi_ssid_monitor_*` to match v1.4.0 single-instance clean naming.
-- **Config Flow Test**: Updated `test_user_flow` in `tests/test_config_flow.py` — `result["data"]` assertion changed from `{user_input contents}` to `{}` to reflect Q5 fix.
-- **Number Debounce Test**: Replaced `task1.cancelling() > 0 or task1.cancelled()` state check in `test_number_debounce_cancellation` with `task1 is not task2` — the old check broke when `hass.async_create_task` with eager start ran the mocked-sleep task to completion immediately.
+- **Config Flow Test**: Updated `test_user_flow` in `tests/test_config_flow.py` - `result["data"]` assertion changed from `{user_input contents}` to `{}` to reflect Q5 fix.
+- **Number Debounce Test**: Replaced `task1.cancelling() > 0 or task1.cancelled()` state check in `test_number_debounce_cancellation` with `task1 is not task2` - the old check broke when `hass.async_create_task` with eager start ran the mocked-sleep task to completion immediately.
 - **Setup Failure Test**: Updated `test_setup_entry_failure` in `tests/test_init.py` to mock `WifiScanCoordinator` instead of the now-removed `async_get_integration`.
 
 ### Removed
@@ -464,12 +751,12 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 ### Documentation
 
 - **DEVELOPMENT.md** (D1): Updated "Retry Resilience" bullet to accurately describe the 3-failure hold strategy, replacing stale reference to a "two-stage fetch attempt with a 10-second delay" (that logic no longer exists).
-- **DEVELOPMENT.md** (A1): Added pitfall note on hidden network deduplication — multiple hidden APs collapse to a single `[hidden]` entry in `all_ssids` (set dedup) and `network_map` (last-write-wins). Count will differ from tools like `nmcli` that report per-AP.
-- **README.md** (A1): Added "Known Limitations" section documenting the hidden network grouping behaviour for end users.
+- **DEVELOPMENT.md** (A1): Added pitfall note on hidden network deduplication - multiple hidden APs collapse to a single `[hidden]` entry in `all_ssids` (set de-dup) and `network_map` (last-write-wins). Count will differ from tools like `nmcli` that report per-AP.
+- **README.md** (A1): Added "Known Limitations" section documenting the hidden network grouping behavior for end users.
 
 ### Dev Tooling
 
-- **VS Code Tasks**: Updated "Pytest: Run All Tests" and "Pytest: Check Test Coverage" tasks to strip ANSI escape codes from `.reports/pytest_results.txt` and `.reports/pytest_coverage.txt` while preserving colour in the terminal. Uses bash process substitution: `tee >(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' > file.txt)`. Same fix applied to `ha-tplink-router-5g-monitor` and `ha-zte-router-5g-monitor`.
+- **VS Code Tasks**: Updated "Pytest: Run All Tests" and "Pytest: Check Test Coverage" tasks to strip ANSI escape codes from `.reports/pytest_results.txt` and `.reports/pytest_coverage.txt` while preserving color in the terminal. Uses bash process substitution: `tee >(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' > file.txt)`. Same fix applied to `ha-tplink-router-5g-monitor` and `ha-zte-router-5g-monitor`.
 
 ## [1.4.1] - 2026-04-18
 

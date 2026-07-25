@@ -43,6 +43,16 @@
       "type": "shell"
     },
     {
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && python3 .workbench/iqs_static_check.py --component ${config:project.componentName}; echo \"\"; if grep -q \"IQS Static: PASSED\" .reports/iqs_static.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  IQS Static: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  IQS Static: FAILED (report-only — see .reports/iqs_static.txt)\\033[0m\"; fi; }",
+      "label": "IQS: Static Check",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
       "command": "mkdir -p .reports && check-jsonschema --schemafile .validate/hacs_schema.json hacs.json | tee .reports/hacs_validation.txt; echo \"\"; if grep -q \"ok -- validation done\" .reports/hacs_validation.txt 2>/dev/null; then echo -e \"\\033[1;32m✔  HACS: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  HACS: FAILED\\033[0m\"; fi",
       "label": "HACS: Verify Manifest",
       "presentation": {
@@ -301,7 +311,7 @@
       "type": "shell"
     },
     {
-      "command": "G='\\033[1;32m'; R='\\033[1;31m'; Y='\\033[1;33m'; N='\\033[0m'; chk() { local lbl=\"$1\" f=\".reports/$2\" pat=\"$3\" result=\"\"; if [ ! -f \"$f\" ]; then echo -e \"  ${Y}?${N}  $lbl (not run)\"; elif [ -z \"$pat\" ] && [ ! -s \"$f\" ]; then echo -e \"  ${G}✔${N}  $lbl (no issues)\"; elif [ -n \"$pat\" ] && grep -q \"$pat\" \"$f\"; then result=$(grep \"$pat\" \"$f\" | tail -1); echo -e \"  ${G}✔${N}  $lbl $result\"; else result=$(tail -1 \"$f\"); echo -e \"  ${R}✖${N}  $lbl $result\"; fi; }; echo \"\"; echo -e \"\\033[1m══════════════════════════════════════\\033[0m\"; echo -e \"\\033[1m       Validate All — Summary        \\033[0m\"; echo -e \"\\033[1m══════════════════════════════════════\\033[0m\"; chk \"Hassfest          \" hassfest.txt \"Invalid integrations: 0\"; chk \"Pytest            \" pytest_results.txt \" passed\"; chk \"Mypy Standard     \" mypy_check.txt \"Success:\"; chk \"Mypy Strict       \" mypy_strict.txt \"Success:\"; chk \"Ruff Lint         \" ruff_lint.txt \"All checks passed\"; chk \"Ruff Format       \" ruff_format_status.txt \"already formatted\"; chk \"YAML Lint         \" yaml_lint.txt \"\"; chk \"Codespell         \" codespell.txt \"\"; chk \"Markdown Lint     \" markdown_lint.txt \"\"; echo \"\"",
+      "command": "G='\\033[1;32m'; R='\\033[1;31m'; Y='\\033[1;33m'; N='\\033[0m'; chk() { local lbl=\"$1\" f=\".reports/$2\" pat=\"$3\" result=\"\"; if [ ! -f \"$f\" ]; then echo -e \"  ${Y}?${N}  $lbl (not run)\"; elif [ -z \"$pat\" ] && [ ! -s \"$f\" ]; then echo -e \"  ${G}✔${N}  $lbl (no issues)\"; elif [ -n \"$pat\" ] && grep -q \"$pat\" \"$f\"; then result=$(grep \"$pat\" \"$f\" | tail -1); echo -e \"  ${G}✔${N}  $lbl $result\"; else result=$(tail -1 \"$f\"); echo -e \"  ${R}✖${N}  $lbl $result\"; fi; }; echo \"\"; echo -e \"\\033[1m══════════════════════════════════════\\033[0m\"; echo -e \"\\033[1m       Validate All — Summary        \\033[0m\"; echo -e \"\\033[1m══════════════════════════════════════\\033[0m\"; chk \"Hassfest          \" hassfest.txt \"Invalid integrations: 0\"; chk \"IQS Static        \" iqs_static.txt \"IQS Static: PASSED\"; chk \"Pytest            \" pytest_results.txt \" passed\"; chk \"Mypy Standard     \" mypy_check.txt \"Success:\"; chk \"Mypy Strict       \" mypy_strict.txt \"Success:\"; chk \"Ruff Lint         \" ruff_lint.txt \"All checks passed\"; chk \"Ruff Format       \" ruff_format_status.txt \"already formatted\"; chk \"YAML Lint         \" yaml_lint.txt \"\"; chk \"Codespell         \" codespell.txt \"\"; chk \"Markdown Lint     \" markdown_lint.txt \"\"; echo \"\"",
       "label": "Show: Results Summary",
       "presentation": {
         "panel": "dedicated",
@@ -348,6 +358,7 @@
         "HA: Verify Version (AwesomeVersion)",
         "HA: Check Config",
         "HA: Hassfest Validation",
+        "IQS: Static Check",
         "Pytest: Run All Tests",
         "Pytest: Check Test Coverage",
         "Mypy: Check (Standard)",

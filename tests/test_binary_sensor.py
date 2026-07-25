@@ -6,20 +6,22 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.wifi_ssid_monitor.binary_sensor import (
+    HEALTH_DESCRIPTION,
     NEW_NETWORK_DESCRIPTION,
     PROXIMITY_ALERT_DESCRIPTION,
+    WifiHealthBinarySensor,
     WifiProximityBinarySensor,
     WifiScanBinarySensor,
 )
 from custom_components.wifi_ssid_monitor.const import (
-    CONF_PROXIMITY_RSSI_THRESHOLD,
+    CONF_PROXIMITY_SIGNAL_THRESHOLD,
     DOMAIN,
 )
 
 
 @pytest.fixture
 def binary_data() -> dict:
-    """Return data dict for binary sensor tests."""
+    """Return coordinator data in the current shape."""
     return {
         "count": 2,
         "ssids": ["MyNetwork1", "UnknownNet"],
@@ -27,17 +29,28 @@ def binary_data() -> dict:
         "unknown_count": 1,
         "interface": "wlan0",
         "networks": {
-            "MyNetwork1": {"rssi": -50, "channel": 6, "band": "2.4 GHz"},
-            "UnknownNet": {"rssi": -70, "channel": 36, "band": "5 GHz"},
+            "UnknownNet": {
+                "bssid": "AA:BB:CC:00:00:02",
+                "signal": 55,
+                "channel": 48,
+                "band": "5 GHz",
+                "hidden": False,
+                "key": "UnknownNet",
+            },
         },
         "last_seen": {},
-        "strongest_unknown_rssi": -70,
+        "first_seen": {},
+        "visit_counts": {},
+        "new_24h": 0,
+        "strongest_unknown_signal": 55,
+        "strongest_unknown_ssid": "UnknownNet",
+        "signal_unit": "percent",
     }
 
 
 @pytest.mark.asyncio
 async def test_binary_sensor_setup(hass: HomeAssistant, mock_config_entry, binary_data):
-    """Test binary sensor platform setup and initial state."""
+    """Platform setup and initial states, including the health sensor."""
     mock_config_entry.add_to_hass(hass)
     with patch(
         "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
@@ -53,18 +66,20 @@ async def test_binary_sensor_setup(hass: HomeAssistant, mock_config_entry, binar
     await hass.async_block_till_done()
 
     state = hass.states.get("binary_sensor.wifi_ssid_monitor_new_network_alert")
-    assert state
     assert state.state == "on"
 
+    # Signal 55 is below the default 80% threshold.
     state = hass.states.get("binary_sensor.wifi_ssid_monitor_proximity_alert")
-    assert state is not None
     assert state.state == "off"
+
+    state = hass.states.get("binary_sensor.wifi_ssid_monitor_integration_health")
+    assert state is not None
 
     await coordinator.async_shutdown()
 
 
-def test_binary_sensor_is_on_with_unknown_networks(mock_config_entry, mock_coordinator):
-    """Test binary sensor is on when unknown networks are detected."""
+def test_new_network_is_on_with_unknown(mock_config_entry, mock_coordinator):
+    """New-network sensor is on when unknown networks are present."""
     mock_coordinator.data["unknown_count"] = 3
     sensor = WifiScanBinarySensor(
         mock_coordinator, mock_config_entry, NEW_NETWORK_DESCRIPTION
@@ -72,8 +87,8 @@ def test_binary_sensor_is_on_with_unknown_networks(mock_config_entry, mock_coord
     assert sensor.is_on is True
 
 
-def test_binary_sensor_is_off_all_known(mock_config_entry, mock_coordinator):
-    """Test binary sensor is off when all detected networks are known."""
+def test_new_network_off_all_known(mock_config_entry, mock_coordinator):
+    """New-network sensor is off when all networks are known."""
     mock_coordinator.data["unknown_count"] = 0
     sensor = WifiScanBinarySensor(
         mock_coordinator, mock_config_entry, NEW_NETWORK_DESCRIPTION
@@ -81,8 +96,8 @@ def test_binary_sensor_is_off_all_known(mock_config_entry, mock_coordinator):
     assert sensor.is_on is False
 
 
-def test_binary_sensor_is_off_no_data(mock_config_entry, mock_coordinator):
-    """Test binary sensor is off when coordinator has no data yet."""
+def test_new_network_off_no_data(mock_config_entry, mock_coordinator):
+    """New-network sensor is off with no data."""
     mock_coordinator.data = None
     sensor = WifiScanBinarySensor(
         mock_coordinator, mock_config_entry, NEW_NETWORK_DESCRIPTION
@@ -90,250 +105,129 @@ def test_binary_sensor_is_off_no_data(mock_config_entry, mock_coordinator):
     assert sensor.is_on is False
 
 
-def test_binary_sensor_device_info(mock_config_entry, mock_coordinator):
-    """Test binary sensor device information."""
-    sensor = WifiScanBinarySensor(
-        mock_coordinator, mock_config_entry, NEW_NETWORK_DESCRIPTION
-    )
-    info = sensor.device_info
-    assert info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
-    assert info["name"] == "WiFi SSID Monitor"
-    assert info["manufacturer"] == "PlayFaster"
-    assert "wlan0" in info["model"]
-
-
-def test_binary_sensor_unique_id(mock_config_entry, mock_coordinator):
-    """Test binary sensor unique ID is correctly formed."""
+def test_new_network_unique_id(mock_config_entry, mock_coordinator):
+    """New-network unique id is formed from the entry unique id."""
     sensor = WifiScanBinarySensor(
         mock_coordinator, mock_config_entry, NEW_NETWORK_DESCRIPTION
     )
     assert sensor.unique_id == f"{mock_config_entry.unique_id}_new_network"
 
 
-# --- Proximity binary sensor tests ---
+# --- Proximity (percent scale, higher = closer) ---
 
 
-def test_proximity_sensor_is_off_no_data(mock_config_entry, mock_coordinator):
-    """Test proximity sensor is off when coordinator data is None."""
+def _proximity(entry, coordinator, threshold=None):
+    if threshold is not None:
+        object.__setattr__(
+            entry,
+            "options",
+            {**entry.options, CONF_PROXIMITY_SIGNAL_THRESHOLD: threshold},
+        )
+    return WifiProximityBinarySensor(coordinator, entry, PROXIMITY_ALERT_DESCRIPTION)
+
+
+def test_proximity_off_no_data(mock_config_entry, mock_coordinator):
+    """Proximity is off with no data."""
     mock_coordinator.data = None
-    sensor = WifiProximityBinarySensor(
-        mock_coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
-    )
-    assert sensor.is_on is False
+    assert _proximity(mock_config_entry, mock_coordinator).is_on is False
 
 
-def test_proximity_sensor_is_off_no_rssi(mock_config_entry, mock_coordinator):
-    """Test proximity sensor is off when strongest_unknown_rssi is None."""
-    mock_coordinator.data["strongest_unknown_rssi"] = None
-    sensor = WifiProximityBinarySensor(
-        mock_coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
-    )
-    assert sensor.is_on is False
+def test_proximity_off_no_signal(mock_config_entry, mock_coordinator):
+    """Proximity is off when no unknown signal is present."""
+    mock_coordinator.data["strongest_unknown_signal"] = None
+    assert _proximity(mock_config_entry, mock_coordinator).is_on is False
 
 
-def test_proximity_sensor_is_off_below_threshold(mock_config_entry, mock_coordinator):
-    """Test proximity sensor is off when RSSI is below default threshold."""
-    mock_coordinator.data["strongest_unknown_rssi"] = -70
-    sensor = WifiProximityBinarySensor(
-        mock_coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
-    )
-    assert sensor.is_on is False
+def test_proximity_off_below_threshold(mock_config_entry, mock_coordinator):
+    """Proximity is off when the signal is below the default 80%."""
+    mock_coordinator.data["strongest_unknown_signal"] = 55
+    assert _proximity(mock_config_entry, mock_coordinator).is_on is False
 
 
-def test_proximity_sensor_is_on_above_threshold(mock_config_entry, mock_coordinator):
-    """Test proximity sensor is on when RSSI exceeds default threshold."""
-    mock_coordinator.data["strongest_unknown_rssi"] = -50
-    sensor = WifiProximityBinarySensor(
-        mock_coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
-    )
-    assert sensor.is_on is True
+def test_proximity_on_above_threshold(mock_config_entry, mock_coordinator):
+    """Proximity is on when the signal exceeds the default 80%."""
+    mock_coordinator.data["strongest_unknown_signal"] = 90
+    assert _proximity(mock_config_entry, mock_coordinator).is_on is True
 
 
-@pytest.mark.asyncio
-async def test_proximity_sensor_custom_threshold(hass, mock_config_entry, binary_data):
-    """Test proximity sensor with custom RSSI threshold at boundary equality."""
-    mock_config_entry.add_to_hass(hass)
-    hass.config_entries.async_update_entry(
-        mock_config_entry,
-        options={**mock_config_entry.options, CONF_PROXIMITY_RSSI_THRESHOLD: -40},
-    )
-    with patch(
-        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
-        return_value=[],
-    ):
-        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
-
-    coordinator = mock_config_entry.runtime_data
-    coordinator.data = binary_data
-    coordinator.last_update_success = True
-    coordinator.async_update_listeners()
-    await hass.async_block_till_done()
-
-    sensor = WifiProximityBinarySensor(
-        coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
-    )
-    assert sensor.is_on is False
-
-    coordinator.data["strongest_unknown_rssi"] = -40
-    assert sensor.is_on is True
-
-    await coordinator.async_shutdown()
+def test_proximity_boundary_equal_is_on(mock_config_entry, mock_coordinator):
+    """Proximity fires when the signal equals the threshold."""
+    mock_coordinator.data["strongest_unknown_signal"] = 70
+    assert _proximity(mock_config_entry, mock_coordinator, threshold=70).is_on is True
 
 
-@pytest.mark.asyncio
-async def test_proximity_sensor_extra_state_attributes(
-    hass, mock_config_entry, binary_data
-):
-    """Test proximity sensor extra state attributes with and without data."""
-    mock_config_entry.add_to_hass(hass)
-    hass.config_entries.async_update_entry(
-        mock_config_entry,
-        options={**mock_config_entry.options, CONF_PROXIMITY_RSSI_THRESHOLD: -60},
-    )
-    with patch(
-        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
-        return_value=[],
-    ):
-        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
-
-    coordinator = mock_config_entry.runtime_data
-    coordinator.data = binary_data
-    coordinator.last_update_success = True
-    coordinator.async_update_listeners()
-    await hass.async_block_till_done()
-
-    sensor = WifiProximityBinarySensor(
-        coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
-    )
-    assert sensor.extra_state_attributes == {
-        "strongest_unknown_rssi": -70,
-        "threshold": -60,
-    }
-
-    coordinator.data = None
-    assert sensor.extra_state_attributes == {
-        "strongest_unknown_rssi": None,
-        "threshold": -60,
-    }
-
-    await coordinator.async_shutdown()
+def test_proximity_boundary_below_is_off(mock_config_entry, mock_coordinator):
+    """Proximity does not fire one below the threshold."""
+    mock_coordinator.data["strongest_unknown_signal"] = 69
+    assert _proximity(mock_config_entry, mock_coordinator, threshold=70).is_on is False
 
 
-def test_proximity_sensor_device_info(mock_config_entry, mock_coordinator):
-    """Test proximity sensor device_info contains identifiers, manufacturer, and model."""  # noqa: E501
-    sensor = WifiProximityBinarySensor(
-        mock_coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
-    )
-    info = sensor.device_info
-    assert info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
-    assert "PlayFaster" in info["manufacturer"]
-    assert "wlan0" in info["model"]
+def test_proximity_extra_state_attributes(mock_config_entry, mock_coordinator):
+    """Proximity exposes the signal and threshold."""
+    mock_coordinator.data["strongest_unknown_signal"] = 55
+    sensor = _proximity(mock_config_entry, mock_coordinator, threshold=60)
+    attrs = sensor.extra_state_attributes
+    assert attrs["strongest_unknown_signal"] == 55
+    assert attrs["threshold"] == 60
+
+    mock_coordinator.data = None
+    attrs = sensor.extra_state_attributes
+    assert attrs["strongest_unknown_signal"] is None
+    assert attrs["threshold"] == 60
 
 
-def test_proximity_sensor_unique_id(mock_config_entry, mock_coordinator):
-    """Test proximity sensor unique ID is correctly formed."""
-    sensor = WifiProximityBinarySensor(
-        mock_coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
-    )
+def test_proximity_unique_id(mock_config_entry, mock_coordinator):
+    """Proximity unique id is formed from the entry unique id."""
+    sensor = _proximity(mock_config_entry, mock_coordinator)
     assert sensor.unique_id == f"{mock_config_entry.unique_id}_proximity_alert"
 
 
-# --- Proximity boundary value tests ---
+# --- Integration Health ---
 
 
-@pytest.mark.asyncio
-async def test_proximity_sensor_is_on_at_boundary_equal(
-    hass, mock_config_entry, binary_data
-):
-    """Test proximity sensor is on when RSSI equals threshold exactly."""
-    mock_config_entry.add_to_hass(hass)
-    hass.config_entries.async_update_entry(
-        mock_config_entry,
-        options={**mock_config_entry.options, CONF_PROXIMITY_RSSI_THRESHOLD: -60},
+def test_health_always_available(mock_config_entry, mock_coordinator):
+    """The health sensor is available even when the coordinator has failed."""
+    mock_coordinator.last_update_success = False
+    sensor = WifiHealthBinarySensor(
+        mock_coordinator, mock_config_entry, HEALTH_DESCRIPTION
     )
-    with patch(
-        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
-        return_value=[],
-    ):
-        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    assert sensor.available is True
 
-    coordinator = mock_config_entry.runtime_data
-    coordinator.data = binary_data
-    coordinator.last_update_success = True
-    coordinator.async_update_listeners()
-    await hass.async_block_till_done()
 
-    coordinator.data["strongest_unknown_rssi"] = -60
-    sensor = WifiProximityBinarySensor(
-        coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
+def test_health_reflects_snapshot(mock_config_entry, mock_coordinator):
+    """The health sensor reads problem/issues from the snapshot."""
+    mock_coordinator.health_snapshot = {
+        "problem": True,
+        "severity": "serious",
+        "issues": ["Cannot reach the Supervisor API"],
+        "checks_failed": ["supervisor_unreachable"],
+        "signal_unit": "percent",
+        "last_good_scan": None,
+    }
+    sensor = WifiHealthBinarySensor(
+        mock_coordinator, mock_config_entry, HEALTH_DESCRIPTION
     )
     assert sensor.is_on is True
+    attrs = sensor.extra_state_attributes
+    assert attrs["severity"] == "serious"
+    assert "Cannot reach the Supervisor API" in attrs["issues"]
 
-    await coordinator.async_shutdown()
 
-
-@pytest.mark.asyncio
-async def test_proximity_sensor_is_off_one_below_boundary(
-    hass, mock_config_entry, binary_data
-):
-    """Test proximity sensor is off when RSSI is one below threshold."""
-    mock_config_entry.add_to_hass(hass)
-    hass.config_entries.async_update_entry(
-        mock_config_entry,
-        options={**mock_config_entry.options, CONF_PROXIMITY_RSSI_THRESHOLD: -60},
-    )
-    with patch(
-        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
-        return_value=[],
-    ):
-        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
-
-    coordinator = mock_config_entry.runtime_data
-    coordinator.data = binary_data
-    coordinator.last_update_success = True
-    coordinator.async_update_listeners()
-    await hass.async_block_till_done()
-
-    coordinator.data["strongest_unknown_rssi"] = -61
-    sensor = WifiProximityBinarySensor(
-        coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
+def test_health_off_when_healthy(mock_config_entry, mock_coordinator):
+    """The health sensor is off when the snapshot reports no problem."""
+    mock_coordinator.health_snapshot = {"problem": False, "issues": []}
+    sensor = WifiHealthBinarySensor(
+        mock_coordinator, mock_config_entry, HEALTH_DESCRIPTION
     )
     assert sensor.is_on is False
 
-    await coordinator.async_shutdown()
 
-
-@pytest.mark.asyncio
-async def test_proximity_sensor_is_on_one_above_boundary(
-    hass, mock_config_entry, binary_data
-):
-    """Test proximity sensor is on when RSSI is one above threshold."""
-    mock_config_entry.add_to_hass(hass)
-    hass.config_entries.async_update_entry(
-        mock_config_entry,
-        options={**mock_config_entry.options, CONF_PROXIMITY_RSSI_THRESHOLD: -60},
+def test_device_info(mock_config_entry, mock_coordinator):
+    """Binary sensors report the shared device info."""
+    sensor = WifiScanBinarySensor(
+        mock_coordinator, mock_config_entry, NEW_NETWORK_DESCRIPTION
     )
-    with patch(
-        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
-        return_value=[],
-    ):
-        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
-
-    coordinator = mock_config_entry.runtime_data
-    coordinator.data = binary_data
-    coordinator.last_update_success = True
-    coordinator.async_update_listeners()
-    await hass.async_block_till_done()
-
-    coordinator.data["strongest_unknown_rssi"] = -59
-    sensor = WifiProximityBinarySensor(
-        coordinator, mock_config_entry, PROXIMITY_ALERT_DESCRIPTION
-    )
-    assert sensor.is_on is True
-
-    await coordinator.async_shutdown()
+    info = sensor.device_info
+    assert info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
+    assert info["manufacturer"] == "PlayFaster"
+    assert "wlan0" in info["model"]

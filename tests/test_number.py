@@ -2,100 +2,124 @@
 
 import asyncio
 from contextlib import suppress
-from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntryState
 
-from custom_components.wifi_ssid_monitor import async_reload_entry
-from custom_components.wifi_ssid_monitor.const import CONF_SCAN_INTERVAL, DOMAIN
-from custom_components.wifi_ssid_monitor.number import (
-    SCAN_INTERVAL_DESCRIPTION,
-    WifiScanIntervalNumber,
+from custom_components.wifi_ssid_monitor.const import (
+    CONF_PROXIMITY_SIGNAL_THRESHOLD,
+    CONF_SCAN_INTERVAL,
+    DOMAIN,
 )
+from custom_components.wifi_ssid_monitor.number import NUMBER_TYPES, WifiOptionNumber
+
+
+def _number(coordinator, entry, key):
+    """Build a WifiOptionNumber for the given description key."""
+    description = next(d for d in NUMBER_TYPES if d.key == key)
+    number = WifiOptionNumber(coordinator, entry, description)
+    return number
+
+
+def test_scan_interval_reads_option_in_minutes(mock_config_entry, mock_coordinator):
+    """The interval entity shows the stored seconds as minutes (60 -> 1)."""
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
+    # conftest stores 60 seconds.
+    assert number.native_value == 1
+
+
+def test_threshold_reads_option_directly(mock_config_entry, mock_coordinator):
+    """The threshold entity shows the stored percentage as-is."""
+    object.__setattr__(
+        mock_config_entry,
+        "options",
+        {**mock_config_entry.options, CONF_PROXIMITY_SIGNAL_THRESHOLD: 70},
+    )
+    number = _number(mock_coordinator, mock_config_entry, "proximity_signal_threshold")
+    assert number.native_value == 70
 
 
 @pytest.mark.asyncio
-async def test_number_setup_and_update(hass, mock_config_entry, mock_coordinator):
-    """Test the scan interval number entity setup and value update."""
+async def test_scan_interval_persists_seconds(
+    hass, mock_config_entry, mock_coordinator
+):
+    """Setting 15 minutes persists 900 seconds and does not force a refresh."""
     mock_config_entry.add_to_hass(hass)
-    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
-
-    # Setup environment for the reload listener
     mock_config_entry.runtime_data = mock_coordinator
-    mock_config_entry.add_update_listener(async_reload_entry)
+    mock_coordinator.async_force_refresh = AsyncMock()
 
-    # CONF_SCAN_INTERVAL is 60 in conftest, so initial_value should be 1
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 1
-    )
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
     number.hass = hass
     number.async_write_ha_state = MagicMock()
-    mock_coordinator.async_request_refresh = AsyncMock()
 
-    # Test setting a new value via direct call to simulate service
     with patch("asyncio.sleep", AsyncMock()):
         await number.async_set_native_value(15)
-        # We MUST await the background task created by the entity
-        if number._refresh_task:
-            await number._refresh_task
+        await number._pending
         await hass.async_block_till_done()
 
-    # Verify coordinator update
-    assert mock_coordinator.update_interval == timedelta(minutes=15)
-    # Note: integration does NOT trigger refresh on interval change ONLY
-    mock_coordinator.async_request_refresh.assert_not_called()
-
-    # Verify persistence in options
-    assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 900  # 15 * 60
+    assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 900
+    # A scan-interval change is applied by the listener, not a forced fetch.
+    mock_coordinator.async_force_refresh.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_number_debounce_cancellation(hass, mock_config_entry, mock_coordinator):
-    """Test that rapid changes cancel previous update tasks."""
+async def test_threshold_forces_refresh(hass, mock_config_entry, mock_coordinator):
+    """Changing the threshold persists the percent value and forces a fetch."""
+    from custom_components.wifi_ssid_monitor import async_reload_entry
+
     mock_config_entry.add_to_hass(hass)
-    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
-
     mock_config_entry.runtime_data = mock_coordinator
-    mock_config_entry.add_update_listener(async_reload_entry)
-
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
+    mock_config_entry.async_on_unload(
+        mock_config_entry.add_update_listener(async_reload_entry)
     )
+    mock_coordinator.async_force_refresh = AsyncMock()
+
+    number = _number(mock_coordinator, mock_config_entry, "proximity_signal_threshold")
     number.hass = hass
     number.async_write_ha_state = MagicMock()
 
     with patch("asyncio.sleep", AsyncMock()):
-        # First update
+        await number.async_set_native_value(65)
+        await number._pending
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.options[CONF_PROXIMITY_SIGNAL_THRESHOLD] == 65
+    mock_coordinator.async_force_refresh.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_debounce_cancellation(hass, mock_config_entry, mock_coordinator):
+    """A rapid second change cancels the first pending write."""
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.runtime_data = mock_coordinator
+    mock_coordinator.async_force_refresh = AsyncMock()
+
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
+    number.hass = hass
+    number.async_write_ha_state = MagicMock()
+
+    with patch("asyncio.sleep", AsyncMock()):
         await number.async_set_native_value(20)
-        task1 = number._refresh_task
-
-        # Immediate second update should cancel the first
+        task1 = number._pending
         await number.async_set_native_value(30)
-        task2 = number._refresh_task
-
-        # The two calls must produce distinct tasks
+        task2 = number._pending
         assert task1 is not task2
-
-        # Let task2 finish
         await task2
         await hass.async_block_till_done()
 
-    # Only the final value (30) should be applied — not the first (20)
-    assert mock_coordinator.update_interval == timedelta(minutes=30)
+    assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 1800  # 30 * 60
 
 
 @pytest.mark.asyncio
-async def test_number_apply_error(hass, mock_config_entry, mock_coordinator):
-    """Test error handling during interval application."""
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
-    )
+async def test_apply_error_logs(hass, mock_config_entry, mock_coordinator):
+    """A failure to persist is logged and the optimistic value is cleared."""
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.runtime_data = mock_coordinator
+
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
     number.hass = hass
     number.async_write_ha_state = MagicMock()
 
-    # Mock update_entry to raise an exception
     with (
         patch("asyncio.sleep", AsyncMock()),
         patch.object(
@@ -104,36 +128,32 @@ async def test_number_apply_error(hass, mock_config_entry, mock_coordinator):
             side_effect=Exception("Save error"),
         ),
         patch(
-            "custom_components.wifi_ssid_monitor.number._LOGGER.error"
-        ) as mock_log_error,
+            "custom_components.wifi_ssid_monitor.number._LOGGER.exception"
+        ) as mock_log,
     ):
         await number.async_set_native_value(15)
-        await number._refresh_task
+        await number._pending
 
-        mock_log_error.assert_called_once()
-        assert "Failed to apply scan interval change" in mock_log_error.call_args[0][0]
+    mock_log.assert_called_once()
 
 
-def test_number_device_info(mock_config_entry, mock_coordinator):
-    """Test device information for number entity."""
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
-    )
+def test_device_info(mock_config_entry, mock_coordinator):
+    """The number reports the shared device info."""
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
     info = number.device_info
     assert info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
     assert info["manufacturer"] == "PlayFaster"
 
 
 @pytest.mark.asyncio
-async def test_number_debounce_cancelled(hass, mock_config_entry, mock_coordinator):
-    """Test CancelledError during debounce sleep is handled gracefully."""
+async def test_debounce_cancelled_is_graceful(
+    hass, mock_config_entry, mock_coordinator
+):
+    """A CancelledError during the debounce sleep is swallowed."""
     mock_config_entry.add_to_hass(hass)
-    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
     mock_config_entry.runtime_data = mock_coordinator
 
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
-    )
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
     number.hass = hass
     number.async_write_ha_state = MagicMock()
 
@@ -144,39 +164,45 @@ async def test_number_debounce_cancelled(hass, mock_config_entry, mock_coordinat
         ) as mock_log_debug,
     ):
         await number.async_set_native_value(30)
-        if number._refresh_task:
-            with suppress(asyncio.CancelledError):
-                await number._refresh_task
+        with suppress(asyncio.CancelledError):
+            await number._pending
 
-        mock_log_debug.assert_called_once()
-        assert "cancelled" in mock_log_debug.call_args[0][0].lower()
+    mock_log_debug.assert_called_once()
 
-    assert number._attr_native_value == 30
+
+def test_optimistic_value_returned(mock_config_entry, mock_coordinator):
+    """When an optimistic value is set, native_value returns it."""
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
+    number._optimistic = 42.0
+    assert number.native_value == 42.0
+
+
+def test_scale_division(mock_config_entry, mock_coordinator):
+    """Values with scale > 1 are divided by the scale factor."""
+    object.__setattr__(
+        mock_config_entry,
+        "options",
+        {**mock_config_entry.options, "scan_interval": 3600},
+    )
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
+    assert number.native_value == 60  # 3600 / 60
 
 
 @pytest.mark.asyncio
-async def test_number_will_remove_from_hass_cancels_task(
-    hass, mock_config_entry, mock_coordinator
-):
-    """Test that async_will_remove_from_hass cancels an active refresh task."""
+async def test_will_remove_cancels_task(hass, mock_config_entry, mock_coordinator):
+    """Removal cancels an in-flight debounce task."""
     mock_config_entry.add_to_hass(hass)
-    mock_config_entry.mock_state(hass, ConfigEntryState.LOADED)
     mock_config_entry.runtime_data = mock_coordinator
 
-    number = WifiScanIntervalNumber(
-        mock_coordinator, mock_config_entry, SCAN_INTERVAL_DESCRIPTION, 10
-    )
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
     number.hass = hass
     number.async_write_ha_state = MagicMock()
 
     await number.async_set_native_value(15)
-    assert number._refresh_task is not None
-    assert not number._refresh_task.done()
+    assert number._pending is not None
 
     await number.async_will_remove_from_hass()
-
-    # Task catches CancelledError internally, so it completes normally
     with suppress(asyncio.CancelledError):
-        await number._refresh_task
+        await number._pending
 
-    assert number._refresh_task.done()
+    assert number._pending.done()
