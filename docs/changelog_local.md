@@ -75,7 +75,7 @@ A major update, with significant capability improvements and fixes BUT also some
 
 ---
 
-## [2.0.0-dev9] - 2026-07-25 - Docs Formats
+## [2.0.0-dev9] - 2026-07-25 - Docs and Formats
 
 ### Changed
 
