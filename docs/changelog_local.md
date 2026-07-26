@@ -4,6 +4,12 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.1-dev3] - 202607-26 - Unreleased - No Manifest Bump - Bump Shared CI to v2.0.7
+
+### Bumps
+
+- **Shared .github CI Validation**: Bump .github Shared CI Validation via SHA from v2.0.5 to v2.0.6
+
 ## [2.0.1-dev2] - 202607-26 - Unreleased - No Manifest Bump - Readme and Agents
 
 ### Changed
