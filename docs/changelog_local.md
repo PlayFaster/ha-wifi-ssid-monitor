@@ -4,6 +4,13 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.1-dev2] - 202607-26 - Unreleased - No Manifest Bump - Readme and Agents
+
+### Changed
+
+- **README**: Tweak to Readme
+- **AGENTS**: Rewrite of AGENTS.md to move content shared across projects to a shared file, and to move sensor entity counts to using `docs/all_sensors.md`as the definitive source.
+
 ## [2.0.1-dev1] - 202607-26 - Unreleased - No Manifest Bump - Bump PHACC
 
 ### Bumps
@@ -93,7 +100,7 @@ A major update, with significant capability improvements and fixes BUT also some
 
 ### Changed
 
-- **README**: Further tweaks and enhancements, error fixes and automation improvements. Also, linkning of automation examples to relevant parts of file.
+- **README**: Further tweaks and enhancements, error fixes and automation improvements. Also, linking of automation examples to relevant parts of file.
 
 ## [2.0.0-dev7] - 2026-07-24 - Readme Screenshots and Automations
 

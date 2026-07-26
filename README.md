@@ -672,7 +672,7 @@ with
 ```yaml
 action: notify.send_message
 target:
-  entity_id: notify.your_specific_phone
+  entity_id: notify.your_specific_mobile_phone
 ```
 
 ---
