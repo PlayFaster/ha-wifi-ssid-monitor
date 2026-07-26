@@ -4,6 +4,14 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.1-dev1] - 202607-26 - Unreleased - No Manifest Bump - Bump PHACC
+
+### Bumps
+
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.347 to 0.13.348
+
+---
+
 ## [2.0.0] - 2026-07-25
 
 > **This release has breaking changes - see the Breaking section.**
