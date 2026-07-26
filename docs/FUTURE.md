@@ -94,7 +94,7 @@ With the `parse.py` normalization boundary, BSSID identity, persisted history, t
 
 **Why the automation is not enough:** the offline alert infers "one of my networks went down" from a count - it takes the total network count, subtracts the unknown count, and watches that base for a drop. That works, but it is indirect and fragile:
 
-- **It counts, it does not name.** The base falling from 3 to 2 tells the user _a_ network is missing, never _which_ one. If two of their networks are down and one previously-unknown neighbour joins the known list, the base can even stay flat and hide the outage entirely.
+- **It counts, it does not name.** The base falling from 3 to 2 tells the user _a_ network is missing, never _which_ one. If two of their networks are down and one previously-unknown neighbor joins the known list, the base can even stay flat and hide the outage entirely.
 - **It needs a hand-set magic number.** The `< 3` threshold is specific to one location and must be re-tuned whenever the user adds a network, disables a band, or moves house. A wrong number means silent failure or constant false alarms.
 - **It cannot see a swap.** If one of the user's APs dies at the same moment a new unknown one appears, the total is unchanged and the base is unchanged, so nothing fires.
 
@@ -102,7 +102,7 @@ Tracking the user's own SSIDs explicitly removes all three problems: the integra
 
 **What it needs:**
 
-- **A "my WiFi" list option** - the networks the user considers their own infrastructure. This is a narrower, more deliberate list than the known list: the known list suppresses noise (guest networks, a neighbour the user has whitelisted), whereas the my-WiFi list asserts "these should always be up." It should accept the same identity forms as the other lists (SSID, `fnmatch` pattern, or BSSID), with a BSSID entry being the strongest form here because it pins a specific radio and cannot be satisfied by a spoofed name.
+- **A "my WiFi" list option** - the networks the user considers their own infrastructure. This is a narrower, more deliberate list than the known list: the known list suppresses noise (guest networks, a neighbor the user has whitelisted), whereas the my-WiFi list asserts "these should always be up." It should accept the same identity forms as the other lists (SSID, `fnmatch` pattern, or BSSID), with a BSSID entry being the strongest form here because it pins a specific radio and cannot be satisfied by a spoofed name.
 - **A `My WiFi Online` count sensor** - how many of the my-WiFi entries are currently broadcasting, with the matched and missing SSID names as attributes so the state is legible, not just numeric. An LTS-friendly integer that graphs cleanly.
 - **A `My WiFi Offline` problem binary sensor** - `on` when one or more my-WiFi entries are not currently seen, with the missing names as an attribute. This is the direct trigger the offline automation approximates, but self-configuring: no threshold, and the notification can name the down network.
 - **Presence hold / debounce** - a network must be absent for a configurable number of scans (or minutes) before it counts as offline, so a single unlucky scan does not raise a false outage. This is the `for:` duration the automation currently carries, moved into the integration where it belongs.
