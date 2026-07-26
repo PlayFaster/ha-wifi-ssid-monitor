@@ -316,7 +316,7 @@ Detecting **unknown** WiFi networks - SSIDs in range that are not on your known 
 - **Include Hidden Networks** (`switch`) - count un-broadcast networks or ignore them entirely.
 - **Proximity Signal Threshold** (`number`, 0–100%) - the "nearby" cut-off; raise it to require a closer network before the alert fires.
 
-The **Known SSIDs** and **Always-Unknown (denylist)** lists are set in **Configure** (or via the `add_ssid` / `remove_ssid` / `set_ssids` actions). Both accept `fnmatch` wildcards and can match either the SSID or the BSSID. See [Runtime Options](#-runtime-options). The [Dynamic Guest Network Whitelisting](#-dynamic-guest-network-whitelisting) example drives the known list from an automation.
+The **Known SSIDs** and **Always-Unknown (denylist)** lists are set in **Configure** (or via the `add_ssid` / `remove_ssid` / `set_ssids` actions). Both accept `fnmatch` wildcards and can match either the SSID or the BSSID. See [Runtime Options](#-runtime-options-configure--reconfigure). The [Dynamic Guest Network Whitelisting](#-dynamic-guest-network-whitelisting) example drives the known list from an automation.
 
 ### 🤖 On-demand & Automations
 
@@ -1352,9 +1352,9 @@ Setup is handled entirely via the UI under **Settings > Devices & Services > Add
 
 <br>
 
-### 🔨 Runtime Options
+### 🔨 Runtime Options (Configure / Reconfigure)
 
-After setup, settings can be updated by clicking the **Gear icon** ( ⚙ Configure) on the integration card:
+After initial setup, settings can be updated by clicking the **Gear icon** ( ⚙ Configure) on the integration card:
 
 <details>
 

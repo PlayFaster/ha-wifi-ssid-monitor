@@ -4,6 +4,12 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.1-dev5] - 202607-26 - Unreleased - No Manifest Bump - Bump Ruff
+
+### Changed
+
+- **README**: Tweak to Readme - section names and links.
+
 ## [2.0.1-dev4] - 202607-26 - Unreleased - No Manifest Bump - Bump Ruff
 
 ### Bumps
