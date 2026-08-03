@@ -55,10 +55,10 @@ There is currently **no exemption allow-list**: `UNGUARDED_ALLOWLIST` in `tests/
 
 Distinct from guard bands. These are the limits Home Assistant enforces on the input itself, so an out-of-range value cannot be submitted rather than being rejected after the fact. Source: `number.py` → `NUMBER_TYPES`.
 
-| Control | Key | Min | Max | Step | Unit |
-| :-- | :-- | --: | --: | --: | :-- |
-| Scan Interval | `scan_interval` | 1 | 180 | 1 | minutes |
-| Proximity Threshold | `proximity_signal_threshold` | 0 | 100 | 1 | % |
+| Control             | Key                          | Min | Max | Step | Unit    |
+| :------------------ | :--------------------------- | --: | --: | ---: | :------ |
+| Scan Interval       | `scan_interval`              |   1 | 180 |    1 | minutes |
+| Proximity Threshold | `proximity_signal_threshold` |   0 | 100 |    1 | %       |
 
 ---
 

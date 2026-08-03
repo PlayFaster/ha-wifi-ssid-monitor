@@ -14,15 +14,15 @@ The **Key** column below is the `key` field on the entity description. That is n
 
 ## Summary
 
-| Type | Count |
-| :-- | --: |
-| Sensor | 7 |
-| Binary Sensor | 3 |
-| Switch | 5 |
-| Number | 2 |
-| Button | 1 |
+| Type               |  Count |
+| :----------------- | -----: |
+| Sensor             |      7 |
+| Binary Sensor      |      3 |
+| Switch             |      5 |
+| Number             |      2 |
+| Button             |      1 |
 | **Total entities** | **18** |
-| Actions | 6 |
+| Actions            |      6 |
 
 ---
 

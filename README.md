@@ -153,8 +153,6 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 ## 🔍 What You Get
 
-![Main Integration Screen](.github/images/wifi_ssid_mon_integration_screen.png)
-
 This integration provides its 18 entities under a single **WiFi SSID Monitor** device - sensors, binary sensors, numbers, switches, and a button, all enabled by default.
 
 | Category / Entity Type | Enabled / Total | Description & Key Metrics |
@@ -177,6 +175,10 @@ There are also six actions (services) and one event - details > [Actions & Event
 | Controls and Sensors | Configuration and Diagnostics |
 | :-: | :-: |
 | ![Controls and Sensors](.github/images/wifi_ssid_mon_controls_and_sensors.png) | ![Configuration and Diagnostics](.github/images/wifi_ssid_mon_config_and_diags.png) |
+
+---
+
+![Main Integration Screen](.github/images/wifi_ssid_mon_integration_screen.png)
 
 ---
 

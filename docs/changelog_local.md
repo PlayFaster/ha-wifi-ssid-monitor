@@ -6,9 +6,9 @@ All changes to this project will be documented in this file. This is the detaile
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - §14 Enforcement Test](#201-dev8---2026-07-27---14-enforcement-test)
   - [\[2.0.1-dev7\] - 2026-07-27 - §19 `drift` Attribute](#201-dev7---2026-07-27---19-drift-attribute)
@@ -117,7 +117,7 @@ Implements Priority 1 of `.notes/issues/changes_20260803/wifi_changes_20260803.m
 
 ### Notes
 
-- **A defect was found in the new tests themselves.** The first icon sweep reported three dead entries that were not dead: `seen_keys` was recorded *after* the `device_class` skip, so an entity carrying a device class **and** a deliberate icon override looked orphaned. Fixed, with a comment at the site, because it would be easy to reintroduce.
+- **A defect was found in the new tests themselves.** The first icon sweep reported three dead entries that were not dead: `seen_keys` was recorded _after_ the `device_class` skip, so an entity carrying a device class **and** a deliberate icon override looked orphaned. Fixed, with a comment at the site, because it would be easy to reintroduce.
 
 - **Coverage-shaped, not sample-shaped.** Each new test sweeps a set — `CHECKS`, `SENSOR_TYPES`, the live entity list, the registered action set — rather than asserting a known member. Per §11: a test asserting a mechanism passes right up until the mechanism is bypassed, while one asserting every member of a set is covered fails the moment the set grows. Adding a health check without classifying it, a sensor without bounds, an entity without an icon or an action without one now fails.
 
