@@ -506,6 +506,43 @@
         "panel": "dedicated",
         "reveal": "always"
       }
+    },
+    {
+      "command": "[ -f scripts/hardware_check.py ] && { mkdir -p .reports && /usr/local/bin/python scripts/hardware_check.py 2>&1 | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/hardware_check.txt); } || echo \"[Skipped: no scripts/hardware_check.py in this project]\"",
+      "label": "Hardware: Check Device",
+      "detail": "Exercises the SAFE writes against the REAL device and restores every value. Needs the hardware; never runs in CI.",
+      "presentation": {
+        "clear": true,
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "[ -f scripts/hardware_check.py ] && { mkdir -p .reports && /usr/local/bin/python scripts/hardware_check.py --capture 2>&1 | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/hardware_capture.txt); } || echo \"[Skipped: no scripts/hardware_check.py in this project]\"",
+      "label": "Hardware: Capture Fixtures",
+      "detail": "As Check Device, and re-records tests/fixtures/ from the live device. Refuses to write anything that looks like personal data.",
+      "presentation": {
+        "clear": true,
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "[ -f scripts/hardware_check.py ] && { mkdir -p .reports && /usr/local/bin/python scripts/hardware_check.py --attended 2>&1 | tee >(sed 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' > .reports/hardware_attended.txt); } || echo \"[Skipped: no scripts/hardware_check.py in this project]\"",
+      "label": "Hardware: Attended Writes (INTERRUPTS CONNECTION)",
+      "detail": "Offers the writes that re-establish the mobile connection - APN mode and bearer preference - one at a time, each needing a typed 'y'. Expect a short outage per step. Type in this terminal to answer.",
+      "presentation": {
+        "clear": true,
+        "panel": "dedicated",
+        "reveal": "always",
+        "focus": true
+      },
+      "problemMatcher": [],
+      "type": "shell"
     }
   ],
   "version": "2.0.0"
