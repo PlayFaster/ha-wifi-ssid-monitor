@@ -2,7 +2,7 @@
 
 Forward view for `ha-wifi-ssid-monitor`, and the record of what has been decided against. The integration counts visible networks, separates known from unknown, and records signal, band and history for them. What remains is mostly one large item — per-network entities, in three phases — plus a few small filters over history that is already persisted.
 
-Format document `roadmap_format.md` used, with one deliberate carry-over: **nothing that was in the predecessor `FUTURE.md` has been dropped.** Where the format would have excluded something — the off-roadmap v2.0.0 deliveries, and one future option retired without ever being built — it is kept under **Done** in a clearly separated subsection rather than discarded, so this first conversion loses no record.
+Format document `roadmap_format.md` v1.2.0 used, with one deliberate carry-over: **nothing that was in the predecessor `FUTURE.md` has been dropped.** Where the format would have excluded something — the off-roadmap v2.0.0 deliveries, and one future option retired without ever being built — it is kept under **Done** in a clearly separated subsection rather than discarded, so this first conversion loses no record.
 
 **Reviewed 2026-08-03** against the v2.0.0 source and the current entity set.
 
@@ -154,16 +154,16 @@ Forward work only. Declined and Revisit items are recorded above and are not wor
 
 Phases of the per-network entities item are listed separately because their Effort differs; they are one item and are not independently orderable.
 
-| Item                                 | Group      | Value    | Effort              |
-| :----------------------------------- | :--------- | :------- | :------------------ |
-| Per-network entities                 | To Be Done | ⭐⭐⭐⭐ | High overall        |
-| — phase 1, my-WiFi count and offline | To Be Done | ⭐⭐⭐⭐ | Medium              |
-| — phase 2, presence entities         | To Be Done | ⭐⭐⭐   | High                |
-| — phase 3, signal sensors            | To Be Done | ⭐⭐⭐   | Low after phase 2   |
-| Visit-count threshold                | To Be Done | ⭐⭐⭐   | Low                 |
-| Appearance / disappearance events    | To Be Done | ⭐⭐⭐   | Medium              |
-| Proximity alert hysteresis           | Maybe      | ⭐⭐     | Medium              |
-| Case-insensitive known-SSID matching | Maybe      | ⭐⭐     | Medium              |
+| Item                                 | Group      | Value    | Effort            |
+| :----------------------------------- | :--------- | :------- | :---------------- |
+| Per-network entities                 | To Be Done | ⭐⭐⭐⭐ | High overall      |
+| — phase 1, my-WiFi count and offline | To Be Done | ⭐⭐⭐⭐ | Medium            |
+| — phase 2, presence entities         | To Be Done | ⭐⭐⭐   | High              |
+| — phase 3, signal sensors            | To Be Done | ⭐⭐⭐   | Low after phase 2 |
+| Visit-count threshold                | To Be Done | ⭐⭐⭐   | Low               |
+| Appearance / disappearance events    | To Be Done | ⭐⭐⭐   | Medium            |
+| Proximity alert hysteresis           | Maybe      | ⭐⭐     | Medium            |
+| Case-insensitive known-SSID matching | Maybe      | ⭐⭐     | Medium            |
 
 ---
 
@@ -216,6 +216,7 @@ Items that were on this roadmap and have since been built. Detail is in `CHANGEL
 
 ## Version Control
 
+- **v2.1.0** (2026-08-03) — **Three items merged into one.** "Track your own WiFi online", "Per-SSID presence binary sensors" and "Per-SSID signal quality sensors" were one feature listed three times: all three read the same list, and building them separately would have produced three lists, two parallel presence calculations, and a signal sensor with no defined "gone" state. Now **Per-network entities**, with a shared foundation (the my-WiFi list, its actions, absence debounce, Integration Health deference) and three phases — my-WiFi count and offline sensors, per-network presence entities, per-network signal sensors — so the end state is designed once and phase 1 is not built in a way phase 2 has to undo. Phase 2 is stated as `binary_sensor` **or** `device_tracker`, undecided, with created-on-sighting lifecycle, a scope option defaulting to off, and cleanup by age. The old presence entry's "is my work laptop nearby?" framing is removed: a laptop does not broadcast an SSID, so the example described something the feature cannot do. **Visit-count threshold** is a Number control, not an options-flow field. **Appearance / disappearance events** now states what an automation actually gets — events for every network, with selection done in the automation's own condition, and no per-network filter in the integration — and the three glitch guards that make them usable: visit-count on appearance, consecutive-miss debounce on disappearance, health deference and rate limiting on both, each shared with another item. **Proximity alert hysteresis** moved To Be Done → Maybe with a trigger; it is a predicted flap, not an observed one. Prose edited throughout against `roadmap_format.md` §4.
 - **v2.0.0** (2026-08-03) — Restructured to `roadmap_format.md` v1.1.0 and renamed from `docs/FUTURE.md`. Six groups replace the previous per-release "delivered" tables plus a mixed opportunities section. **Done is now membership by provenance**, so the "beyond the roadmap" v2.0.0 paragraph — `parse.py` normalization, the pause-polling switch, the `get_networks` response action, the LTS new-networks sensor, `ssid_anomaly`, the diagnostics sanitizer, coalesced storage writes — no longer qualifies as a roadmap item. **It is kept anyway**, in an explicitly labelled **Off-roadmap deliveries** subsection, along with the retired-unbuilt "first detected events" option: this is the first conversion of this document, and losing content in the move would be indistinguishable from losing it by accident. Both subsections state why they are not Done proper. A later revision may prune them once `CHANGELOG.md` is confirmed to carry everything. Forward items carry Value and Effort; **Track your own WiFi online** is the highest-value forward item and the only one of the three "named network" items needing no dynamic entity creation, so it is To Be Done while the two per-SSID items are Maybe with stated triggers. **Channel crowding map** moved to Revisit with an explicit reopening trigger; **multi-interface aggregation** and **System Role** to Declined, each opening with the decision in one plain sentence. Framing that treated earlier revisions as milestones — "delivered since the original roadmap", "remaining original roadmap items" — removed.
 - **v1.6.0** (2026-07-23) — Added "Delivered with v2.0.0". Marked BSSID support (API uncertainty resolved — `mac` is present), "First Seen" events (delivered as the restart-surviving `wifi_ssid_monitor_new_network` bus event) and hardware health monitoring (delivered as the Integration Health sensor plus repairs) as delivered. Retired "First Detected Events" as superseded. Updated the channel crowding map assessment (channel now derived from `frequency`), the appearance/disappearance scope (first-seen half delivered) and proximity hysteresis to the 0–100% scale. Added per-SSID signal quality sensors, cross-linked with per-SSID presence.
 - **v1.5.0** (2026-06-12) — Added case-insensitive known-SSID matching to Future Options.
