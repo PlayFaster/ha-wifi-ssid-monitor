@@ -138,8 +138,15 @@ class WifiScanSensor(WifiScanEntity, SensorEntity):
     # still recorded and keep full history; only the attributes are dropped,
     # which keeps the recorder lean and the state well clear of HA's 16 KB
     # per-state limit in a dense WiFi environment.
-    _unrecorded_attributes = WifiScanEntity._unrecorded_attributes | frozenset(
+    #
+    # "about" is repeated from the mixin deliberately. Home Assistant does not
+    # merge this attribute across the class hierarchy — a subclass that assigns
+    # the name shadows its parent's set completely — so every subclass that
+    # declares its own keys must list the mixin's again. Omitting it is caught
+    # by tests/test_entity_hygiene.py.
+    _unrecorded_attributes = frozenset(
         {
+            "about",
             "networks",
             "networks_truncated",
             "ssids",

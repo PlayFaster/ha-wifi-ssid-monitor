@@ -1,6 +1,6 @@
 """Fixtures for WiFi SSID Monitor tests."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -142,7 +142,6 @@ class MockResponse:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Exit the context manager."""
-        pass
 
 
 @pytest.fixture
@@ -151,3 +150,43 @@ def mock_aiohttp_client():
     session = MagicMock()
     session.get = MagicMock()
     return session
+
+
+@pytest.fixture(autouse=True)
+def schedule_background_tasks():
+    """Make `entry.async_create_background_task` actually run the coroutine.
+
+    dev_standards Section 11 names this fixture explicitly. `async_setup_entry`
+    offloads the first fetch with `entry.async_create_background_task` (Section
+    1, non-blocking startup), and a mock that accepts the coroutine without
+    scheduling it produces two problems at once: the first refresh never runs,
+    so tests assert against a coordinator that never fetched, and Python emits
+    "coroutine was never awaited" warnings that make the real signal harder to
+    see.
+
+    Scheduling it with `asyncio.create_task` keeps the production path intact —
+    the task is created and awaited normally — so a test that calls
+    `await hass.async_block_till_done()` afterwards observes exactly what
+    Home Assistant would.
+
+    Autouse and non-invasive: it delegates to the real implementation, so it
+    changes nothing today. It exists so that a future change to how HA tracks
+    background tasks fails visibly here rather than silently skipping the first
+    fetch in every setup test.
+    """
+    import asyncio
+
+    from homeassistant.config_entries import ConfigEntry
+
+    original = ConfigEntry.async_create_background_task
+
+    def _create(self, hass, target, name, eager_start=True):
+        task = original(self, hass, target, name, eager_start=eager_start)
+        assert isinstance(task, asyncio.Task | asyncio.Future), (
+            f"background task {name!r} was not scheduled — the coroutine would "
+            f"never be awaited and the first fetch would silently not happen"
+        )
+        return task
+
+    with patch.object(ConfigEntry, "async_create_background_task", _create):
+        yield

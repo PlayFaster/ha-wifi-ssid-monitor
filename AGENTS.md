@@ -50,12 +50,15 @@ switch.py           Switch platform — polling pause, hidden-network and per-ba
 services.py         Registers the domain services + _resolve_entries()
 config_flow.py      user + reauth / reauth_confirm + reconfigure + options (async_step_init)
 services.yaml       Service descriptions
-diagnostics.py      HA diagnostics; redacts the user's own SSID names — the payload is keyed by
-                    SSID, so key-name redaction alone is insufficient (async_redact_data)
+diagnostics.py      HA diagnostics. Structural sanitizer, not key-name redaction: the payload is
+                    keyed by SSID and neighbouring SSIDs are third-party data, so it learns every
+                    SSID/BSSID from the payload, allocates a stable token per identity and
+                    rewrites them everywhere including dict keys. Signal/channel/band/counts are
+                    preserved deliberately — a gutted file is as useless as a leaky one
 const.py            Constants; reads VERSION from manifest.json at import time
 ```
 
-**Single device, not sub-devices.** `entity.py:build_device_info` returns one `DeviceInfo` identified by `(DOMAIN, entry.entry_id)`. The Supervisor exposes no MAC and there is no IP — the integration monitors the HA machine itself — so neither rung of the dev_standards §3 identity ladder is available; the entry id is the only thing to key on. The **System** / **Monitor** split in `docs/all_sensors.md` is a documentation grouping, not an HA sub-device tree.
+**Single device, not sub-devices.** `entity.py:build_device_info` returns one `DeviceInfo` identified by `(DOMAIN, entry.entry_id)`. The Supervisor exposes no MAC and there is no IP — the integration monitors the HA machine itself — so neither rung of the dev_standards §3 identity ladder is available; the entry id is the only thing to key on. `docs/all_sensors.md` described a **System** / **Monitor** sub-device split until 2026-08-03; that architecture was never built and the document has been corrected. If you see it referenced anywhere, it is stale.
 
 **Data flow:** `coordinator.data` is a dict with keys: `count`, `ssids`, `unknown_ssids`, `unknown_count`, `interface`, `networks` (map of key → `{bssid, signal, signal_raw, channel, band, hidden, ssid_anomaly, mode, key}`), `last_seen` / `first_seen` (map of key → datetime), `visit_counts` (map of key → int), `new_24h` (int), `strongest_unknown_signal` (int | None, percent), `strongest_unknown_ssid` (str | None — sentinel `"None Detected"` when none visible), `signal_unit`. All entity platforms read exclusively from this dict via `entry.runtime_data` (the coordinator).
 
@@ -63,7 +66,7 @@ const.py            Constants; reads VERSION from manifest.json at import time
 
 **Legacy option aliases** — `const.py` keeps `CONF_PROXIMITY_RSSI_THRESHOLD` (superseded by the percentage `proximity_signal_threshold`) and `CONF_SCAN_BANDS` (the old `"all"`/`"2.4"`/`"5"` string, superseded by the three per-band switches) pointing at their legacy keys. Don't reintroduce them as live settings; they exist for migration.
 
-**Scan interval handling:** The number entity stores minutes in the UI; the coordinator and options store seconds. Changing the interval via the number entity debounces for 2 s, then writes seconds to `entry.options`, which fires the update listener in `__init__.py`. Only a known-SSID change triggers an immediate re-scan; an interval-only change does not.
+**Scan interval handling:** The number entity stores minutes in the UI; the coordinator and options store seconds. Changing the interval via the number entity debounces for 2 s, then writes seconds to `entry.options`, which fires the update listener in `__init__.py`. An immediate re-scan is triggered by any change to the known list, the denylist, `include_hidden`, the proximity threshold, or the three band switches (`REFRESH_ON_CHANGE_KEYS` in `__init__.py`). An interval-only change or a pause toggle does not force a fetch.
 
 **Pattern matching:** Known-SSID and denylist patterns are matched with `fnmatch` against **both** the network key (SSID or hidden label) **and** the hardware BSSID — so a MAC pattern is a valid list entry. Exact matches and wildcards (e.g. `Guest_*`) are both supported. Case-sensitive (SSIDs are case-sensitive).
 
@@ -80,6 +83,21 @@ Shared conventions (ruff/mypy strictness, `PARALLEL_UPDATES`, `translation_key`,
 - `type: ignore` comments are used in several places to suppress mypy errors on HA base classes that lack complete stubs — this is expected.
 - The `.comp/` directory contains unrelated scratch/reference files; ignore it.
 - `quality_scale.yaml` tracks compliance with HA Integration Quality Scale (currently Platinum level).
+
+### Tests that will stop you, and why they exist
+
+Several standards here are enforced by sweeps over a **set**, not by spot checks, so they fail when the set grows rather than only when a known member breaks. Each was verified by deliberately breaking the thing it guards. If one of these fails, it has found something — do not reach for the allow-list first.
+
+| Add or change this | This fails | Do this |
+| :-- | :-- | :-- |
+| A sensor with a unit or `state_class` | `test_every_numeric_sensor_has_a_guard_band` | Declare `min_limit` / `max_limit`, or add the key to `UNGUARDED_ALLOWLIST` **with a reason**. Also update `docs/value_min_max.md` — §6 requires it to match the code both ways. |
+| Any entity | `test_every_live_entity_has_an_icon_or_a_device_class` | Add an `icons.json` entry **under that entity's own platform**, unless it has a `device_class`. |
+| Any action | `test_every_registered_action_has_an_icon` | Add a `services` entry in the nested `{"service": "mdi:..."}` form. The flat string form is legacy and the test rejects it. |
+| An entity attribute | `test_no_entity_publishes_a_recorded_attribute` | Add the key to that class's `_unrecorded_attributes`. **Repeat `"about"` if the class declares its own set** — HA does not merge this attribute across the class hierarchy, so a subclass assignment shadows the mixin's entirely. |
+| A health check in `CHECKS` | `test_every_check_has_a_firing_fixture`, `test_every_finding_is_classified_exactly_once` | Add a fixture that makes it fire, and classify it in `_EXPECTED_DRIFT` or `_EXPECTED_CAPABILITY`. `is_drift` defaults to `False`, so a new check is a capability unless it opts in. |
+| A fourth `Store` | `test_async_remove_entry_deletes_every_live_store` | Add the key to `all_storage_keys()` in `const.py`, which both the coordinator and `async_remove_entry` build from. |
+
+- **`SLF001` and `RET504` are exempted for `tests/**` only.** This comes from the **synced** `pyproject.toml` — do not edit that file, see [shared conventions → Synced Files](.shared/dev_std/agent_conventions.md). Tests must reach private state (asserting on `_unrecorded_attributes`, driving `coordinator._async_update_data()`), so forbidding it would forbid the tests the standards require. Production code is not exempt: a genuine need there gets a `# ruff: noqa` at the site.
 
 ## Development Environment
 

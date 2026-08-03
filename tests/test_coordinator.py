@@ -347,6 +347,10 @@ async def test_force_refresh_bypasses_pause(hass, mock_config_entry, mock_wifi_a
     await hass.async_block_till_done()
     assert "Fresh" in coordinator.data["ssids"]
 
+    # async_request_refresh arms a trailing debounce timer; shutting the
+    # coordinator down cancels it, which the harness requires.
+    await coordinator.async_shutdown()
+
 
 @pytest.mark.asyncio
 async def test_new_network_event_baseline_then_fires(

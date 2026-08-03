@@ -17,8 +17,7 @@ from custom_components.wifi_ssid_monitor.number import NUMBER_TYPES, WifiOptionN
 def _number(coordinator, entry, key):
     """Build a WifiOptionNumber for the given description key."""
     description = next(d for d in NUMBER_TYPES if d.key == key)
-    number = WifiOptionNumber(coordinator, entry, description)
-    return number
+    return WifiOptionNumber(coordinator, entry, description)
 
 
 def test_scan_interval_reads_option_in_minutes(mock_config_entry, mock_coordinator):

@@ -223,9 +223,17 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         """Fetch now, even if polling is paused.
 
         Scheduled polls still respect the pause; explicit user actions do not.
+
+        Uses ``async_request_refresh`` rather than ``async_refresh``. The two
+        look interchangeable and are not: HA builds the coordinator's debouncer
+        with ``immediate=True``, so the first call fetches straight away and the
+        10-second cooldown only coalesces the ones behind it. A single press
+        behaves identically either way; ten rapid presses become one fetch here
+        and ten with ``async_refresh``. That coalescing is the reason an action
+        a script can call in a loop is safe to route through this.
         """
         self._force_refresh_once = True
-        await self.async_refresh()
+        await self.async_request_refresh()
 
     @property
     def polling_paused(self) -> bool:

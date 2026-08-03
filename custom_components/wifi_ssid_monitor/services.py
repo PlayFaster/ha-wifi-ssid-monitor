@@ -7,6 +7,7 @@ resolves its target entry from the call, defaulting to every configured entry.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any
 
 import voluptuous as vol
@@ -204,7 +205,16 @@ def async_register_services(hass: HomeAssistant) -> None:
 
         Reads the coordinator's own state rather than a sensor's attributes, so
         it keeps working when the passive entities are unavailable, filtered or
-        capped.
+        capped — which is the coupling dev_standards Section 16 exists to
+        prevent.
+
+        It does **not** perform its own fetch, which Section 16 also asks for.
+        Deliberate: a scan is a real cost against the Supervisor, and an action
+        a user can call in a loop should not be able to drive that rate. The
+        trade is that a call during an outage returns the last good scan, so
+        the response carries `last_updated` and `stale` and the caller can
+        decide. Silently returning frozen data as though it were current is the
+        thing worth avoiding, not the reuse itself.
         """
         entries = _resolve_entries(hass, call.data.get("config_entry_id"))
         scope = call.data["scope"]
@@ -215,9 +225,22 @@ def async_register_services(hass: HomeAssistant) -> None:
         exclude = _split_terms(call.data.get("exclude"))
 
         results: list[dict[str, Any]] = []
+        # Oldest scan across the entries queried, and whether any is stale.
+        # Reported once for the whole response rather than per network: every
+        # network in a given entry's payload came from the same scan.
+        last_updated: datetime | None = None
+        stale = False
         for entry in entries:
             coordinator: WifiScanCoordinator = entry.runtime_data
             data = coordinator.data or {}
+
+            scanned_at = coordinator.last_update_success_time
+            if scanned_at is not None and (
+                last_updated is None or scanned_at < last_updated
+            ):
+                last_updated = scanned_at
+            if not coordinator.last_update_success or data == {}:
+                stale = True
             networks: dict[str, Any] = data.get("networks", {})
             unknown = set(data.get("unknown_ssids") or [])
 
@@ -268,6 +291,8 @@ def async_register_services(hass: HomeAssistant) -> None:
             "networks": results[:quantity],
             "count": min(quantity, total_matched),
             "total_matched": total_matched,
+            "last_updated": _iso(last_updated),
+            "stale": stale,
         }
 
     hass.services.async_register(

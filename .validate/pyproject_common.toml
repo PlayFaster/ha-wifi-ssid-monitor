@@ -1,35 +1,75 @@
+# ============================================================================
+#  SYNCED FILE — DO NOT EDIT IN A PROJECT.
+#
+#  This file is copied into every project by workbench/sync_shared_files.sh.
+#  A local edit is silently overwritten on the next sync, taking any reasoning
+#  with it. Edit the source instead:
+#      dev-workbench/workbench/python/pyproject_common.toml
+#  and re-sync. A project-specific exception belongs in the file it applies to
+#  (a `# ruff: noqa: RULE` line), not here.
+# ============================================================================
+
 target-version = "py313"
 line-length = 88
 
 [lint]
 select = [
-    "B",     # flake8-bugbear
-    "E",     # pycodestyle error
-    "F",     # Pyflakes
-    "I",     # isort
-    "UP",    # pyupgrade
-    "W",     # pycodestyle warning
-    "N",     # pep8-naming
-    "D",     # pydocstyle
-    "ASYNC", # flake8-async
-    "RUF",   # Ruff-specific rules
-    "SIM",   # flake8-simplify
-    "T20",   # flake8-print (forbids print statements)
-    "BLE",   # flake8-blind-except
-    "TRY",   # tryceratops exception handling
-    "S",     # flake8-bandit security checks
-    "DTZ",   # flake8-datetimez
-    "PT",    # flake8-pytest-style
-    "FURB",  # refurb (modernizing refactoring)
-    "FLY",   # flynt (f-strings conversion)
-    "PL",    # pylint rules
+    "A001",   # Variable {name} is shadowing a Python builtin
+    "ASYNC",  # flake8-async
+    "B",      # flake8-bugbear
+    "BLE",    # flake8-blind-except
+    "COM818", # Trailing comma on bare tuple prohibited
+    "D",      # pydocstyle
+    "DTZ",    # flake8-datetimez
+    "E",      # pycodestyle error
+    "F",      # Pyflakes
+    "FLY",    # flynt (f-strings conversion)
+    "FURB",   # refurb (modernizing refactoring)
+    "G",      # flake8-logging-format
+    "I",      # isort
+    "ICN001", # import conventions; {name} should be imported as {asname}
+    "INP",    # flake8-no-pep420
+    "ISC",    # flake8-implicit-str-concat
+    "LOG",    # flake8-logging
+    "N",      # pep8-naming
+    "PERF",   # Perflint
+    "PGH",    # pygrep-hooks
+    "PIE",    # flake8-pie
+    "PL",     # pylint rules
+    "PT",     # flake8-pytest-style
+    "PTH",    # flake8-pathlib
+    "PYI",    # flake8-pyi
+    "RET",    # flake8-return
+    "RSE",    # flake8-raise
+    "RUF",    # Ruff-specific rules
+    "S",      # flake8-bandit security checks
+    "SIM",    # flake8-simplify
+    "SLF",    # flake8-self
+    "SLOT",   # flake8-slots
+    "T100",   # Trace found: {name} used
+    "T20",    # flake8-print (forbids print statements)
+    "TC",     # flake8-type-checking
+    "TID",    # Tidy imports
+    "TRY",    # tryceratops exception handling
+    "UP",     # pyupgrade
+    "W",      # pycodestyle warning
 ]
 ignore = [
+    # Async rules
+    "ASYNC109",
+    "ASYNC110",
+    "ASYNC240",
+
     # Conflict with D211 (HA prefers no blank line before class)
     "D203",
     # Conflict with D212 (HA prefers summary on first line)
     "D213",
+    # No blank lines allowed after function docstring
+    "D202",
     
+    # Line too long (handled by ruff format)
+    "E501",
+
     # Conflict with the formatter
     "W191",
     "E111",
@@ -72,11 +112,12 @@ ignore = [
     "TC003",
     "TC006",
     
-    # Complexity rules
+    # Complexity and positional args rules
     "PLR0911",
     "PLR0912",
     "PLR0913",
     "PLR0915",
+    "PLR0917",
     
     # Magic value used in comparison
     "PLR2004",
@@ -99,6 +140,15 @@ ignore = [
     "SIM103",
     "SIM108",
     "SIM115",
+
+    # Pyupgrade Python 3.12+ type rules
+    "UP047",
+    "UP049",
+
+    # Disable invalid __all__ format, multi-line implicit concat, logging exception usage
+    "PLE0605",
+    "ISC004",
+    "LOG004",
 ]
 
 

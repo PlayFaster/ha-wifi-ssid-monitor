@@ -691,6 +691,13 @@ async def test_async_reload_entry_options(hass: HomeAssistant, mock_config_entry
         patch(
             "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_refresh"
         ) as mock_refresh,
+        # Setup's background task calls async_refresh; every explicit user
+        # action goes through async_force_refresh -> async_request_refresh,
+        # so the two paths are asserted separately.
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator."
+            "WifiScanCoordinator.async_request_refresh"
+        ) as mock_requested,
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -712,14 +719,14 @@ async def test_async_reload_entry_options(hass: HomeAssistant, mock_config_entry
         await hass.async_block_till_done()
 
         assert coordinator.update_interval.total_seconds() == 120
-        mock_refresh.assert_not_called()
+        mock_requested.assert_not_called()
 
         # Update known SSIDs
         new_options = {**mock_config_entry.options, CONF_KNOWN_SSIDS: "NewNet"}
         hass.config_entries.async_update_entry(mock_config_entry, options=new_options)
         await hass.async_block_till_done()
 
-        mock_refresh.assert_called_once()
+        mock_requested.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -954,6 +961,13 @@ async def test_scan_now_service(hass: HomeAssistant, mock_config_entry):
         patch(
             "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_refresh"
         ) as mock_refresh,
+        # Setup's background task calls async_refresh; every explicit user
+        # action goes through async_force_refresh -> async_request_refresh,
+        # so the two paths are asserted separately.
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator."
+            "WifiScanCoordinator.async_request_refresh"
+        ) as mock_requested,
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -962,7 +976,7 @@ async def test_scan_now_service(hass: HomeAssistant, mock_config_entry):
         await hass.services.async_call(DOMAIN, "scan_now", {}, blocking=True)
         await hass.async_block_till_done()
 
-        mock_refresh.assert_called_once()
+        mock_requested.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -980,6 +994,13 @@ async def test_scan_now_service_with_entry_id(hass: HomeAssistant, mock_config_e
         patch(
             "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_refresh"
         ) as mock_refresh,
+        # Setup's background task calls async_refresh; every explicit user
+        # action goes through async_force_refresh -> async_request_refresh,
+        # so the two paths are asserted separately.
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator."
+            "WifiScanCoordinator.async_request_refresh"
+        ) as mock_requested,
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -993,7 +1014,7 @@ async def test_scan_now_service_with_entry_id(hass: HomeAssistant, mock_config_e
         )
         await hass.async_block_till_done()
 
-        mock_refresh.assert_called_once()
+        mock_requested.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -1195,3 +1216,63 @@ async def test_set_known_ssids_service_invalid_entry_id(
             {"values": "Test", "config_entry_id": "nonexistent_id"},
             blocking=True,
         )
+
+
+@pytest.mark.asyncio
+async def test_get_networks_reports_freshness(hass: HomeAssistant, mock_config_entry):
+    """The response says which scan it came from, and whether that scan failed.
+
+    `get_networks` reuses the last scan rather than fetching, so a call during
+    an outage returns the last good result. Returning that silently, as though
+    it were current, is the failure worth avoiding — hence `last_updated` and
+    `stale`.
+    """
+    from custom_components.wifi_ssid_monitor.api import WifiScanError
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[
+            {
+                "mac": "AA:BB:CC:00:00:01",
+                "ssid": "Net1",
+                "signal": 60,
+                "frequency": 5240,
+            }
+        ],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    async def _call():
+        return await hass.services.async_call(
+            DOMAIN,
+            "get_networks",
+            {"scope": "all", "band": "all"},
+            blocking=True,
+            return_response=True,
+        )
+
+    healthy = await _call()
+    assert healthy["stale"] is False
+    assert healthy["last_updated"] is not None
+    assert healthy["total_matched"] == 1
+
+    # Drive the coordinator past its strike budget so the last fetch failed.
+    coordinator = mock_config_entry.runtime_data
+    with patch.object(
+        coordinator.api, "get_access_points", side_effect=WifiScanError("boom")
+    ):
+        for _ in range(5):
+            await coordinator.async_refresh()
+
+    assert coordinator.last_update_success is False
+
+    degraded = await _call()
+    assert degraded["stale"] is True, "a failed last scan must be reported as stale"
+    # The held data is still returned — stale, not empty. That is the point of
+    # the 3-strike hold; the caller is told, not starved.
+    assert degraded["total_matched"] == 1
+    assert degraded["last_updated"] == healthy["last_updated"]

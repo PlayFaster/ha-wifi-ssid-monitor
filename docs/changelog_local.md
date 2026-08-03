@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
   - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
@@ -80,13 +81,23 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.1-dev14] - 2026-08-03 - Doc Updates
+
+### Changed
+
+- **Docs**: Updates to `README` and `project_structure.md`.
+
 ## [2.0.1-dev13] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons
 
-Implements Priority 1 of `.notes/issues/changes_20260803/wifi_changes_20260803.md` — the four standards `[2.0.1-dev12]` mutation-proved to have no working guard, plus the §21 test that could not fail. **217 → 232 tests, 100% coverage held**, `mypy --strict` and `ruff` clean.
+Implements the whole of `.notes/issues/changes_20260803/wifi_changes_20260803.md` — all four priorities, 22 items. The core of it is Priority 1: the four standards `[2.0.1-dev12]` mutation-proved to have no working guard, plus the §21 test that could not fail.
 
-**Every test was verified by mutation** — written, then the guarded thing deliberately broken to confirm it goes red, then restored. Ten mutations across `health.py`, `sensor.py`, `parse.py`, `icons.json` and `__init__.py`; all reverted, `git status --short` confirmed clean for `custom_components/` after each, full suite green afterwards. "A test exists" was not the bar; "a test that fails on this regression exists" was.
+**217 → 233 tests, 100% coverage held**, `mypy --strict` and `ruff` clean.
 
-**One behavior-affecting change**, and it is additive: six action icons. No integration logic changed.
+**Every new test was verified by mutation** — written, then the guarded thing deliberately broken to confirm it goes red, then restored. Twelve mutations across `health.py`, `sensor.py`, `parse.py`, `icons.json` and `__init__.py`; all reverted, `git status --short` confirmed clean for `custom_components/` after each, full suite green afterwards. "A test exists" was not the bar; "a test that fails on this regression exists" was.
+
+**Three behavior changes**, all small: six action icons added, `get_networks` gained `last_updated` and `stale`, and `async_force_refresh` moved to the debounced refresh path. One repair description was reworded. Nothing else in the integration's logic changed.
+
+**A recurring theme, worth stating once.** Six documented claims were found to be false during this session, in `dev_standards`, `DEVELOPMENT.md`, `all_sensors.md`, `value_min_max.md` and `AGENTS.md`. Each was written in good faith, each described the code accurately at some point, and none had anything checking it. They are listed in their own sections below rather than buried, because the pattern matters more than any one of them: a document that describes code and is never diffed against it will drift, and it drifts silently.
 
 ### Added
 
@@ -115,13 +126,17 @@ Implements Priority 1 of `.notes/issues/changes_20260803/wifi_changes_20260803.m
 
 - **`MIN_ENTITIES_SWEPT` 2 → 16** in `tests/test_entity_hygiene.py`. Measured: 16 of 18 entities publish attributes; the other two publish none and are correctly skipped. At `2` the staleness guard passed while 14 entities could go uninspected — the failure it exists to prevent.
 
-### Notes
+### Changed — Priorities 3 and 4
 
-- **A defect was found in the new tests themselves.** The first icon sweep reported three dead entries that were not dead: `seen_keys` was recorded _after_ the `device_class` skip, so an entity carrying a device class **and** a deliberate icon override looked orphaned. Fixed, with a comment at the site, because it would be easy to reintroduce.
+The changes list is now complete. Priority 3 records decisions that were held in the code but written down nowhere; Priority 4 is the remainder.
 
-- **Coverage-shaped, not sample-shaped.** Each new test sweeps a set — `CHECKS`, `SENSOR_TYPES`, the live entity list, the registered action set — rather than asserting a known member. Per §11: a test asserting a mechanism passes right up until the mechanism is bypassed, while one asserting every member of a set is covered fails the moment the set grows. Adding a health check without classifying it, a sensor without bounds, an entity without an icon or an action without one now fails.
+- **`get_networks` reports how fresh its data is.** The response gains `last_updated` (the scan the data came from) and `stale` (`true` when the last scan failed). §16 asks that a response action perform its own fetch; **it deliberately still does not.** A scan is a real cost against the Supervisor and this action can be called in a loop, so letting a caller drive the scan rate is the worse trade. What was wrong was returning frozen data as though it were current — that is now visible, and the README says so and points at `scan_now` for callers who need current data. New test asserts `stale` flips after the strike budget is exhausted **while the held data is still returned**: the 3-strike hold tells the caller, it does not starve them.
 
-- **Two Priority 4 items folded in**, both one-file, one-shape changes in files already being edited: `MIN_ENTITIES_SWEPT` (4.1) and the `TOTAL` ban (4.4, which the plan explicitly directed be folded into the §6 work).
+- **Repair-issue titles audited** against the two rules `x_proj_checks` §3.4 settled. Vendor prefix: all three pass. Cause assertion: **one failure.** `signal_format_changed` described the cause as "The Supervisor changed the unit it reports signal strength in" — a cause the user cannot check, and one this integration's own parsing could equally produce. Reworded to state what was observed and name the three candidates without picking one. No `issue_id` renamed; `ir.async_delete_issue` looks up by id, so renaming one while a repair is live orphans it permanently.
+
+- **`conftest.py` gained the §11 background-task fixture.** Autouse, delegating to the real implementation and asserting the coroutine is actually scheduled — so a future change to how HA tracks background tasks fails here rather than silently skipping the first fetch in every setup test.
+
+- **Decisions recorded in `DEVELOPMENT.md` §3b**, a new section: `PARALLEL_UPDATES = 0` on all five platforms and why (no platform commands a device, and `async_update_entry` is synchronous so there is no await point for two toggles to interleave on); `scan_now` rather than the §13-named `refresh` and why it will not be renamed; no `suggested_display_precision` and why, with a trigger to revisit; and the entity-naming scan, which found nothing because there are no sub-devices to repeat.
 
 ### Fixed — Priority 2
 
@@ -136,6 +151,93 @@ Implements Priority 1 of `.notes/issues/changes_20260803/wifi_changes_20260803.m
 - **`docs/value_min_max.md` → v2.0.0: reconciled against the code in both directions**, which §6 requires and which had never been done. Four corrections. **Two bands existed and were undocumented** — `new_24h` (0–4096) and the `proximity_signal_threshold` control range (0–100). **One was understated**: Strongest Unknown Signal was described as clamped in the parse boundary only, when the description also declares `min_limit=0, max_limit=100`. The **Key column was wrong** and the worked example used a `name=` field that is the §12 anti-pattern and appears nowhere in the code. And the **"Future Extensions" section that v1.0.2 records as removed was still present**.
 
   Added the three sensors that correctly have no bounds, so their absence reads as deliberate; added control-range and state-class sections; and pointed at the three tests from this release that now enforce coverage, exemption hygiene and the `TOTAL` ban — none of which existed when the document was last touched.
+
+### Fixed — refresh path aligned with the standard and both siblings
+
+- **`async_force_refresh` now calls `async_request_refresh()`, not `async_refresh()`.** This project was the only one of four bypassing HA's request debouncer; §13's snippet, `zte_router_5g` and `unifi_network_monitor` all use the debounced form.
+
+  **The reason recorded for the divergence was false.** `DEVELOPMENT.md` §3b said it was deliberate, because "a button the user just pressed should fetch now rather than up to ten seconds later". HA constructs the coordinator's debouncer with `immediate=True` (`REQUEST_REFRESH_DEFAULT_IMMEDIATE`), so `async_request_refresh()` **also** fetches on the first call — the 10-second cooldown only coalesces the calls behind it. A single press behaved identically either way; ten rapid presses meant ten scans instead of one. It was an unexamined line with a rationalization attached afterwards, and §3b now says so.
+
+  **This closes the open question on the `get_networks` roadmap item.** That item carried a "watch the debounce" caveat, because routing an action a script can loop through the force path risked hammering the Supervisor — which was the original argument for reading the cache. With the debouncer restored, the coalescing handles it and the caveat is gone.
+
+  Three tests needed retargeting, not weakening: `test_async_reload_entry_options` and the two `scan_now` service tests patched `async_refresh` and asserted on it, so they now patch **both** paths and assert on the right one — setup's background task still calls `async_refresh`, while every explicit user action goes through `async_request_refresh`. `test_force_refresh_bypasses_pause` gained an `async_shutdown()` to cancel the trailing debounce timer the harness flags as lingering.
+
+  Pause bypass is unaffected: `_force_refresh_once` is set before the call and read inside `_async_update_data`, so the debouncer only controls when that runs.
+
+### Fixed — corrections found along the way
+
+- **`DEVELOPMENT.md` said the project has no Pause Polling switch.** True when written, false since v2.0.0 — `switch.stop_polling` ships as a `CONFIG` entity. Replaced with a table contrasting it against HA's "Enable polling for changes" system option, because the two are genuinely different and both are worth having: the switch is discoverable and automatable and honors explicit requests, the system option is the harder stop.
+
+- **`dev_standards` §14 was factually wrong, and wrong in the silent direction — corrected to 1.21.1.** The section claimed Home Assistant unions `_unrecorded_attributes` across the class hierarchy, so a shared mixin could contribute keys "and the subclass need not repeat them". It does not: `Entity.__init_subclass__` unions the **component** set with the class's **own** attribute and never walks the MRO, so a subclass that assigns the name shadows its parent completely.
+
+  Found because the widened ruff rule set flagged this project's explicit `WifiScanEntity._unrecorded_attributes | frozenset({...})` as `SLF001`, which forced the question of whether the union was needed. It is: **verified by mutation** — dropping it made the mixin's `about` key recorded, and the §14 sweep added earlier in this release caught it. The union now carries a `# noqa: SLF001` and a comment at both sites. Any project that took the old wording at face value is leaking its mixin's keys to the recorder and will not know, which is the exact silent failure §14 exists to prevent, written into §14 itself.
+
+- **Hidden-network naming confirmed on hardware.** This shipped in v2.0.0 on an unverified assumption: that a cloaked AP still reports its `mac`, which `Hidden-<last 4 of BSSID>` depends on. The 2026-07-17 payload capture confirmed everything else — `mac` present, `frequency` in MHz with no `channel` field, `signal` as 0–100 with no dBm field, on both Intel and Raspberry Pi 4 — but no hidden network was in range, and the devcontainer could not settle it because its Supervisor is a mock. **Verified 2026-08-03 on two systems** against an Android hotspot: hidden networks are detected and named `Hidden-ABCD` as designed. The shared `[hidden]` label now only ever appears for an AP that reports no BSSID at all.
+
+  Recovered by reconciling `.notes/roadmap/version2_202607/` — the v2.0.0 planning folder — against `docs/ROADMAP.md` for the first time. `x_proj_checks` §3.3 asked for that reconciliation alongside the file rename; only the rename had been done. Everything else in the folder had shipped; this was the single open question. It was filed as a **Blocked** roadmap item and closed the same day, so `ROADMAP.md` is at v2.4.0 with no Blocked group. The folder now carries a `README.md` marking it superseded.
+
+- **`docs/DEVELOPMENT.md` still described the pre-v2.0.0 hidden-network behavior in the present tense** — that cloaked APs "are normalized to the key `[hidden]`", that three of them count as one, and that "BSSID-based tracking (see `ROADMAP.md`) would resolve this". That work shipped in v2.0.0. Rewritten to describe the current behavior and keep the old as history. Second stale entry found in that file today.
+
+- **The widened ruff rule set needed `SLF001` exempting for tests**, which arrives via the **synced** `pyproject.toml` and is not this project's to set. Recorded here because the exemption is load-bearing: §14 asserts against `_unrecorded_attributes`, §21 against `coordinator.store_*`, and §19 drives `coordinator._async_update_data()` directly, so forbidding private access in tests would forbid the tests the standards mandate.
+
+  **A local edit to `pyproject.toml` was made during this session and was wrong.** That file is copied into every project by `sync_shared_files.sh`; the edit was erased by the next sync, as it should have been. The workbench templates now carry a `SYNCED FILE — DO NOT EDIT` header and `agent_conventions.md` carries the rule (dev-workbench `[2.2.6-dev1]`). The three genuine findings the wider rule set surfaced were fixed properly in the source files (`PIE790`, two `RET504`), and `.devcontainer/mock_supervisor.py` carries its `INP001` exception as a file-local `# ruff: noqa`, which survives a sync.
+
+### Documentation
+
+- **`AGENTS.md` → v1.0.8: three statements were wrong, and a table added for the new sweeps.**
+  - It said the System/Monitor split in `all_sensors.md` was "a documentation grouping". That document no longer describes one, because the architecture was never built.
+  - The `diagnostics.py` line said it "redacts the user's own SSID names" with `async_redact_data`. It is a structural sanitizer that pseudonymizes **third-party** SSIDs and dictionary keys — the thing key-name redaction structurally cannot reach.
+  - It said only a known-SSID change forces a re-scan. `REFRESH_ON_CHANGE_KEYS` carries seven options.
+
+  Added **"Tests that will stop you, and why they exist"**: a table mapping each kind of change — a sensor with a unit, an entity, an action, an attribute, a health check, a fourth `Store` — to the sweep that now rejects it and what to do. Without it an agent adding a sensor hits a failure with no obvious cause. Includes the `_unrecorded_attributes` rule that looks redundant and is not.
+
+- **`docs/DEVELOPMENT.md` → new §3c "Standards Sweeps — why 100% coverage was not enough"**, with the table of what was broken and what still passed. Also corrects the stale "99% test coverage" claim to 100% / 233 tests, and adds a version entry covering this session's three corrections to that file.
+
+- **`docs/ROADMAP.md` → v2.6.0.** Two items added at the **top** of To Be Done for the next session:
+  - **Prevent every band switch being off at once.** All three can be turned off, leaving the integration reporting almost nothing while looking healthy — and not simply zero, because a network whose band did not resolve still passes the filter, so the counts read *wrong* rather than empty. The only existing signal is the `no_known_networks` check, gated behind five sightings of a known network **and** three consecutive scans, so a fresh install gets nothing at all. Preferred fix is to re-enable 2.4 GHz when the last band goes off, with the surprise made visible; a repair issue is recorded as the cheaper alternative.
+  - **`get_networks` should scan rather than read the last scan**, withdrawing the §16 deviation recorded earlier the same day.
+
+  Also v2.4.0 earlier: a **Blocked** group added and removed within the hour, when the hidden-network question it held was answered on hardware.
+
+### Records — updated at the end, not the start
+
+The `dev_standards` Project Compliance matrices were written during the `[2.0.1-dev12]` records pass, **before** any of the above was implemented. They recorded the state found by the review, and every one of them was stale by the time the work landed. Re-checked and corrected:
+
+- **Section Conformance, 5 cells `PARTIAL` → `DONE`**: §6 (both required tests added, `value_min_max.md` reconciled both ways), §11 (`conftest` background-task fixture added; the standards tests now clear the §11 mutation bar), §12 (icon sweep and action check added), §14 (the deliberate `about` omission recorded, `interface` annotated), §21 (hollow test replaced). WiFi now reads **14 DONE / 4 N/A / 4 PARTIAL**.
+
+- **Standards Test Coverage, 3 cells `PENDING` → `DONE`**: §6, §12, §21 — each mutation-verified rather than merely present. That row now carries **no `PENDING` and no `UNVERIFIED`** for this project. The §6 label was widened to "rounding at parse time + guard-band coverage", since the tag is two checks and only one was named.
+
+- **Known-gaps bullets pruned**, as §14 requires when a cell reaches `DONE`. The §6 bullet was shared with `unifi_network_monitor` and is now UniFi-only; the §12 and §21 bullets are rewritten as closure records rather than deleted, so the reason each existed survives.
+
+- **Project Deviations, 2 entries added** (§5 display scaling, §16 `get_networks` reading the cache), joining §3 and §13. All four are the same class — a section bullet deliberately not followed, with the reasoning recorded — and leaving two of them undocumented while the other two were written up was inconsistent.
+
+  **§16 was then superseded the same day.** On review, the reasoning behind keeping the cache — that a scan costs a round trip and a caller could loop — was judged to protect a hypothetical caller at the expense of every real one: an action asking what is in range *now* should not answer with a reading up to a full scan interval old. It is now a **To Be Done** item in `ROADMAP.md` and the deviation row is marked for deletion when that lands, rather than reading as a standing position. `last_updated` and `stale` stay, becoming an honest report of whether the forced fetch succeeded.
+
+**Four sections stay `PARTIAL` on purpose.** §3, §5, §13 and §16 are deliberate non-conformance with recorded rationale, not unfinished work. They are not `DONE`, because the section's own bullet is genuinely unmet; they are not `PENDING`, because each section is otherwise implemented and only one named bullet is at issue.
+
+**No IQS change, and no `dev_standards` version bump.** Nothing this release touched moves an IQS cell — service icons are §12, not the entity-scoped `icon-translations` rule, and `test-coverage` was already `done` at 100%. Verified: `quality_scale.yaml` holds at 47 `done` / 7 `exempt`, and both record-integrity checks re-ran clean at 54 rules compared with zero conflicts. The footer is not extended either, since this pass changed matrix cells and not the standard's own text.
+
+- **`x_proj_checks_20260802.md` → v1.2.0, and WiFi is now complete against it.** Added a **WiFi closure status** table: 11 rows closed by work, 6 resolved as N/A with the reason. Two rows were corrected in place — **§2.6** to N/A (there is no write path: `api.py` is three GET methods and the component contains no POST/PUT/PATCH/DELETE, so "returns success having done nothing" has no write to be true of) and **§3.3** to DONE, whose second half — reconciling `.notes/roadmap/version2_202607/` — had been missed when the roadmap rename was recorded as complete. Original 2026-08-02 verdict cells left as they were, since they record what was observed that day.
+
+- **Two findings logged against `huawei_router_5g`**, both found while checking WiFi's refresh path:
+  - **§1.5 — its Refresh Now button does nothing while Pause Polling is on.** It has the pause switch (`switch.py:32`), the coordinator short-circuits on it (`coordinator.py:96`), and the button calls `async_request_refresh()` with no force flag (`button.py:101`). That is the regression `dev_standards` §13 names by example — the one UniFi shipped and fixed — live in a second project.
+  - **§1.6** records the `async_request_refresh` vs `async_refresh` distinction and the `immediate=True` mechanism behind it, so the next reader does not have to re-derive which is correct.
+
+- **`x_proj_checks` §3.7 (action icons) added earlier in the session** now reads DONE for this project. All four `icons.json` files were enumerated: ZTE 4 actions nested, UniFi 7 flat/legacy, WiFi and Huawei none. WiFi's six were added in the nested form.
+
+### Notes
+
+- **A defect was found in the new tests themselves.** The first icon sweep reported three dead entries that were not dead: `seen_keys` was recorded _after_ the `device_class` skip, so an entity carrying a device class **and** a deliberate icon override looked orphaned. Fixed, with a comment at the site, because it would be easy to reintroduce.
+
+- **Coverage-shaped, not sample-shaped.** Each new test sweeps a set — `CHECKS`, `SENSOR_TYPES`, the live entity list, the registered action set — rather than asserting a known member. Per §11: a test asserting a mechanism passes right up until the mechanism is bypassed, while one asserting every member of a set is covered fails the moment the set grows. Adding a health check without classifying it, a sensor without bounds, an entity without an icon or an action without one now fails.
+
+- **Two Priority 4 items folded in**, both one-file, one-shape changes in files already being edited: `MIN_ENTITIES_SWEPT` (4.1) and the `TOTAL` ban (4.4, which the plan explicitly directed be folded into the §6 work).
+
+- **A synced file was edited, and should not have been.** `pyproject.toml` is copied into every project by `dev-workbench/workbench/sync_shared_files.sh`. During this session it was edited locally to add `SLF001`, an `INP001` exemption and a dozen lines of justification; the next sync erased all of it, correctly. Nothing in the file said not to, and the fact that it is shared was recorded only in passing, in a paragraph about which commands apply to which projects.
+
+  Fixed at the source rather than here: the four templates that land somewhere a reader would assume is local now carry a `SYNCED FILE — DO NOT EDIT IN A PROJECT` header naming their own source path, and `agent_conventions.md` §4 carries the rule with the full table of what is copied where. Recorded in dev-workbench `[2.2.6-dev1]`. The project-local consequence is that `.devcontainer/mock_supervisor.py` — which is **not** synced — carries the `INP001` exception as a file-local `# ruff: noqa`, where it survives.
+
+- **`roadmap_format.md` → v1.2.0** earlier in the session, adding §4 Tone and language after this project's roadmap conversion produced an item that promised something "that cannot be fooled and needs no per-install tuning" without ever saying it was two entities.
 
 ## [2.0.1-dev12] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full
 
@@ -303,7 +405,7 @@ Implements the enforcement half of `dev_standards` §14 as revised at **Standard
 
 > [!NOTE] **Validated 2026-08-03.** The devcontainer is running. `pytest` passes at 100% with 100% coverage, `mypy --strict` is clean, and the remaining validations pass. The code below is no longer resting on the `ruff`-only checks originally done by copying files into a sibling container.
 >
-> [!WARNING] **The `drift` split itself is unguarded, found 2026-08-03.** Flipping four `is_drift=True` tags in `health.py` to `False` — reversing most of this entry's behaviour change — leaves the whole suite passing, 217 tests. No test asserts that a drift-tagged check lands in `drift` rather than `degraded_capabilities`; `is_drift` appears nowhere in `tests/`, and `drift` only in the static hygiene guard, which asserts the attribute is unrecorded and says nothing about its contents. 100% coverage means those lines executed, not that the classification was checked. This is the most valuable test missing from the project: it guards a documented attribute contract that users template against, and re-tagging a check today would break nothing.
+> [!WARNING] **The `drift` split itself is unguarded, found 2026-08-03.** Flipping four `is_drift=True` tags in `health.py` to `False` — reversing most of this entry's behavior change — leaves the whole suite passing, 217 tests. No test asserts that a drift-tagged check lands in `drift` rather than `degraded_capabilities`; `is_drift` appears nowhere in `tests/`, and `drift` only in the static hygiene guard, which asserts the attribute is unrecorded and says nothing about its contents. 100% coverage means those lines executed, not that the classification was checked. This is the most valuable test missing from the project: it guards a documented attribute contract that users template against, and re-tagging a check today would break nothing.
 
 ### Added
 
@@ -323,7 +425,7 @@ Implements the enforcement half of `dev_standards` §14 as revised at **Standard
 
 ### Changed
 
-- **`degraded_capabilities` no longer carries drift findings**, which is a behaviour change for anyone templating against it: a payload-shape finding that previously appeared there now appears in `drift`. The health sensor still turns `on` for both, and `issues` still carries every confirmed message, so an automation triggering on the sensor state or reading `issues` is unaffected. Acceptable here because the health sensor shipped this week and the attribute split is what §19 specifies.
+- **`degraded_capabilities` no longer carries drift findings**, which is a behavior change for anyone templating against it: a payload-shape finding that previously appeared there now appears in `drift`. The health sensor still turns `on` for both, and `issues` still carries every confirmed message, so an automation triggering on the sensor state or reading `issues` is unaffected. Acceptable here because the health sensor shipped this week and the attribute split is what §19 specifies.
 
 ## [2.0.1-dev6] - 2026-07-27 - Cross-Project Alignment
 
@@ -351,8 +453,8 @@ Follows a three-way review of `wifi_ssid_monitor`, `unifi_network_monitor` and `
 
 ### Notes
 
-- **This project is the strongest candidate in the family for a custom trigger platform**, should HA's trigger API stabilise and document itself. The `new_network` event already computes in its payload exactly the filters users want (band, signal, hidden/anomalous), so a trigger would be a thin wrapper rather than new logic. Blocked on the same product decision as the others — the API is a 2026.x construct against a declared floor of HA 2024.8.0, and there is no developer documentation. See the note above for the full analysis.
-- No behaviour changed in this entry beyond attribute naming.
+- **This project is the strongest candidate in the family for a custom trigger platform**, should HA's trigger API stabilize and document itself. The `new_network` event already computes in its payload exactly the filters users want (band, signal, hidden/anomalous), so a trigger would be a thin wrapper rather than new logic. Blocked on the same product decision as the others — the API is a 2026.x construct against a declared floor of HA 2024.8.0, and there is no developer documentation. See the note above for the full analysis.
+- No behavior changed in this entry beyond attribute naming.
 
 ## [2.0.1-dev5] - 2026-07-26 - README Section Names and Links
 

@@ -46,32 +46,68 @@
   },
   "entity": {
     "sensor": {
-      "total_count": { "name": "Total SSID Count" },
-      "unknown_count": { "name": "Unknown SSID Count" },
-      "new_24h": { "name": "New Networks (24h)" },
-      "interface": { "name": "Interface" },
-      "last_updated": { "name": "Last Updated" },
-      "strongest_unknown_ssid": { "name": "Strongest Unknown SSID" },
-      "strongest_unknown_signal": { "name": "Strongest Unknown Signal" }
+      "total_count": {
+        "name": "Total SSID Count"
+      },
+      "unknown_count": {
+        "name": "Unknown SSID Count"
+      },
+      "new_24h": {
+        "name": "New Networks (24h)"
+      },
+      "interface": {
+        "name": "Interface"
+      },
+      "last_updated": {
+        "name": "Last Updated"
+      },
+      "strongest_unknown_ssid": {
+        "name": "Strongest Unknown SSID"
+      },
+      "strongest_unknown_signal": {
+        "name": "Strongest Unknown Signal"
+      }
     },
     "binary_sensor": {
-      "new_network": { "name": "New Network Alert" },
-      "proximity_alert": { "name": "Proximity Alert" },
-      "integration_health": { "name": "Integration Health" }
+      "new_network": {
+        "name": "New Network Alert"
+      },
+      "proximity_alert": {
+        "name": "Proximity Alert"
+      },
+      "integration_health": {
+        "name": "Integration Health"
+      }
     },
     "number": {
-      "scan_interval": { "name": "Scan Interval" },
-      "proximity_signal_threshold": { "name": "Proximity Signal Threshold" }
+      "scan_interval": {
+        "name": "Scan Interval"
+      },
+      "proximity_signal_threshold": {
+        "name": "Proximity Signal Threshold"
+      }
     },
     "switch": {
-      "stop_polling": { "name": "Pause Polling" },
-      "include_hidden": { "name": "Include Hidden Networks" },
-      "show_24ghz": { "name": "Show 2.4 GHz" },
-      "show_5ghz": { "name": "Show 5 GHz" },
-      "show_6ghz": { "name": "Show 6 GHz" }
+      "stop_polling": {
+        "name": "Pause Polling"
+      },
+      "include_hidden": {
+        "name": "Include Hidden Networks"
+      },
+      "show_24ghz": {
+        "name": "Show 2.4 GHz"
+      },
+      "show_5ghz": {
+        "name": "Show 5 GHz"
+      },
+      "show_6ghz": {
+        "name": "Show 6 GHz"
+      }
     },
     "button": {
-      "scan_now": { "name": "Scan Now" }
+      "scan_now": {
+        "name": "Scan Now"
+      }
     }
   },
   "exceptions": {
@@ -96,7 +132,7 @@
     },
     "signal_format_changed": {
       "title": "WiFi SSID Monitor signal format changed",
-      "description": "The Supervisor changed the unit it reports signal strength in (percentage vs dBm). Signal values have been converted automatically, but review the Proximity Signal Threshold to make sure the alert still fires when you expect.\n\nDetail: {detail}"
+      "description": "The unit signal strength arrives in has changed (percentage vs dBm). This is what was observed, not why — the Supervisor, the adapter driver or this integration's own parsing could each produce it. Signal values have been converted automatically, but review the Proximity Signal Threshold to make sure the alert still fires when you expect.\n\nDetail: {detail}"
     }
   },
   "options": {

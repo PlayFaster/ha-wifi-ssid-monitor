@@ -69,6 +69,10 @@
       },
       "type": "object"
     },
+    "import_executor": {
+      "description": "Whether the integration runs sync imports in executor.",
+      "type": "boolean"
+    },
     "integration_type": {
       "description": "Purpose of the integration.",
       "enum": [

@@ -94,8 +94,10 @@ class WifiProximityBinarySensor(WifiScanEntity, BinarySensorEntity):
         "Threshold. Signal is a 0-100% quality figure — higher means closer."
     )
 
-    _unrecorded_attributes = WifiScanEntity._unrecorded_attributes | frozenset(
-        {"strongest_unknown_signal", "threshold"}
+    # "about" is repeated from the mixin — HA does not merge this attribute
+    # across the class hierarchy. See the note in `sensor.py`.
+    _unrecorded_attributes = frozenset(
+        {"about", "strongest_unknown_signal", "threshold"}
     )
 
     def __init__(

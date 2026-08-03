@@ -28,36 +28,36 @@ The **Key** column below is the `key` field on the entity description. That is n
 
 ## Sensors
 
-| Name | Key | Unit | Category | Notes |
-| :-- | :-- | :-- | :-- | :-- |
-| Total SSID Count | `count` | - | - | Every network in range after the band and hidden filters. `MEASUREMENT`, bounds 0–256. |
-| Unknown SSID Count | `unknown_count` | - | - | The subset not matching the Known SSIDs list, plus anything on the denylist. `MEASUREMENT`, bounds 0–256. |
-| New Networks (24h) | `new_24h` | - | - | Networks first seen by this integration in the last 24 hours. `MEASUREMENT`, bounds 0–4096. |
-| Strongest Unknown SSID | `strongest_unknown_ssid` | - | - | Name of the strongest unknown network; carries the per-network detail attributes. `None Detected` when nothing is in range. |
-| Strongest Unknown Signal | `strongest_unknown_signal` | % | - | Signal quality 0–100% of the closest unknown network. `MEASUREMENT`, bounds 0–100. |
-| Interface | `interface` | - | Diagnostic | The adapter being scanned, e.g. `wlan0`. |
-| Last Updated | `last_updated` | Timestamp | Diagnostic | Time of the last successful scan. `TIMESTAMP` device class. |
+| Name | Key | Unit | Category | About | Notes |
+| :-- | :-- | :-- | :-- | :-: | :-- |
+| Total SSID Count | `count` | - | - | ✔ | Every network in range after the band and hidden filters. `MEASUREMENT`, bounds 0–256. |
+| Unknown SSID Count | `unknown_count` | - | - | ✔ | The subset not matching the Known SSIDs list, plus anything on the denylist. `MEASUREMENT`, bounds 0–256. |
+| New Networks (24h) | `new_24h` | - | - | ✔ | Networks first seen by this integration in the last 24 hours. `MEASUREMENT`, bounds 0–4096. |
+| Strongest Unknown SSID | `strongest_unknown_ssid` | - | - | ✔ | Name of the strongest unknown network; carries the per-network detail attributes. `None Detected` when nothing is in range. |
+| Strongest Unknown Signal | `strongest_unknown_signal` | % | - | ✔ | Signal quality 0–100% of the closest unknown network. `MEASUREMENT`, bounds 0–100. |
+| Interface | `interface` | - | Diagnostic | ✔ | The adapter being scanned, e.g. `wlan0`. |
+| Last Updated | `last_updated` | Timestamp | Diagnostic | — | Time of the last successful scan. `TIMESTAMP` device class. |
 
 ## Binary Sensors
 
-| Name | Key | Device class | Category | Notes |
-| :-- | :-- | :-- | :-- | :-- |
-| New Network Alert | `new_network` | - | - | **ON** while any unknown network is in range. For a one-shot trigger per newly-seen network use the `wifi_ssid_monitor_new_network` bus event instead. |
-| Proximity Alert | `proximity_alert` | Problem | - | **ON** when the strongest unknown signal meets or exceeds the Proximity Threshold. |
-| Integration Health | `integration_health` | Problem | Diagnostic | **ON** when the integration detects a problem with its own data. `available` is `True` unconditionally, including when every other entity is unavailable. |
+| Name | Key | Device class | Category | About | Notes |
+| :-- | :-- | :-- | :-- | :-: | :-- |
+| New Network Alert | `new_network` | - | - | ✔ | **ON** while any unknown network is in range. For a one-shot trigger per newly-seen network use the `wifi_ssid_monitor_new_network` bus event instead. |
+| Proximity Alert | `proximity_alert` | Problem | - | ✔ | **ON** when the strongest unknown signal meets or exceeds the Proximity Threshold. |
+| Integration Health | `integration_health` | Problem | Diagnostic | ✔ | **ON** when the integration detects a problem with its own data. `available` is `True` unconditionally, including when every other entity is unavailable. |
 
 ## Controls
 
-| Name | Key | Type | Unit | Category | Notes |
-| :-- | :-- | :-- | :-- | :-- | :-- |
-| Scan Interval | `scan_interval` | Number | min | Config | 1–180 minutes. Debounced 2 s before applying. The only place the interval is set. |
-| Proximity Threshold | `proximity_signal_threshold` | Number | % | Config | 0–100%. Slider. |
-| Pause Polling | `stop_polling` | Switch | - | Config | Pauses scheduled scans. Explicit actions still fetch. Separate from HA's own "Enable polling for changes" system option. |
-| Include Hidden Networks | `include_hidden` | Switch | - | Config | Include networks that do not broadcast a name, listed as `Hidden-<last 4 of BSSID>`. |
-| Show 2.4 GHz | `show_24ghz` | Switch | - | Config | Include 2.4 GHz networks in all counts and lists. |
-| Show 5 GHz | `show_5ghz` | Switch | - | Config | Include 5 GHz networks in all counts and lists. |
-| Show 6 GHz | `show_6ghz` | Switch | - | Config | Include 6 GHz (WiFi 6E/7) networks in all counts and lists. |
-| Scan Now | `scan_now` | Button | - | - | Runs a scan immediately, including while Pause Polling is on. |
+| Name | Key | Type | Unit | Category | About | Notes |
+| :-- | :-- | :-- | :-- | :-- | :-: | :-- |
+| Scan Interval | `scan_interval` | Number | min | Config | ✔ | 1–180 minutes. Debounced 2 s before applying. The only place the interval is set. |
+| Proximity Threshold | `proximity_signal_threshold` | Number | % | Config | ✔ | 0–100%. Slider. |
+| Pause Polling | `stop_polling` | Switch | - | Config | ✔ | Pauses scheduled scans. Explicit actions still fetch. Separate from HA's own "Enable polling for changes" system option. |
+| Include Hidden Networks | `include_hidden` | Switch | - | Config | ✔ | Include networks that do not broadcast a name, listed as `Hidden-<last 4 of BSSID>`. |
+| Show 2.4 GHz | `show_24ghz` | Switch | - | Config | ✔ | Include 2.4 GHz networks in all counts and lists. |
+| Show 5 GHz | `show_5ghz` | Switch | - | Config | ✔ | Include 5 GHz networks in all counts and lists. |
+| Show 6 GHz | `show_6ghz` | Switch | - | Config | ✔ | Include 6 GHz (WiFi 6E/7) networks in all counts and lists. |
+| Scan Now | `scan_now` | Button | - | - | ✔ | Runs a scan immediately, including while Pause Polling is on. |
 
 ## `about` notes
 
