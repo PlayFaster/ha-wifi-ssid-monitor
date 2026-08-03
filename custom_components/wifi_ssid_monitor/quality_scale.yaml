@@ -11,9 +11,22 @@ rules:
   config-flow: done
   dependency-transparency: done
   docs-actions: done
+  docs-conditions:
+    status: exempt
+    comment:
+      No custom condition platform — no condition.py, conditions.yaml, or conditions
+      block in strings.json. The integration exposes sensors, controls and actions only.
   docs-high-level-description: done
   docs-installation-instructions: done
   docs-removal-instructions: done
+  docs-triggers:
+    status: exempt
+    comment:
+      No custom trigger platform — no trigger.py, triggers.yaml, or triggers block in
+      strings.json. The wifi_ssid_monitor_new_network bus event is documented in the
+      README but is an event, not a trigger platform, so it does not change this. See
+      .notes/issues/custom_trigger_condition/wifi_trigger_options.md for the analysis of
+      adopting one.
   entity-event-setup: done
   entity-unique-id: done
   has-entity-name: done

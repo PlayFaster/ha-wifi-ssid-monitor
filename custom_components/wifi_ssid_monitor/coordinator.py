@@ -116,9 +116,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             "problem": False,
             "severity": None,
             "issues": [],
-            "checks_failed": [],
+            "degraded_capabilities": [],
+            "drift": [],
             "signal_unit": None,
-            "last_good_scan": None,
+            "last_good_update": None,
         }
         self._drift_strikes: dict[str, int] = {}
         self._baseline_signal_unit: str | None = None
@@ -321,7 +322,9 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             "problem": True,
             "severity": SEVERITY_SERIOUS,
             "issues": [f"Cannot reach the Supervisor API: {err}"],
-            "checks_failed": ["supervisor_unreachable"],
+            "degraded_capabilities": ["supervisor_unreachable"],
+            # No payload arrived, so no drift verdict is possible this cycle.
+            "drift": [],
             "cold_start": cold_start,
         }
 
@@ -362,10 +365,15 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             "problem": bool(confirmed),
             "severity": severity,
             "issues": [f.message for f in confirmed],
-            "checks_failed": [f.key for f in confirmed],
+            # Section 19 publishes these separately: a failed capability is not
+            # the same thing as the payload changing shape underneath a
+            # successful fetch, and an automation reacting to one should not
+            # fire on the other. Every confirmed finding lands in exactly one.
+            "degraded_capabilities": [f.key for f in confirmed if not f.is_drift],
+            "drift": [f.message for f in confirmed if f.is_drift],
             "signal_unit": facts.signal_unit,
             "baseline_signal_unit": self._baseline_signal_unit,
-            "last_good_scan": (
+            "last_good_update": (
                 self.last_update_success_time.isoformat()
                 if self.last_update_success_time
                 else None
@@ -533,7 +541,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     scans_completed=self._scans_completed,
                 )
             )
-        except Exception:  # noqa: BLE001 - diagnosis must never break the scan
+        except Exception:
             _LOGGER.debug(
                 "Health computation failed; treating as healthy", exc_info=True
             )

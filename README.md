@@ -898,9 +898,12 @@ triggers:
     entity_id: binary_sensor.wifi_ssid_monitor_new_network_alert
     from: "off"
     to: "on"
+    not_from:
+      - "unknown"
+      - "unavailable"
     note: |
       A device that has been reset, or is new out of the box, broadcasts its own setup
-      network - which appears here as an unknown network.
+      network - which appears here as an unknown network. Suppresses transitions directly from unknown or unavailable.
 conditions:
   - condition: template
     alias: Check If Unknown SSID Is a Known Smart Device
@@ -947,14 +950,17 @@ description: "Warns when the number of your own networks drops below normal"
 triggers:
   - trigger: template
     value_template: |
-      {{ (states('sensor.wifi_ssid_monitor_total_ssid_count') | int(0))
-         - (states('sensor.wifi_ssid_monitor_unknown_ssid_count') | int(0)) < 3 }}
+      {{ has_value('sensor.wifi_ssid_monitor_total_ssid_count') and
+         has_value('sensor.wifi_ssid_monitor_unknown_ssid_count') and
+         ((states('sensor.wifi_ssid_monitor_total_ssid_count') | int(0)) -
+          (states('sensor.wifi_ssid_monitor_unknown_ssid_count') | int(0))) < 3 }}
     for:
       minutes: 10
     note: |
       Watches your base count - total networks minus unknown ones - which is how many of
       your own networks are broadcasting. Subtracting unknown means a neighbour's network
-      drifting in and out never moves it. Set the < 3 to your own base: if you normally see
+      drifting in and out never moves it. Checks has_value() to ensure scanner entities
+      are online and valid before evaluating. Set the < 3 to your own base: if you normally see
       4 total with 1 unknown, your base is 3, so < 3 fires the moment it drops to 2.
       The 10 minute duration rides out a single unlucky scan - set it to about double your
       scan interval.
@@ -1142,9 +1148,15 @@ mode: single
 triggers:
   - trigger: state
     entity_id: switch.router_guest_wifi
+    not_from:
+      - "unknown"
+      - "unavailable"
+    not_to:
+      - "unknown"
+      - "unavailable"
     note: |
-      Your router integration's guest-network switch, not one of this integration's. Fires
-      on any state change; the choose below decides which way it went.
+      Your router integration's guest-network switch, not one of this integration's. Ignores
+      unknown and unavailable states so router reconnects do not trigger whitelist actions.
 actions:
   - choose:
       - conditions:
@@ -1235,6 +1247,9 @@ triggers:
     entity_id: binary_sensor.wifi_ssid_monitor_integration_health
     from: "off"
     to: "on"
+    not_from:
+      - "unknown"
+      - "unavailable"
     for:
       minutes: 10
     note: |
@@ -1248,10 +1263,10 @@ actions:
       message: |
         {{ state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'issues')
            | join(', ') }}
-        Last good scan: {{ state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'last_good_scan') }}
+        Last good scan: {{ state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'last_good_update') }}
     note: |
       issues is a list of human-readable problem descriptions. The sensor also carries
-      severity, checks_failed (the check names, for filtering), signal_unit, and
+      severity, degraded_capabilities (the check names, for filtering), signal_unit, and
       networks_scanned.
 ```
 
@@ -1406,7 +1421,7 @@ Some failures are **silent** - a scan succeeds but the data is wrong (e.g. a Sup
 - **`on`** when the integration detects a problem with its own data - an unreachable Supervisor, a payload that parsed to nothing, an interface that vanished, a signal-unit change, or every known network disappearing at once.
 - **Repair issues** are raised for the few conditions you can act on: **`interface_missing`** (the monitored interface is no longer reported - reconfigure to pick the right one), **`signal_format_changed`** (the Supervisor changed how it reports signal - review the Proximity Threshold), and **`supervisor_unavailable`** (repeated fetch failures).
 
-It's deliberately cautious: it gives startup grace before judging drift, requires a condition to persist over several cycles before flipping, and auto-recovers on the next clean scan. Details - `issues`, `severity`, `checks_failed`, `signal_unit`, `last_good_scan` - live in the sensor's attributes; put it on a dashboard or alert on it to catch breakage early instead of months later - see the [Integration Health Problem Alert](#-integration-health-problem-alert) example.
+It's deliberately cautious: it gives startup grace before judging drift, requires a condition to persist over several cycles before flipping, and auto-recovers on the next clean scan. Details - `issues`, `severity`, `degraded_capabilities`, `signal_unit`, `last_good_update` - live in the sensor's attributes; put it on a dashboard or alert on it to catch breakage early instead of months later - see the [Integration Health Problem Alert](#-integration-health-problem-alert) example.
 
 ### 🔄 Data Polling & 3-Strike Resilience
 
@@ -1446,6 +1461,12 @@ Entries older than the **Last Seen History TTL** (default 90 days) are pruned au
 <br>
 
 ## ❓ FAQ & Troubleshooting
+
+> [!TIP]
+>
+> The entries below cover the problems that come up most often. If you are working through one and not getting to a resolution, remember that "turning it off and on again" is a cliché for a reason.
+>
+> **Restart Home Assistant, and maybe Reboot the HA system, before declaring failure or seeking help.** Neither is guaranteed to fix your issue, and both are surprisingly effective.
 
 ### 🔌 Setup & Connectivity
 
@@ -1700,11 +1721,17 @@ To fully uninstall (HACS):
 
 This is a **personal project**. Support and updates are provided on a **"best-effort"** basis only. While I use this integration daily and aim to keep it functional with the latest Home Assistant releases, I cannot guarantee immediate fixes for issues or compatibility with all releases.
 
+### 📖 Documentation Accuracy
+
+- This README is updated whenever the integration changes, and is intended to describe the current release accurately.
+- Two things can put it out of step: a passage this document missed during a revision, or a Home Assistant screen or setting that has been renamed or moved since it was written.
+- If you find either, please [open an issue](https://github.com/PlayFaster/ha-wifi-ssid-monitor/issues). It will be corrected.
+
 ## 🤝 Contributors & Acknowledgements
 
 - **Personal prior work**: The structure and integration architecture draw on my own custom components [ZTE Router 5G](https://github.com/PlayFaster/ha-zte-router-5g-monitor) and [Huawei Router 5G](https://github.com/PlayFaster/ha-huawei-router-5g-monitor) Monitors.
 
-- This project was developed with the assistance of AI to ensure code quality and adherence to best practices.
+- 🤖 This project was developed with the assistance of AI to ensure code quality and adherence to best practices.
 
 ## 📄 License
 

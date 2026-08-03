@@ -1,189 +1,226 @@
-# Future Roadmap: WiFi SSID Monitor
+# Roadmap: WiFi SSID Monitor
 
-This document tracks what was planned, what has been delivered, and what new directions are available.
+Forward view for `ha-wifi-ssid-monitor`, and the record of what has been decided against. The integration counts visible networks, separates known from unknown, and records signal, band and history for them. What remains is mostly one large item — per-network entities, in three phases — plus a few small filters over history that is already persisted.
 
----
+Format document `roadmap_format.md` used, with one deliberate carry-over: **nothing that was in the predecessor `FUTURE.md` has been dropped.** Where the format would have excluded something — the off-roadmap v2.0.0 deliveries, and one future option retired without ever being built — it is kept under **Done** in a clearly separated subsection rather than discarded, so this first conversion loses no record.
 
-## ✅ Delivered with v2.0.0
-
-The v2.0.0 correctness-and-capability release closed three long-standing roadmap items outright, and delivered a fourth in a different (better) form than originally framed.
-
-| Roadmap item | Where it landed |
-| :-- | :-- |
-| **BSSID (MAC Address) Support** _(was blocked on API uncertainty)_ | **Unblocked and delivered.** The Supervisor `/accesspoints` payload does return `mac`, verified on both Intel and Raspberry Pi hardware. BSSID is now captured in the normalized shape, exposed as `bssid` on the per-network detail and in the `get_networks` response and `new_network` event, and used as the identity for cloaked networks (`Hidden-<last 4 of BSSID>`). `known_wifi_ids` and `denylist_ssids` matching evaluates against **both** the network key and the BSSID, so exact MACs or MAC wildcards (`AA:BB:CC:*`) are valid in either list - the "more reliable known list" the item asked for. |
-| **"First Seen" Events** | **Delivered as `wifi_ssid_monitor_new_network`.** Fires once per genuinely-new network, keyed on the persisted history so it **survives restarts**, with the existing set recorded silently as a baseline on first scan (no backlog replay) and a per-cycle rate limit. Payload carries `entry_id`, `key`, `ssid`, `bssid`, `band`, `channel`, `signal`, `hidden`, `ssid_anomaly`, `mode`, and `first_seen`. This supersedes the "First Detected Events" future option, and - because BSSID is now available - it satisfies the original hardware-level framing as well as the SSID-level one. |
-| **Hardware Health Monitoring** | **Delivered as the Integration Health self-diagnosis sensor.** A `problem` binary sensor that stays available even when everything else has gone `unavailable`, backed by a check catalogue and three repair issues: `interface_missing` (the adapter/interface is no longer reported - the "adapter stalled" case the item described), `signal_format_changed`, and `supervisor_unavailable`. It also catches the _silent_ failure the original item did not anticipate - a scan that succeeds while the payload shape or units have drifted. Delivered as integration-level health rather than raw adapter telemetry, which the Supervisor API does not expose. |
-| **"First Detected" Events** _(future option)_ | Superseded by `wifi_ssid_monitor_new_network` above - the persisted-history keying makes it restart-safe, which the originally-sketched `hass.bus.async_fire`-on-missing-`first_seen` approach would not have been. |
+**Reviewed 2026-08-03** against the v2.0.0 source and the current entity set.
 
 ---
 
-**Also delivered in v2.0.0, beyond the roadmap** - these were not on any list but shaped the release: the `parse.py` payload normalization boundary (and the three root-cause bug fixes it enabled: percent signal, frequency→band, `wireless` interface type); per-band **Show 2.4 / 5 / 6 GHz** switches replacing the old single-choice enum; the **Pause Polling** switch with force-refresh; the **`get_networks`** response action; the **New Networks (24h)** LTS sensor; the `ssid_anomaly` flag for control/zero-width/RTL characters in SSIDs; a structural diagnostics sanitizer; coalesced storage writes with a hard entry cap; and `_unrecorded_attributes` across the high-churn attributes.
+## To Be Done
+
+### Per-network entities
+
+#### **Value ⭐⭐⭐⭐ · Effort High overall — see the per-phase Effort below**
+
+Three things that were previously listed as separate items — a my-WiFi online count, per-network presence entities, and per-network signal sensors — are one item in three phases. They were split because they arrived at different times, not because they are separable: all three read from the same list of networks the user cares about, and building them independently would produce three lists, two presence paths and a signal sensor with no defined "gone" state.
+
+**Recorded as one item so the end state is designed once.** Phase 1 is worth building on its own and does not depend on the later phases, but it must not be built in a way that has to be undone by phase 2.
+
+**Shared foundation, needed by all three phases:**
+
+- **A "my WiFi" list** — the networks the user owns. Separate from the known list, which exists to suppress noise: a whitelisted neighbour belongs in the known list and not here. Accepts the same identity forms as the known and deny lists (SSID, `fnmatch` pattern, or BSSID). BSSID is the strongest form because it pins one radio and a spoofed name cannot satisfy it.
+- **Add / remove / set actions** for that list, mirroring the existing `add_known_ssid` / `remove_known_ssid` / `set_known_ssids` `target:` pattern, so it is not Configure-only.
+- **Absence debounce** — a network counts as gone only after N consecutive missed scans (configurable), so one bad scan does not register as an outage. This is the `for:` duration the README automation currently carries, moved into the integration.
+- **Deference to Integration Health** — a scan that fails wholesale (interface gone, Supervisor unreachable) makes every network look absent at once. Nothing in any phase may report absence while Integration Health says the scan itself failed.
 
 ---
 
-## ✅ Delivered with v1.6.0, Part 1 (was v1.5.0)
+#### Phase 1 — my-WiFi count and offline sensors · **Effort Medium**
 
-All of the following items were on the original roadmap and have been implemented.
+Two fixed entities, regardless of how many networks are in the list:
 
-| Feature | Where it landed |
-| :-- | :-- |
-| **Signal Strength (RSSI) Tracking** | `signal_strengths` dict attribute on `count` and `unknown_count` sensors; per-SSID dBm values sourced from the Supervisor API. |
-| **Frequency & Band Identification** | `bands` dict attribute on both count sensors; computed from channel number via `_channel_to_band()` (1–14 → 2.4 GHz, 36–177 → 5 GHz). |
-| **Pattern Matching (Wildcards)** | Known SSID matching uses `fnmatch` - `Guest_*`, `IoT_?`, etc. are all valid. Backward-compatible with exact-match lists. |
-| **Hidden Network Management** | `include_hidden` toggle in the options flow. When disabled, APs without a broadcasted SSID are filtered before any counting occurs. |
-| **"Add to Known" Service** | `wifi_ssid_monitor.add_known_ssid` - appends to the known list and triggers an immediate re-scan via the update listener. Documented in `services.yaml`. |
-| **Manual Scan Button** | `button.scan_now` - calls `coordinator.async_refresh()` on press. No interval constraint. |
-| **"Last Seen" Tracking** | In-memory `last_seen` dict (SSID → datetime) exposed as ISO timestamps in `unknown_count` attributes. Populated each scan cycle. |
-| **Proximity Alerts** | `binary_sensor.proximity_alert` - fires when `strongest_unknown_rssi` meets or exceeds a configurable threshold (default −60 dBm). Threshold and RSSI both exposed as attributes. |
+- **`My WiFi Online`** — a count of how many entries in the my-WiFi list are currently visible, with the matched and missing names as attributes. An integer, so it graphs and reaches long-term statistics.
+- **`My WiFi Offline`** — a `problem` binary sensor, `on` when one or more entries are not visible, with the missing names as an attribute.
 
----
+**What this replaces.** The **Home WiFi Offline Alert** automation in `README.md` infers "a network went down" by subtracting the unknown count from the total and watching that base drop below a hand-set number. Three concrete failures follow from that:
 
-## ✅ Delivered with v1.6.0, Part 2 (was v1.6.0)
+- The base falling from 3 to 2 says a network is missing but not which one, and if a previously-unknown neighbour joins the known list at the same moment two of the user's own networks drop, the base does not move at all.
+- The `< 3` threshold is specific to one location and must be re-set whenever the user adds a network, disables a band, or moves.
+- If an AP dies as a new unknown one appears, the total and the base are both unchanged and nothing fires.
 
-| Feature | Where it landed |
-| :-- | :-- |
-| **"Remove from Known" Service** | `wifi_ssid_monitor.remove_known_ssid` - removes an exact SSID or pattern from the known list. Silent success if not found. Triggers an immediate re-scan when the list changes. |
-| **Strongest Unknown SSID Name Sensor** | `sensor.strongest_unknown_ssid` - state is the SSID name of the unknown network with the strongest signal. Companion to the existing `proximity_alert` binary sensor. State is `unknown` when no unknown networks are visible. |
-| **Persistent "Last Seen" Storage** | `_last_seen` dict is now backed by HA's `Store` (`.storage/wifi_ssid_monitor.<entry_id>.last_seen`). Timestamps survive HA restarts. Store is cleaned up when the integration entry is deleted. |
-| **Auto-Expire Stale "Last Seen" Entries** | Configurable TTL in the options flow (0–366 days; 0 = keep forever; default 90 days). Applied on each successful scan before saving to the Store. |
-| **Band Filter Option** | `scan_bands` option (`all` / `2.4` / `5`) in the options flow. Filters all scan results - counts, attributes, and known-network matching - not just band display. APs with an undetermined band are excluded when a filter is active (strict mode). |
-| **SSID Denylist** | `denylist_ssids` option in the options flow. Comma-separated list of SSIDs or `fnmatch` patterns that are always counted as unknown even if they match the known list. The denylist overrides the known list. |
+Naming the expected networks removes all three, and needs no threshold.
 
----
+**No dynamic entity creation**, which is what keeps this phase at Medium and lets it ship first.
 
-## ✅ Delivered with v1.5.0, Part 3 (was v1.7.0)
+#### Phase 2 — per-network presence entities · **Effort High**
 
-| Feature | Where it landed |
-| :-- | :-- |
-| **"First Seen" Persistent Timestamps** | `_first_seen` dict backed by `Store` (`.storage/wifi_ssid_monitor.<entry_id>.first_seen`). Written once on first detection; never overwritten. Exposed as `first_seen` ISO-timestamp attribute on `unknown_count`. TTL expiry prunes `first_seen` alongside `last_seen`. |
-| **Unknown SSID Visit Count** | `_visit_counts` dict backed by `Store` (`.storage/wifi_ssid_monitor.<entry_id>.visit_counts`). Incremented each scan cycle the SSID is present. Exposed as `visit_counts` attribute on `unknown_count`. |
-| **Dedicated Strongest Unknown RSSI Sensor** | `sensor.strongest_unknown_rssi` - `SensorDeviceClass.SIGNAL_STRENGTH`, `native_unit_of_measurement="dBm"`. Allows native HA history graphing and numeric automation conditions without attribute extraction. |
-| **`scan_now` Service** | `wifi_ssid_monitor.scan_now` - triggers `coordinator.async_refresh()` for one or all entries. Cleaner than pressing `button.scan_now` from an automation; consistent with the other services. |
-| **Clear Last Seen History Service** | `wifi_ssid_monitor.clear_last_seen` - silently clears `_last_seen`, `_first_seen`, and `_visit_counts` and saves empty state to all three Stores. Next scheduled scan repopulates from scratch. |
-| **Set Known SSIDs Service** | `wifi_ssid_monitor.set_known_ssids` - replaces the entire known list in a single call and returns the previous list per entry as `SupportsResponse.OPTIONAL` service response data. Enables backup/restore automation patterns. |
+One entity per network showing whether it is currently visible. This is the phase that carries the hard mechanism; phases 1 and 3 are cheap on either side of it.
 
----
+- **Entity type is undecided** — a `binary_sensor` or a `device_tracker`. `device_tracker` is the closer fit if the network being visible is treated as a location signal (a phone hotspot arriving home), `binary_sensor` if it is treated as equipment being up. This should be settled before any code, because it is not a cheap change afterwards.
+- **Scope option** — which networks get an entity, because "all of them" in a dense location is hundreds. The choices are: off (default), my-WiFi only, known only, unknown only, or an explicit list. Off by default matters: a user upgrading should not silently acquire a hundred entities.
+- **Created on sighting, not on configuration.** An entity appears the first time a network matching the scope is seen, so the list does not have to be written by hand in advance.
+- **Cleanup by age** — an action and a button that remove entities for networks not seen for N days (configurable, default 90, matching the existing history TTL). Creation on sighting means entities accumulate, so an explicit prune is part of the mechanism and not an afterthought.
+- **A defined "gone" state** — `unknown` when the network is not visible but the scan is healthy, `unavailable` only when the scan itself failed. This is the existing convention and phase 3 depends on it.
 
-## 💡 New Opportunities - Future Options
+**Watch out for:** a wildcard in an explicit scope list matching far more networks than intended. The resolved set needs a cap, with the overflow reported rather than silently truncated.
 
-With the `parse.py` normalization boundary, BSSID identity, persisted history, the bus event, and the full action suite all in place, the following remain open.
+**Relationship to phase 1.** Once this exists, `My WiFi Online` is a rollup of the my-WiFi subset of these entities. It must be reimplemented as that rollup rather than left running as a second, parallel presence calculation.
 
----
+#### Phase 3 — per-network signal sensors · **Effort Low once phase 2 exists**
 
-### Per-SSID Signal Quality Sensors
+A numeric signal sensor alongside each phase 2 entity, so one network's signal can be trended over time.
 
-**Difficulty:** Hard **Benefit:** High - let the user nominate specific networks (known **or** unknown) and get a dedicated numeric sensor per network, e.g. **"My Home Network Signal Quality"**, so an individual SSID's signal can be graphed and trended over time in its own right rather than being visible only as one row inside the `networks` attribute or a `get_networks` response.
+**Why the current sensors cannot do this.** They are aggregate by design: **Strongest Unknown Signal** follows whichever unknown network is strongest at that moment, so its history is a composite of different networks and cannot answer how one network behaved over a month. Per-network signal exists in the attributes, but attributes are unrecorded and are not long-term statistics candidates, so no trend series exists.
 
-**Why it does not exist today:** the current signal sensors are deliberately _aggregate_ - **Strongest Unknown Signal** tracks whichever unknown network happens to be strongest at that moment, so its history is a composite of different networks over time and cannot answer "how has _this_ network's signal behaved this month?". Per-network signal is present in the attributes, but attributes are unrecorded and are not LTS candidates, so there is no trend series.
+The value here is entirely in the mechanism phase 2 builds — same list, same lifecycle, same cleanup. The only addition is the sensor itself and one rule: when the network is not visible the state is `unknown`, never `0`, which would put a false floor in the trend.
 
-**What it needs:**
+**Where a spoofed SSID matters.** If two APs broadcast the same name, the sensor needs a stated rule for which radio it follows — strongest, or the pinned BSSID if the list entry was a BSSID.
 
-- **A tracked-SSID list option** - which networks get their own sensor. Should accept the same identity forms the known/denylist already support (SSID, `fnmatch` pattern, or BSSID), so a user can pin a specific radio rather than a name that could be spoofed.
-- **Add / remove actions** - `add_tracked_ssid` / `remove_tracked_ssid` / `set_tracked_ssids`, mirroring the existing `add_ssid` / `remove_ssid` / `set_ssids` `target:` pattern, so the list is automatable and not Configure-only.
-- **Dynamic entity creation and teardown** - one `sensor` per tracked network, created when added and removed when dropped. This is the same hard problem as _Per-SSID Presence Binary Sensors_ below, and the two should almost certainly be built together on one dynamic-entity mechanism.
-- **A defined "no longer present" state** - a tracked network that stops broadcasting must be distinguishable from one that is present but weak. `unknown` (value absent, source healthy) is the correct state per the existing `unknown` vs `unavailable` convention, **not** `0`, which would corrupt the trend with a false floor. A companion `last_seen` attribute and/or a per-network presence binary sensor would make "gone" legible.
-- **Stale-entry identification and cleanup** - a way to surface tracked SSIDs that have not been seen for some period (they may have been renamed, or the hardware retired), plus a supported way to prune them. The existing history TTL and the Integration Health check catalogue are the natural places to hang this; a "tracked network not seen for N days" health finding would fit the established pattern.
+### Visit-count threshold
 
-**Watch out for:** a pattern or wildcard in the tracked list could match many networks at once and spawn an unbounded number of entities - the list should either resolve to a capped set or be restricted to exact identities. And a tracked network whose SSID is spoofed by a second AP would need a rule for which radio the sensor follows (strongest, or the pinned BSSID).
+#### **Value ⭐⭐⭐ · Effort Low**
 
----
+A **Number** control (`min_visit_count`, default `0` = disabled) excluding networks from `unknown_count` and its attributes until they have been seen at least N times. Filters drive-by hotspots and one-off scan artifacts without the user writing template conditions.
 
-### Track Your WiFi Online
+A control rather than a Configure option because it is a value the user will want to tune against what they are actually seeing, and adjusting it from a dashboard slider — or from an automation — beats reopening the options flow each time. It follows the existing convention for disabled-by-default controls that change what other entities report.
 
-**Difficulty:** Medium **Benefit:** High - a first-class "are my own networks up?" feature, replacing the base-count template automation (**Home WiFi Offline Alert** in the README) with something that cannot be fooled and needs no per-install tuning.
+The `visit_counts` history that drives it is already persisted, so this is a filter over existing state rather than new state, which is what keeps the effort low.
 
-**Why the automation is not enough:** the offline alert infers "one of my networks went down" from a count - it takes the total network count, subtracts the unknown count, and watches that base for a drop. That works, but it is indirect and fragile:
+### Appearance / disappearance events
 
-- **It counts, it does not name.** The base falling from 3 to 2 tells the user _a_ network is missing, never _which_ one. If two of their networks are down and one previously-unknown neighbor joins the known list, the base can even stay flat and hide the outage entirely.
-- **It needs a hand-set magic number.** The `< 3` threshold is specific to one location and must be re-tuned whenever the user adds a network, disables a band, or moves house. A wrong number means silent failure or constant false alarms.
-- **It cannot see a swap.** If one of the user's APs dies at the same moment a new unknown one appears, the total is unchanged and the base is unchanged, so nothing fires.
+#### **Value ⭐⭐⭐ · Effort Medium**
 
-Tracking the user's own SSIDs explicitly removes all three problems: the integration knows exactly which named networks _should_ be present and can report precisely which are missing, with no threshold to set.
+The first-ever-seen case ships as `wifi_ssid_monitor_new_network`. What remains is the recurring diff: an event when a previously-seen network **re-appears** after an absence, and one when a currently-visible network **disappears**.
 
-**What it needs:**
+**What this gives an automation.** The events fire for every network, carrying the same payload fields as `new_network` (`key`, `ssid`, `bssid`, `band`, `signal`, and for the recurring cases, how long it was absent or present). Selecting a specific network is the automation's job, in an event-trigger condition — a template `condition` on `trigger.event.data.ssid`, with whatever wildcard or regex the user wants, or a match on `bssid` to pin one radio. **The integration does not take a per-network event filter**, because the automation can express one better than a config option could, and adding one would mean a fourth list to keep in step with the other three.
 
-- **A "my WiFi" list option** - the networks the user considers their own infrastructure. This is a narrower, more deliberate list than the known list: the known list suppresses noise (guest networks, a neighbor the user has whitelisted), whereas the my-WiFi list asserts "these should always be up." It should accept the same identity forms as the other lists (SSID, `fnmatch` pattern, or BSSID), with a BSSID entry being the strongest form here because it pins a specific radio and cannot be satisfied by a spoofed name.
-- **A `My WiFi Online` count sensor** - how many of the my-WiFi entries are currently broadcasting, with the matched and missing SSID names as attributes so the state is legible, not just numeric. An LTS-friendly integer that graphs cleanly.
-- **A `My WiFi Offline` problem binary sensor** - `on` when one or more my-WiFi entries are not currently seen, with the missing names as an attribute. This is the direct trigger the offline automation approximates, but self-configuring: no threshold, and the notification can name the down network.
-- **Presence hold / debounce** - a network must be absent for a configurable number of scans (or minutes) before it counts as offline, so a single unlucky scan does not raise a false outage. This is the `for:` duration the automation currently carries, moved into the integration where it belongs.
-- **Interaction with Integration Health** - a scan that fails wholesale (interface gone, Supervisor unreachable) makes _every_ my-WiFi entry look absent at once. The offline sensor must defer to Integration Health in that case rather than reporting a total outage, exactly as the README automation's health condition does - but built in, so the user does not have to wire it.
+**Glitch guarding — this is the part that decides whether the events are usable.** A scan that misses a network for one cycle would otherwise fire a disappearance and then an appearance, and a location with passing traffic would fire constantly. Three guards, all reusing machinery that exists:
 
-**Relationship to the other roadmap items:**
+- **Appearance guarded by visit count.** An appearance event fires only once the network has been seen at least N times, reusing the same `visit_counts` history as the **Visit-count threshold** item above and, if set, its threshold. A network seen once and never again never fires.
+- **Disappearance guarded by consecutive misses.** A disappearance fires only after the network has been absent for N consecutive scans, the same debounce the phase 1 my-WiFi work needs. Both should be one implementation.
+- **Health deference and rate limiting.** No event fires while Integration Health reports the scan itself failed, and the existing per-cycle rate limit and first-scan baseline apply, so a first scan after a restart does not replay the whole neighbourhood.
 
-- If **Per-SSID Presence Binary Sensors** above is built, this becomes largely a _rollup_ of it: the my-WiFi list is the natural input to per-network presence sensors, and `My WiFi Online` is their aggregate. The presence sensors answer "is network X up?" one at a time; this answers "is all of my infrastructure up?" in a single count and a single problem sensor. Build the per-network presence mechanism first, then layer this aggregate on top - do not build a second, parallel presence path.
-- If **Per-SSID Signal Quality Sensors** is built, the my-WiFi list should be shared with it rather than duplicated: the same nominated networks a user wants signal trends for are the ones they want online-tracking for. One "my networks" list feeding presence, signal, and online-count is the coherent design; three separate lists is not.
-- Unlike those two, this item does **not** require dynamic entity creation - `My WiFi Online` and `My WiFi Offline` are two fixed entities regardless of list size, so it is a **Medium**, not Hard, and could ship ahead of the dynamic-entity work as a self-contained improvement that immediately retires the fragile automation.
+**Implementation.** Compare the current scan's key set against the previous one in the coordinator and fire on the diffs. The previous set is derivable from `coordinator.data` at the start of `_async_update_data`, and the persisted `last_seen` history supplies the absence duration.
+
+**Sequencing.** The two guards are shared with other items — the visit-count history with the threshold control, the miss debounce with the per-network entities. Whichever is built first should build them to be reused.
 
 ---
 
-### Per-SSID Presence Binary Sensors
+## Maybe
 
-**Difficulty:** Hard **Benefit:** High (for the right users) - auto-create a binary sensor for each SSID in the known list, showing whether it is currently visible. Enables direct "is my work laptop nearby?" automations without template sensors. Requires dynamic entity creation and teardown when the known list changes, which is significantly more complex than the current static entity model.
+### Proximity alert hysteresis
 
-**Note:** this shares its entire hard part - dynamic per-network entity creation, teardown, and a defined "no longer present" state - with _Per-SSID Signal Quality Sensors_ above. If either is built, build the mechanism once and let both ride on it: one tracked-network list producing a presence binary sensor and a signal-quality sensor per entry.
+#### **Value ⭐⭐ · Effort Medium**
 
----
+A device sitting at the threshold — 79/81% against an 80% threshold — makes the proximity sensor flap on every scan. A configurable hysteresis band ("must drop 5 percentage points below the threshold to turn off") stops it. Requires tracking the previous `is_on` state and applying the upper and lower bounds separately.
 
-### Visit Count Threshold Filter
+**Would be justified by:** observing the flap. It is a predicted failure rather than a reported one, and a user whose threshold is nowhere near a real network's signal will never see it. The **Appearance / disappearance events** item builds debounce machinery that may cover this case more generally, so it is worth checking whether this is still a separate problem afterwards.
 
-**Difficulty:** Easy **Benefit:** Medium-high - add a configurable options-flow setting (e.g., `min_visit_count`, default 0 = disabled) that excludes networks from the `unknown_count` and all attributes unless they have been seen at least N times. Filters out drive-by hotspots and one-off scan artifacts without requiring the user to write template automation conditions. The `visit_counts` history that would drive it is already persisted.
+### Case-insensitive known-SSID matching
 
----
+#### **Value ⭐⭐ · Effort Medium**
 
-### SSID Appearance / Disappearance Events
+Known-SSID matching, `fnmatch` patterns included, is case-sensitive, matching how real SSID identifiers behave. Some routers and devices broadcast the same network name with inconsistent capitalization (`MyWiFi` vs `mywifi`), which can leave a network counted as unknown despite being in the known list. An option to lowercase both sides before comparison would remove that class of false positive.
 
-**Difficulty:** Medium **Benefit:** Medium-high - **the "first ever seen" half of this is now delivered** as `wifi_ssid_monitor_new_network`. What remains is the _recurring_ diff: fire events when a previously-known network **re-appears** after an absence, and when a currently-visible one **disappears**. Especially useful for presence-detection use cases (e.g., "notify me when the IoT device hotspot disappears - it may have been stolen").
+The effort is uncertain rather than large: the open question is whether `fnmatch` pattern semantics stay correct after lowercasing, particularly for patterns carrying mixed-case characters, and that has not been established.
 
-**Implementation:** compare the current scan's key set against the previous one in the coordinator and fire on the diffs. The previous set is derivable from `coordinator.data` at the start of `_async_update_data`, and the persisted `last_seen` history gives the "how long was it gone?" context the `new_network` event does not need. Should reuse the existing baseline-and-rate-limit machinery so a busy location cannot flood automations.
-
----
-
-### Proximity Alert Hysteresis
-
-**Difficulty:** Medium **Benefit:** Medium - if a mobile device sits right at the threshold (e.g., 79/81% alternating against an 80% threshold), the proximity sensor will flap on every scan. A configurable hysteresis band (e.g., "must drop 5 percentage points below the threshold to turn off") prevents this. Requires tracking the previous `is_on` state and applying upper/lower bounds separately.
+**Would be justified by:** an actual observed mismatch — a network appearing as unknown when its name is in the known list differing only in case. Adding the option speculatively adds a config surface for a problem that may not occur on any hardware here.
 
 ---
 
-### Case-Insensitive Known SSID Matching
+## Revisit
 
-**Difficulty:** Unknown **Benefit:** Medium - currently, known SSID matching (including `fnmatch` patterns) is case-sensitive, matching the behavior of real SSID identifiers. Some routers and devices broadcast the same network name with inconsistent capitalization (e.g., `MyWiFi` vs `mywifi`), which can cause a network to appear as unknown even when it is in the known list. A configurable option to enable case-insensitive matching (e.g., lowercasing both the scanned SSID and all known patterns before comparison) could reduce false positives in these environments. Implementation complexity is unclear - the main uncertainty is whether `fnmatch` pattern semantics remain correct after lowercasing, particularly for patterns with mixed-case characters.
+### Channel crowding map
 
----
+Not doing it. A histogram of which channels are congested is easy to compute and has nowhere good to go — Home Assistant has no entity type for a `{channel: count}` map, so it would land as a sensor attribute or a template sensor the user has to build themselves.
 
-## 🔜 Remaining Original Roadmap Items
+**Reopens if:** anyone asks for it, or a presentation that suits a map appears.
 
-These items were on the original list but have not yet been implemented.
-
-### Channel Crowding Map
-
-**Original idea:** Identify which WiFi channels are most congested to help optimize home router settings.
-
-**Assessment (updated for v2.0.0):** The input data is now materially better - channel is derived reliably from the Supervisor's `frequency` field rather than a `channel` key that never existed, and per-network `channel` and `band` are exposed on the detail attributes and in the `get_networks` response. A histogram is therefore a straightforward coordinator computation. The blocker is unchanged and is presentational: there is no clean HA entity type for a `{channel: count}` map, so it would surface as a sensor attribute or a user-built template sensor. Low demand relative to effort; defer unless requested.
+**Detail.** The input data is materially better than when this was first considered: channel is derived reliably from the Supervisor's `frequency` field rather than a `channel` key that never existed, and per-network `channel` and `band` are exposed on the detail attributes and in the `get_networks` response. The computation is a straightforward coordinator step. The blocker is unchanged and purely presentational, and demand is low relative to the effort of designing around it.
 
 ---
 
-### Multi-Interface Support
+## Declined
 
-**Original idea:** Aggregate results from multiple WiFi cards simultaneously in a single integration instance.
+### Multi-interface aggregation
 
-**Assessment:** The integration already supports multiple independent config entries, one per interface. A user with two WiFi adapters can install the integration twice and get separate entity sets for each. True aggregation into a single entity set would require significant rework of the coordinator and entity model. Document the "multiple entries" workaround clearly in the README instead.
+Not doing it. A user with two WiFi adapters can already install the integration twice and get a separate entity set for each; folding them into one set would be a rework of the coordinator and entity model for a presentation preference.
+
+**Detail.** The integration supports multiple independent config entries, one per interface, and that is the supported answer. True aggregation raises questions the current model never has to answer — how a network visible on both adapters is counted, which adapter's signal wins, what the persisted history keys on — none with an obviously right answer. `README.md` should document the multiple-entries approach clearly instead.
+
+### System Role attribute
+
+Not doing it. This was carried over from an earlier script whose context no longer exists, and no use for it in Home Assistant has ever been stated.
+
+**Detail.** The original script is unavailable, so what "System Role" meant cannot now be recovered — which means the item cannot be specified, let alone built. The condition that would revive it, recovering the original context, cannot be met. If someone describes a concrete use from scratch, that is a new item rather than this one.
 
 ---
 
-### System Role Attribute
+## Summary
 
-**Original idea:** Re-integrate "System Role" logic from the original script.
+Forward work only. Declined and Revisit items are recorded above and are not work in progress.
 
-**Assessment:** The original script context is no longer available and the value to HA users is unclear. Removed from active consideration unless a concrete use case is identified.
+Phases of the per-network entities item are listed separately because their Effort differs; they are one item and are not independently orderable.
+
+| Item                                 | Group      | Value    | Effort              |
+| :----------------------------------- | :--------- | :------- | :------------------ |
+| Per-network entities                 | To Be Done | ⭐⭐⭐⭐ | High overall        |
+| — phase 1, my-WiFi count and offline | To Be Done | ⭐⭐⭐⭐ | Medium              |
+| — phase 2, presence entities         | To Be Done | ⭐⭐⭐   | High                |
+| — phase 3, signal sensors            | To Be Done | ⭐⭐⭐   | Low after phase 2   |
+| Visit-count threshold                | To Be Done | ⭐⭐⭐   | Low                 |
+| Appearance / disappearance events    | To Be Done | ⭐⭐⭐   | Medium              |
+| Proximity alert hysteresis           | Maybe      | ⭐⭐     | Medium              |
+| Case-insensitive known-SSID matching | Maybe      | ⭐⭐     | Medium              |
+
+---
+
+## Done
+
+Items that were on this roadmap and have since been built. Detail is in `CHANGELOG.md` and `docs/changelog_local.md`; this records only that the roadmap item was met.
+
+| Item | Origin | Where it landed |
+| :-- | :-- | :-- |
+| **BSSID (MAC address) support** | Original item | Unblocked and delivered in v2.0.0. The Supervisor `/accesspoints` payload does return `mac`, verified on Intel and Raspberry Pi hardware. BSSID is captured in the normalized shape, exposed as `bssid` on the per-network detail, the `get_networks` response and the `new_network` event, and used as the identity for cloaked networks (`Hidden-<last 4 of BSSID>`). `known_wifi_ids` and `denylist_ssids` match against both the network key and the BSSID, so exact MACs and MAC wildcards (`AA:BB:CC:*`) are valid in either list. |
+| **"First seen" events** | Original item | `wifi_ssid_monitor_new_network` in v2.0.0. Fires once per genuinely-new network, keyed on the persisted history so it survives restarts, with the existing set recorded silently as a baseline on first scan and a per-cycle rate limit. Payload carries `entry_id`, `key`, `ssid`, `bssid`, `band`, `channel`, `signal`, `hidden`, `ssid_anomaly`, `mode` and `first_seen`. Supersedes the separate "first detected events" item, whose sketched `hass.bus.async_fire`-on-missing-`first_seen` approach would not have been restart-safe. |
+| **Hardware health monitoring** | Original item | Delivered in v2.0.0 as the Integration Health self-diagnosis sensor, not as raw adapter telemetry — the Supervisor API does not expose that. A `problem` binary sensor that stays available when everything else has gone `unavailable`, backed by a check catalogue and three repair issues: `interface_missing` (the "adapter stalled" case the item described), `signal_format_changed` and `supervisor_unavailable`. It also catches the silent failure the item did not anticipate: a scan that succeeds while the payload shape or units have drifted. |
+| **Signal strength (RSSI) tracking** | Original item | `signal_strengths` dict attribute on the `count` and `unknown_count` sensors, per SSID, sourced from the Supervisor API. |
+| **Dedicated strongest-unknown RSSI sensor** | Original item | `sensor.strongest_unknown_rssi`, `SensorDeviceClass.SIGNAL_STRENGTH` in dBm, so history graphing and numeric automation conditions work without attribute extraction. |
+| **Strongest unknown SSID name sensor** | Original item | `sensor.strongest_unknown_ssid`; `unknown` when no unknown networks are visible. Companion to the `proximity_alert` binary sensor. |
+| **Proximity alerts** | Original item | `binary_sensor.proximity_alert`, firing when the strongest unknown signal meets or exceeds a configurable threshold (originally −60 dBm; now on the 0–100% scale). Threshold and signal both exposed as attributes. |
+| **Frequency and band identification** | Original item | `bands` dict attribute on both count sensors. Originally computed from channel number via `_channel_to_band()` (1–14 → 2.4 GHz, 36–177 → 5 GHz); since v2.0.0 derived from the Supervisor's `frequency` field through the `parse.py` normalization boundary. |
+| **Band filter option** | Original item | `scan_bands` (`all` / `2.4` / `5`), filtering counts, attributes and known-network matching rather than only band display, with undetermined-band APs excluded while a filter is active (strict mode). Since v2.0.0 the single-choice enum is replaced by per-band **Show 2.4 / 5 / 6 GHz** switches. |
+| **Pattern matching (wildcards)** | Original item | Known-SSID matching uses `fnmatch` — `Guest_*`, `IoT_?` and so on — backward-compatible with exact-match lists. |
+| **SSID denylist** | Original item | `denylist_ssids`: SSIDs or `fnmatch` patterns always counted as unknown even when they match the known list. The denylist overrides the known list. |
+| **Hidden network management** | Original item | `include_hidden` toggle; when disabled, APs with no broadcast SSID are filtered before any counting occurs. |
+| **"Last seen" tracking, persisted** | Original item | Started as an in-memory `last_seen` dict populated each scan cycle; now backed by HA's `Store` (`.storage/wifi_ssid_monitor.<entry_id>.last_seen`) so timestamps survive restarts, exposed as ISO timestamps on `unknown_count`. The Store is cleaned up when the entry is deleted. |
+| **"First seen" persistent timestamps** | Original item | `_first_seen` backed by `Store` (`.storage/wifi_ssid_monitor.<entry_id>.first_seen`), written once on first detection and never overwritten, exposed as the `first_seen` attribute on `unknown_count`. |
+| **Unknown SSID visit count** | Original item | `_visit_counts` backed by `Store` (`.storage/wifi_ssid_monitor.<entry_id>.visit_counts`), incremented each scan cycle the network is present, exposed as `visit_counts` on `unknown_count`. |
+| **Auto-expire stale history** | Original item | Configurable TTL in the options flow (0–366 days; `0` keeps forever, default 90), applied on each successful scan before saving and pruning `first_seen` alongside `last_seen`. |
+| **Manual scan** | Original item | `button.scan_now` calls `coordinator.async_refresh()` on press with no interval constraint, and the `scan_now` action does the same for one or all entries — cleaner than pressing the button from an automation and consistent with the other actions. |
+| **Known-list management actions** | Original item | `add_known_ssid` appends, `remove_known_ssid` removes an exact SSID or pattern (silent success if not found), and `set_known_ssids` replaces the whole list in one call and returns the previous list per entry as `SupportsResponse.OPTIONAL` response data, enabling backup/restore patterns. All trigger an immediate re-scan via the update listener when the list changes. Documented in `services.yaml`. |
+| **Clear history action** | Original item | `clear_last_seen` clears `_last_seen`, `_first_seen` and `_visit_counts` and saves empty state to all three Stores; the next scan repopulates from scratch. |
+
+### Retired without being built
+
+| Item | Origin | Outcome |
+| :-- | :-- | :-- |
+| **"First detected" events** | Future option | Superseded by `wifi_ssid_monitor_new_network` above, and never built in its own right. The sketched approach — `hass.bus.async_fire` whenever a network had no `first_seen` value — would have re-fired for every network after a restart. The delivered event keys on the persisted history instead, so it is restart-safe. |
+
+### Off-roadmap deliveries
+
+**Not roadmap items.** None of the following was on any list; they are recorded here only because they shaped v2.0.0 and because the roadmap items above are stated in their terms. Format §2 excludes them from **Done** proper — provenance, not significance, is what qualifies an item — and `CHANGELOG.md` remains the authority on them.
+
+- **The `parse.py` payload normalization boundary**, and the three root-cause bug fixes it enabled: percent signal, frequency→band, and the `wireless` interface type. Every band, channel and signal figure quoted in the items above comes through it.
+- **Per-band Show 2.4 / 5 / 6 GHz switches**, replacing the old single-choice `scan_bands` enum.
+- **The Pause Polling switch**, with force-refresh.
+- **The `get_networks` response action**, returning the full per-network detail to a script rather than through attributes.
+- **The New Networks (24h) LTS sensor.**
+- **The `ssid_anomaly` flag** for control, zero-width and RTL characters in SSIDs.
+- **A structural diagnostics sanitizer.**
+- **Coalesced storage writes** with a hard entry cap, and `_unrecorded_attributes` across the high-churn attributes.
 
 ---
 
 ## Version Control
 
-- **v1.0.1** (2026-04-01) - Created.
-- **v1.1.0** (2026-06-02) - Major rewrite. Marked v1.5.0 delivered items. Reassessed remaining original items. Added new opportunity section based on v1.5.0 capabilities.
-- **v1.2.0** (2026-06-11) - Marked v1.6.0 delivered items. Updated "First Seen Events" assessment. Added new opportunity section based on v1.6.0 capabilities.
-- **v1.3.0** (2026-06-11) - Marked v1.7.0 delivered items. Updated "First Seen Events" assessment to reflect first_seen Store is now live. Replaced v1.6.0 opportunity section with v1.7.0 opportunities.
-- **v1.4.0** (2026-06-11) - Re-bundled: v1.5.0/v1.6.0/v1.7.0 features all ship together as v1.6.0. Renamed delivered sections to Part 1/2/3. Renamed opportunity section to "Future Options".
-- **v1.5.0** (2026-06-12) - Added "Case-Insensitive Known SSID Matching" to Future Options.
-- **v1.6.0** (2026-07-23) - Added "✅ Delivered with v2.0.0". Marked **BSSID (MAC Address) Support** (API uncertainty resolved - `mac` is present), **"First Seen" Events** (delivered as the restart-surviving `wifi_ssid_monitor_new_network` bus event), and **Hardware Health Monitoring** (delivered as the Integration Health self-diagnosis sensor + repairs) as delivered, and removed them from the remaining list. Retired the "First Detected Events" future option as superseded. Updated the **Channel Crowding Map** assessment (channel now derived from `frequency`), the **SSID Appearance / Disappearance Events** scope (first-seen half delivered; re-appear/disappear remains), and **Proximity Alert Hysteresis** to the 0–100% scale. Added **Per-SSID Signal Quality Sensors** to Future Options and cross-linked it with Per-SSID Presence Binary Sensors.
+- **v2.0.0** (2026-08-03) — Restructured to `roadmap_format.md` v1.1.0 and renamed from `docs/FUTURE.md`. Six groups replace the previous per-release "delivered" tables plus a mixed opportunities section. **Done is now membership by provenance**, so the "beyond the roadmap" v2.0.0 paragraph — `parse.py` normalization, the pause-polling switch, the `get_networks` response action, the LTS new-networks sensor, `ssid_anomaly`, the diagnostics sanitizer, coalesced storage writes — no longer qualifies as a roadmap item. **It is kept anyway**, in an explicitly labelled **Off-roadmap deliveries** subsection, along with the retired-unbuilt "first detected events" option: this is the first conversion of this document, and losing content in the move would be indistinguishable from losing it by accident. Both subsections state why they are not Done proper. A later revision may prune them once `CHANGELOG.md` is confirmed to carry everything. Forward items carry Value and Effort; **Track your own WiFi online** is the highest-value forward item and the only one of the three "named network" items needing no dynamic entity creation, so it is To Be Done while the two per-SSID items are Maybe with stated triggers. **Channel crowding map** moved to Revisit with an explicit reopening trigger; **multi-interface aggregation** and **System Role** to Declined, each opening with the decision in one plain sentence. Framing that treated earlier revisions as milestones — "delivered since the original roadmap", "remaining original roadmap items" — removed.
+- **v1.6.0** (2026-07-23) — Added "Delivered with v2.0.0". Marked BSSID support (API uncertainty resolved — `mac` is present), "First Seen" events (delivered as the restart-surviving `wifi_ssid_monitor_new_network` bus event) and hardware health monitoring (delivered as the Integration Health sensor plus repairs) as delivered. Retired "First Detected Events" as superseded. Updated the channel crowding map assessment (channel now derived from `frequency`), the appearance/disappearance scope (first-seen half delivered) and proximity hysteresis to the 0–100% scale. Added per-SSID signal quality sensors, cross-linked with per-SSID presence.
+- **v1.5.0** (2026-06-12) — Added case-insensitive known-SSID matching to Future Options.
+- **v1.4.0** (2026-06-11) — Re-bundled: the v1.5.0/v1.6.0/v1.7.0 features all ship together as v1.6.0. Renamed the delivered sections to Part 1/2/3 and the opportunity section to "Future Options".
+- **v1.3.0** (2026-06-11) — Marked v1.7.0 delivered items; updated the "First Seen" assessment now that the `first_seen` Store is live.
+- **v1.2.0** (2026-06-11) — Marked v1.6.0 delivered items; added an opportunity section based on v1.6.0 capabilities.
+- **v1.1.0** (2026-06-02) — Major rewrite. Marked v1.5.0 delivered items, reassessed the remaining original items, added an opportunity section.
+- **v1.0.1** (2026-04-01) — Created.
