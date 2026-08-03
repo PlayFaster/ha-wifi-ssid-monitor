@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
   - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
   - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
@@ -78,6 +79,63 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.1-dev13] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons
+
+Implements Priority 1 of `.notes/issues/changes_20260803/wifi_changes_20260803.md` — the four standards `[2.0.1-dev12]` mutation-proved to have no working guard, plus the §21 test that could not fail. **217 → 232 tests, 100% coverage held**, `mypy --strict` and `ruff` clean.
+
+**Every test was verified by mutation** — written, then the guarded thing deliberately broken to confirm it goes red, then restored. Ten mutations across `health.py`, `sensor.py`, `parse.py`, `icons.json` and `__init__.py`; all reverted, `git status --short` confirmed clean for `custom_components/` after each, full suite green afterwards. "A test exists" was not the bar; "a test that fails on this regression exists" was.
+
+**One behavior-affecting change**, and it is additive: six action icons. No integration logic changed.
+
+### Added
+
+- **§19 — the `drift` / `degraded_capabilities` split is now guarded.** The `[2.0.1-dev7]` classification was unasserted: `is_drift` appeared nowhere in `tests/`, and flipping four tags left all 217 tests passing. §19's attribute set is a **published contract** users write templates against, so a re-tagged check silently changes what an automation reads.
+  - `tests/test_integration_health.py` — `test_every_check_has_a_firing_fixture` (a check added to `CHECKS` with no fixture fails here rather than quietly shrinking the sweep), `test_every_finding_is_classified_exactly_once` (every key is drift **or** a capability, never neither or both), plus guards for `band_unresolved_some` — the second key one check can produce — and for `is_drift` defaulting to `False`.
+  - `tests/test_coordinator.py` — two published-attribute tests proving the classification actually reaches the attribute a template reads: a payload-shape finding lands in `drift` with `degraded_capabilities` empty, and a failed capability the reverse.
+  - Mutation-verified three ways, including the reverse direction (`interface_missing` → `is_drift=True`).
+
+- **§6 — guard-band coverage and the `TOTAL` ban** (`tests/test_sensor.py`). `test_guard_bands` proved the mechanism on one sensor and said nothing about how many sensors reach it. **The bands themselves were already correct** — all four sensors carrying a unit or `state_class` declare bounds — but nothing held them there.
+  - `test_every_numeric_sensor_has_a_guard_band` — static sweep over `SENSOR_TYPES` with an empty, named `UNGUARDED_ALLOWLIST` and a `>= 4` vacuity floor. Static, not runtime, per §6: a guard band is never published, so no live query can observe one.
+  - `test_unguarded_allowlist_has_no_dead_entries` — an exemption cannot outlive the sensor, the bounds it was granted for, or the sensor's numeric-ness.
+  - `test_no_sensor_uses_the_total_state_class` — empty `ALLOWED_TOTAL_STATE_CLASS`. Zero `TOTAL` today, so it costs nothing; it exists because ZTE's six monthly byte counters shipped as `TOTAL` and walked long-term statistics backwards on every rollover.
+
+- **§6 — rounding at parse time** (`tests/test_parse.py`). `_safe_float` rounds to 3 dp and nothing asserted it. The new test uses `_safe_float("99.930600002408") == 99.931` — the only shape that can fail when `round()` is deleted; the `approx(37.2)` form the standard warns about passes either way. Tolerance contracts for both `_safe_float` and `_safe_int` added alongside.
+
+- **§12 — icon coverage, entities and actions** (`tests/test_entity_hygiene.py`). No icon test existed in any form.
+  - `test_every_live_entity_has_an_icon_or_a_device_class` — sweeps the **live** entity list, not a description list (descriptions here live in a mix of tuples and module-level singletons), and looks up **per platform**, so an entry filed under the wrong platform cannot satisfy it. Also fails on dead entries.
+  - `test_every_registered_action_has_an_icon` — bidirectional against `hass.services.async_services()`, never against the icon file being tested, and rejects the legacy flat declaration form.
+  - Mutation-verified four ways, including the subtle one: moving an icon to the wrong platform.
+
+- **§21 — a removal test that can fail** (`tests/test_init.py`). `test_async_remove_entry` set an entry up, removed it and asserted nothing; it passed, counted toward coverage, and could not fail. Replaced with `test_async_remove_entry_deletes_every_live_store`, which spies on `Store.async_remove` and asserts the coordinator's three **live** `store.key` values against the **observed removal calls** — not against the shared helper, since `store.key == helper(entry_id)` proves only that the write side uses the helper. Plus `test_storage_keys_are_entry_scoped`. Mutation-verified by making removal build its own keys and delete 1 of 3.
+
+- **Action icons** (`icons.json`). Six actions — `add_ssid`, `clear_last_seen`, `get_networks`, `remove_ssid`, `scan_now`, `set_ssids` — in the nested `{"service": "mdi:..."}` form required by `dev_standards` 1.21.0. These render in the automation and script editors and in Developer Tools → Actions; until now all six showed the generic default. Closed here rather than in Priority 2 because the new action test failed on the real gap, and shipping a knowingly-red test is not an option.
+
+### Changed
+
+- **`MIN_ENTITIES_SWEPT` 2 → 16** in `tests/test_entity_hygiene.py`. Measured: 16 of 18 entities publish attributes; the other two publish none and are correctly skipped. At `2` the staleness guard passed while 14 entities could go uninspected — the failure it exists to prevent.
+
+### Notes
+
+- **A defect was found in the new tests themselves.** The first icon sweep reported three dead entries that were not dead: `seen_keys` was recorded *after* the `device_class` skip, so an entity carrying a device class **and** a deliberate icon override looked orphaned. Fixed, with a comment at the site, because it would be easy to reintroduce.
+
+- **Coverage-shaped, not sample-shaped.** Each new test sweeps a set — `CHECKS`, `SENSOR_TYPES`, the live entity list, the registered action set — rather than asserting a known member. Per §11: a test asserting a mechanism passes right up until the mechanism is bypassed, while one asserting every member of a set is covered fails the moment the set grows. Adding a health check without classifying it, a sensor without bounds, an entity without an icon or an action without one now fails.
+
+- **Two Priority 4 items folded in**, both one-file, one-shape changes in files already being edited: `MIN_ENTITIES_SWEPT` (4.1) and the `TOTAL` ban (4.4, which the plan explicitly directed be folded into the §6 work).
+
+### Fixed — Priority 2
+
+- **UK spellings removed from shipped user-facing text.** `doc_style.md` mandates US spelling and `codespell` does not flag UK forms, so nothing would have caught these. The one that mattered is `button.py`'s `about` note — a string users read in the More Info dialog — which said an explicit request is always _honoured_. Eleven substitutions across five files: `honoured` (button.py, README), `neighbouring` / `neighbour` / `neighbours` / `neighbourhood` (diagnostics.py, README, ROADMAP.md), `catalogue` (ROADMAP.md, DEVELOPMENT.md) and `labelled` (ROADMAP.md). The sweep was widened past the four words the review listed and found three more.
+
+- **`sensor.interface` gained an `about` note.** The `dev_std_review` recorded both un-annotated sensors as correct §14 omissions. That was half wrong: `wlan0` is self-explanatory only to a reader who already knows what an interface is, which is the opposite of what the note is for. The new note names the adapter and states the consequence — a different adapter, or one moved elsewhere in the building, sees a different set of networks. `last_updated` stays omitted and is now the single recorded omission; a timestamp named "Last Updated" does explain itself, and §14 warns that annotating everything trains users to ignore notes.
+
+- **`docs/all_sensors.md` → v2.0.0: the device model it described was never built.** The file specified a **System** sub-device (6 entities) and a **Monitor** sub-device (12), each with a `_Group:_` key. There is one flat `DeviceInfo`, and `via_device`, `async_get_or_create` and any `group` field are absent from the whole component — a maintainer following this document would have gone looking for routing code that does not exist. The flat model is now stated explicitly, along with the fact that the sub-devices were never built and that §7 is `N/A` here, so the question is closed rather than reopened.
+
+  The **Key** column was also wrong throughout, listing entity-id suffixes (`total_ssid_count`) where the descriptions use `count`; how Home Assistant derives the entity id from the name is now explained inline. Regrouped by platform, guard bands and device classes added, the `drift` and `degraded_capabilities` health attributes added (missing since `[2.0.1-dev7]`), and the deliberate `about` omission recorded as §14 requires. All 18 keys were reconciled against source programmatically rather than by eye.
+
+- **`docs/value_min_max.md` → v2.0.0: reconciled against the code in both directions**, which §6 requires and which had never been done. Four corrections. **Two bands existed and were undocumented** — `new_24h` (0–4096) and the `proximity_signal_threshold` control range (0–100). **One was understated**: Strongest Unknown Signal was described as clamped in the parse boundary only, when the description also declares `min_limit=0, max_limit=100`. The **Key column was wrong** and the worked example used a `name=` field that is the §12 anti-pattern and appears nowhere in the code. And the **"Future Extensions" section that v1.0.2 records as removed was still present**.
+
+  Added the three sensors that correctly have no bounds, so their absence reads as deliberate; added control-range and state-class sections; and pointed at the three tests from this release that now enforce coverage, exemption hygiene and the `TOTAL` ban — none of which existed when the document was last touched.
 
 ## [2.0.1-dev12] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full
 

@@ -874,8 +874,23 @@ async def test_remove_known_ssid_service_invalid_entry_id(
 
 
 @pytest.mark.asyncio
-async def test_async_remove_entry(hass: HomeAssistant, mock_config_entry):
-    """Test async_remove_entry removes stored data."""
+async def test_async_remove_entry_deletes_every_live_store(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Section 21: every store the coordinator writes is actually removed.
+
+    Asserted against the **observed removal calls**, not against the shared
+    helper. `assert store.key == helper(entry_id)` proves only that the write
+    side uses the helper — if removal built its key independently the test
+    still passes, and that silent-no-op is exactly the drift this standard
+    exists to catch.
+
+    The previous version of this test set an entry up, removed it, and
+    asserted nothing at all. It passed, counted toward coverage, and could
+    not fail.
+    """
+    from homeassistant.helpers.storage import Store
+
     mock_config_entry.add_to_hass(hass)
 
     with patch(
@@ -885,9 +900,43 @@ async def test_async_remove_entry(hass: HomeAssistant, mock_config_entry):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    # Remove the entry, which triggers async_remove_entry
-    await hass.config_entries.async_remove(mock_config_entry.entry_id)
-    await hass.async_block_till_done()
+    # The live keys, taken from the coordinator that writes them.
+    coordinator = mock_config_entry.runtime_data
+    live_keys = {
+        coordinator.store.key,
+        coordinator.store_first_seen.key,
+        coordinator.store_visit_counts.key,
+    }
+    assert len(live_keys) == 3, "the coordinator's three stores must have distinct keys"
+
+    removed: list[str] = []
+    original = Store.async_remove
+
+    async def _spy(self, *args, **kwargs):
+        removed.append(self.key)
+        return await original(self, *args, **kwargs)
+
+    with patch.object(Store, "async_remove", _spy):
+        await hass.config_entries.async_remove(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    missed = sorted(live_keys - set(removed))
+    assert not missed, (
+        f"stores written by the coordinator but not deleted on removal: {missed}. "
+        f"These orphan in config/.storage, unreachable because a re-added entry "
+        f"mints a new entry_id and never reads them."
+    )
+
+
+@pytest.mark.asyncio
+async def test_storage_keys_are_entry_scoped(hass: HomeAssistant, mock_config_entry):
+    """Two entries never share a store, so removing one cannot orphan the other."""
+    from custom_components.wifi_ssid_monitor.const import all_storage_keys
+
+    a = set(all_storage_keys("entry_a"))
+    b = set(all_storage_keys("entry_b"))
+    assert len(a) == 3
+    assert not a & b, "storage keys must be scoped per entry"
 
 
 @pytest.mark.asyncio

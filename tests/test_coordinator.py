@@ -679,3 +679,65 @@ async def test_fetch_failure_interface_missing_repair(
 
     assert coordinator.health_snapshot["problem"] is True
     assert "interface_missing" in coordinator._active_repairs
+
+
+@pytest.mark.asyncio
+async def test_drift_finding_lands_in_drift_not_degraded_capabilities(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A payload-shape finding is published under `drift`, and only there.
+
+    Section 19 publishes the two separately because an automation reacting to
+    a failed capability should not fire on the payload changing shape under a
+    successful fetch. This asserts the split at the published-attribute level:
+    the unit tests classify the Finding, this proves the classification
+    actually reaches the attribute a user's template reads.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    # APs with no frequency resolve to no band — the signature of the payload
+    # change this integration was built after.
+    mock_wifi_api.get_access_points.return_value = [
+        {"mac": "AA:BB:CC:00:00:01", "ssid": "Net1", "signal": 50},
+        {"mac": "AA:BB:CC:00:00:02", "ssid": "Net2", "signal": 40},
+    ]
+
+    # Startup grace (2 scans) then the drift strike budget (3).
+    for _ in range(5):
+        await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["problem"] is True
+    assert snapshot["drift"], "a payload-shape finding must reach `drift`"
+    assert "band_unresolved_all" not in snapshot["degraded_capabilities"], (
+        "a drift finding must not also appear under degraded_capabilities"
+    )
+    assert snapshot["degraded_capabilities"] == []
+
+
+@pytest.mark.asyncio
+async def test_capability_finding_lands_in_degraded_capabilities_not_drift(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A failed capability is published under `degraded_capabilities`, only.
+
+    The mirror of the test above. Together they fail if the `is_drift` tag on
+    either class of check is flipped — which nothing else in the suite does.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    mock_wifi_api.last_interface_present = False
+    mock_wifi_api.get_access_points.return_value = []
+
+    for _ in range(3):
+        await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["problem"] is True
+    assert "interface_missing" in snapshot["degraded_capabilities"]
+    assert snapshot["drift"] == [], (
+        "a capability finding must not appear under drift — that would raise a "
+        "payload-changed alarm for a missing adapter"
+    )

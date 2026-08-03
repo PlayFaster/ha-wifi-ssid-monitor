@@ -35,7 +35,12 @@ ALLOWED_RECORDED: frozenset[str] = frozenset()
 # Below this, the sweep is not meaningfully exercising the integration and a
 # pass would be vacuous — a fixture that stops producing attributes would let
 # a real regression through silently.
-MIN_ENTITIES_SWEPT = 2
+#
+# Measured 2026-08-03: 16 of the integration's 18 entities publish attributes;
+# the other two publish none and are skipped, which is correct. Set to the
+# real figure rather than a token floor — at 2 the guard passed while 14
+# entities went uninspected, which is the failure it exists to prevent.
+MIN_ENTITIES_SWEPT = 16
 
 _ACCESS_POINTS = [
     {
@@ -125,3 +130,148 @@ def test_health_detail_is_unrecorded() -> None:
         "networks_scanned",
     ):
         assert name in unrecorded, f"Section 14 requires '{name}' to be unrecorded"
+
+
+# ---------------------------------------------------------------------------
+# Section 12 (b) and (c): icon coverage.
+#
+# Two properties, deliberately not merged, and neither comparing one artefact
+# against another:
+#
+#  (b) Entities — swept LIVE, not from a description list. Descriptions here
+#      live in a mix of module-level tuples (`SENSOR_TYPES`) and standalone
+#      singletons (`HEALTH_DESCRIPTION`), so any static enumeration drifts the
+#      moment a platform is added. And the check is PER-PLATFORM: flattening
+#      `icons.json` into one key set lets an entry filed under the wrong
+#      platform satisfy it while the entity still renders a default icon.
+#
+#  (c) Actions — every registered action carries an icon, and every icon names
+#      a real action. Action icons appear in the automation and script editors
+#      and in Developer Tools -> Actions; they never appear on the device page
+#      or on an entity, so an integration missing them looks entirely normal
+#      until someone opens the action picker. That invisibility is why this
+#      went unnoticed across the project family until 2026-08-03.
+#
+# Required by dev_standards Section 12 (Standard Version 1.21.0), which
+# extended the section from entity icons to action icons.
+# ---------------------------------------------------------------------------
+
+import json  # noqa: E402
+import pathlib  # noqa: E402
+
+_ICONS = json.loads(
+    (
+        pathlib.Path(__file__).parent.parent
+        / "custom_components"
+        / "wifi_ssid_monitor"
+        / "icons.json"
+    ).read_text(encoding="utf-8")
+)
+
+
+@pytest.mark.asyncio
+async def test_every_live_entity_has_an_icon_or_a_device_class(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """Section 12(b): every entity resolves an icon, checked per platform."""
+    mock_config_entry.add_to_hass(hass)
+
+    entity_icons: dict[str, dict] = _ICONS.get("entity", {})
+
+    with (
+        patch(
+            "homeassistant.helpers.entity.Entity.entity_registry_enabled_default",
+            property(lambda self: True),
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+            new=AsyncMock(return_value=list(_ACCESS_POINTS)),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        checked = 0
+        offenders: list[str] = []
+        seen_keys: set[tuple[str, str]] = set()
+
+        for component in hass.data["entity_components"].values():
+            for entity in component.entities:
+                platform = getattr(entity, "platform", None)
+                if platform is None or platform.platform_name != DOMAIN:
+                    continue
+                checked += 1
+
+                key = entity.translation_key
+                domain = entity.entity_id.split(".", 1)[0]
+
+                # Recorded before the device_class skip below. An entity with a
+                # device class may still carry an explicit icon entry — that is
+                # a deliberate override, not a dead entry — so it must count as
+                # "seen" or the dead-entry check below reports a false positive.
+                seen_keys.add((domain, key))
+
+                # A device class supplies a sensible default icon on its own.
+                if getattr(entity, "device_class", None) is not None:
+                    continue
+
+                # Per-platform lookup on purpose: an entry filed under the
+                # wrong platform must not satisfy this.
+                if key not in entity_icons.get(domain, {}):
+                    offenders.append(
+                        f"{entity.entity_id} (icons.entity.{domain}.{key})"
+                    )
+
+    assert not offenders, (
+        "entities with no device_class and no icons.json entry under their own "
+        "platform:\n" + "\n".join(offenders)
+    )
+    assert checked >= MIN_ENTITIES_SWEPT, (
+        f"icon sweep inspected only {checked} entities — the fixture has gone "
+        f"stale and this test is passing vacuously"
+    )
+
+    # Dead entries mask genuine gaps and inflate any count-based assessment.
+    declared = {(plat, key) for plat, keys in entity_icons.items() for key in keys}
+    dead = sorted(declared - seen_keys)
+    assert not dead, f"icons.json entity entries matching no live entity: {dead}"
+
+
+@pytest.mark.asyncio
+async def test_every_registered_action_has_an_icon(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """Section 12(c): the services block matches the registered actions, both ways."""
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        new=AsyncMock(return_value=list(_ACCESS_POINTS)),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        # Truth comes from what HA has actually registered, never from the
+        # icon file being tested.
+        registered = set(hass.services.async_services().get(DOMAIN, {}))
+
+    assert registered, "no actions registered — this test would pass vacuously"
+
+    declared = _ICONS.get("services", {})
+
+    missing = sorted(registered - set(declared))
+    assert not missing, (
+        f"registered actions with no icons.json entry: {missing}. These render "
+        f"with the generic default in the automation editor and the Actions picker."
+    )
+
+    dead = sorted(set(declared) - registered)
+    assert not dead, f"icons.json service entries matching no registered action: {dead}"
+
+    # The nested `{"service": "mdi:..."}` form, not the legacy bare string:
+    # only the object form can carry per-section icons.
+    flat = sorted(k for k, v in declared.items() if not isinstance(v, dict))
+    assert not flat, (
+        f"action icons declared in the legacy flat form: {flat}. Use "
+        f'{{"service": "mdi:..."}} so a `sections` icon can be added later.'
+    )

@@ -186,3 +186,133 @@ def test_fraction_missing_empty_returns_zero():
     from custom_components.wifi_ssid_monitor.health import _fraction_missing
 
     assert _fraction_missing(ScanFacts(normalized=[]), "mac") == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Section 19: the drift / capability split
+#
+# `degraded_capabilities` and `drift` are a published contract — users write
+# templates against them — and the classification is one `is_drift` flag per
+# check, defaulting to False. Nothing else asserts it: re-tagging a check
+# changes what a user's automation sees and breaks no other test.
+#
+# These are coverage tests, not sample tests. The set they sweep is CHECKS
+# itself, so adding a check without classifying it fails here.
+# ---------------------------------------------------------------------------
+
+# One ScanFacts per check, chosen to make that check fire. Keyed by the check
+# function's name so a renamed or added check shows up as a missing key rather
+# than as a silently smaller sweep.
+_FIRING_FACTS: dict[str, ScanFacts] = {
+    "check_interface_missing": ScanFacts(interface="wlan0", interface_present=False),
+    "check_signal_unit_flip": ScanFacts(
+        signal_unit="dBm", baseline_signal_unit="percent"
+    ),
+    "check_response_shape": ScanFacts(response_had_ap_key=False),
+    "check_field_absent_everywhere": ScanFacts(
+        normalized=[_ap(mac=None), _ap(mac=None)], total_aps=2
+    ),
+    "check_band_unresolved": ScanFacts(
+        normalized=[_ap(band=None), _ap(band=None)], total_aps=2
+    ),
+    "check_field_absent_minority": ScanFacts(
+        normalized=[_ap(mac=None)] + [_ap() for _ in range(9)], total_aps=10
+    ),
+    "check_known_network_canary": ScanFacts(
+        established_known={"HomeNet"}, seen_keys={"Someone else"}
+    ),
+    "check_empty_scan": ScanFacts(total_aps=0, established_known={"HomeNet"}),
+}
+
+# Which published attribute each finding must land in. Every key a check can
+# produce appears exactly once across the two sets.
+_EXPECTED_DRIFT = {
+    "signal_format_changed",
+    "payload_no_ap_list",
+    "payload_field_missing",
+    "payload_field_partial",
+    "band_unresolved_all",
+    "band_unresolved_some",
+}
+_EXPECTED_CAPABILITY = {
+    "interface_missing",
+    "no_known_networks",
+    "empty_scan",
+    "supervisor_unreachable",  # set directly on the failure path, not by a check
+}
+
+
+def test_every_check_has_a_firing_fixture():
+    """Every check in CHECKS is exercised by the classification tests below.
+
+    This is the coverage guard: a new check added to CHECKS with no fixture
+    here makes this fail, rather than quietly shrinking the sweep that the
+    classification tests perform.
+    """
+    from custom_components.wifi_ssid_monitor.health import CHECKS
+
+    missing = [c.__name__ for c in CHECKS if c.__name__ not in _FIRING_FACTS]
+    assert not missing, f"CHECKS entries with no firing fixture: {missing}"
+
+    unused = set(_FIRING_FACTS) - {c.__name__ for c in CHECKS}
+    assert not unused, f"fixtures for checks that no longer exist: {sorted(unused)}"
+
+    for check in CHECKS:
+        assert check(_FIRING_FACTS[check.__name__]) is not None, (
+            f"{check.__name__} did not fire under its fixture — the fixture has "
+            f"gone stale and this check is no longer being classified"
+        )
+
+
+def test_every_finding_is_classified_exactly_once():
+    """Each key a check can produce is either drift or a capability, never both.
+
+    Sweeps CHECKS rather than a hand-listed sample, so a new check with the
+    default `is_drift=False` fails here until it is deliberately classified.
+    """
+    from custom_components.wifi_ssid_monitor.health import CHECKS
+
+    seen: dict[str, bool] = {}
+    for check in CHECKS:
+        finding = check(_FIRING_FACTS[check.__name__])
+        assert finding is not None
+        seen[finding.key] = finding.is_drift
+
+    for key, is_drift in seen.items():
+        in_drift = key in _EXPECTED_DRIFT
+        in_capability = key in _EXPECTED_CAPABILITY
+        assert in_drift != in_capability, (
+            f"'{key}' is in neither or both classification sets — every finding "
+            f"must land in exactly one published attribute"
+        )
+        assert is_drift == in_drift, (
+            f"'{key}' has is_drift={is_drift} but is classified as "
+            f"{'drift' if in_drift else 'a capability'}. Changing this changes "
+            f"which attribute users' automations read."
+        )
+
+
+def test_band_unresolved_minority_is_also_drift():
+    """The second key `check_band_unresolved` can produce is classified too.
+
+    One check, two keys — the sweep above only reaches whichever fires under
+    its fixture, so the other is asserted here rather than left unclassified.
+    """
+    finding = check_band_unresolved(
+        ScanFacts(normalized=[_ap(band=None)] + [_ap() for _ in range(9)], total_aps=10)
+    )
+    assert finding is not None
+    assert finding.key == "band_unresolved_some"
+    assert finding.is_drift is True
+
+
+def test_drift_default_is_false():
+    """A Finding built without an explicit classification is a capability.
+
+    `health.py` advertises that adding a check is a one-line addition, so the
+    default must fail safe: under-claiming drift is recoverable, over-claiming
+    it raises a payload-changed alarm for an environmental condition.
+    """
+    from custom_components.wifi_ssid_monitor.health import Finding
+
+    assert Finding(key="x", severity=SEVERITY_MINOR, message="m").is_drift is False

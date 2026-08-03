@@ -79,6 +79,11 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
         translation_key="interface",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.get("interface"),
+        about=(
+            "The WiFi adapter being scanned, for example wlan0. Every count and "
+            "list here is what this one adapter can see — a different adapter, "
+            "or one moved elsewhere in the building, sees a different set."
+        ),
     ),
     WifiSensorEntityDescription(
         key="last_updated",

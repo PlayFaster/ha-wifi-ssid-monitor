@@ -35,7 +35,12 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 > [!WARNING]
 >
-> **Upgrading from 1.6.x to 2.0.0 or above - breaking changes.** The Version 2.0.0 release corrects long-standing signal-unit and band-filter bugs, which required renaming several things. There are also some moves. This was not done lightly, but the previous set-up was incorrect.
+> **Breaking Changes**
+>
+> - 🛑 **Upgrading from 1.6.x to 2.0.0 or above - breaking changes.**
+>   - The Version 2.0.0 release corrects long-standing signal-unit and band-filter bugs, which required renaming several things.
+>   - There are also some moves. This was not done lightly, but the previous set-up was incorrect.
+> - ✅ If you are installing **new** or already on v2.x or above, there are no issues.
 
 <details>
 
@@ -62,7 +67,6 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
   - [🎯 Use Cases](#-use-cases)
   - [✅ Features](#-features)
   - [🔍 What You Get](#-what-you-get)
-  - [📸 Screenshots](#-screenshots)
   - [📡 Unknown Network Detection](#-unknown-network-detection)
   - [🔘 Controls \& Settings](#-controls--settings)
   - [🧹 Actions (Services)](#-actions-services)
@@ -129,9 +133,27 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 ### 🔌 Action Support
 
-- **Available Actions**: Six callable actions (services) cover the full management lifecycle - add, remove, or replace the known **and** denylist, query live networks (`get_networks`), trigger on-demand scans, and clear history. See [Actions (Services)](#-actions-services) for full parameters and examples.
+- **Available Actions**: Six actions (services) cover the full management lifecycle - add, remove, or replace the known **and** denylist, query live networks (`get_networks`), trigger on-demand scans, and clear history. See [Actions (Services)](#-actions-services) for full parameters and examples.
+
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Screenshot:
+</summary><br>
+
+![Action Add SSID](.github/images/wifi_ssid_mon_action_list.png)
+
+---
+
+</details>
+
+<br>
+
+---
 
 ## 🔍 What You Get
+
+![Main Integration Screen](.github/images/wifi_ssid_mon_integration_screen.png)
 
 This integration provides its 18 entities under a single **WiFi SSID Monitor** device - sensors, binary sensors, numbers, switches, and a button, all enabled by default.
 
@@ -282,14 +304,6 @@ The remaining sensors (text, timestamp, non-measurement, binary and control) do 
 </details>
 
 <br>
-
-## 📸 Screenshots
-
-Screenshots are embedded throughout the document near relevant sections. This is just the Integration Overview screen.
-
-### Integration Overview
-
-![Main Integration Screen](.github/images/wifi_ssid_mon_integration_screen.png)
 
 ## 📡 Unknown Network Detection
 
@@ -970,7 +984,7 @@ triggers:
       minutes: 10
     note: |
       Watches your base count - total networks minus unknown ones - which is how many of
-      your own networks are broadcasting. Subtracting unknown means a neighbour's network
+      your own networks are broadcasting. Subtracting unknown means a neighbor's network
       drifting in and out never moves it. Checks has_value() to ensure scanner entities
       are online and valid before evaluating. Set the < 3 to your own base: if you normally see
       4 total with 1 unknown, your base is 3, so < 3 fires the moment it drops to 2.
@@ -1027,7 +1041,7 @@ actions:
       entity_id: button.wifi_ssid_monitor_scan_now
     note: |
       Runs a scan immediately rather than waiting for the next interval. It works even
-      while Pause Polling is on - an explicit request is always honoured - and raises an
+      while Pause Polling is on - an explicit request is always honored - and raises an
       error if the scan fails, so the automation reports rather than silently doing nothing.
 ```
 
@@ -1304,10 +1318,21 @@ Use the **shortcut badge** above, then proceed to Step 3 - or just …
 
 ### 💾 Manual Installation
 
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
+</summary><br>
+
 1. Download the [latest release](https://github.com/PlayFaster/ha-wifi-ssid-monitor/releases).
 2. Copy the `custom_components/wifi_ssid_monitor` folder to your Home Assistant `custom_components` directory
 3. Restart Home Assistant
 4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
+
+---
+
+</details>
+<br>
 
 ### 🔄 Updating
 
@@ -1400,6 +1425,12 @@ After initial setup, settings can be updated by clicking the **Gear icon** ( ⚙
 > [!NOTE]
 >
 > **Scan Interval, Band Filter, Include Hidden Networks and Proximity Threshold are control entities - not setup or configure fields.** They live on the device page as switches and numbers so they can be changed from a dashboard or an automation without reopening Configure. See [Runtime Controls & Settings](#-runtime-controls--settings-entities) for the full list.
+
+---
+
+> [!TIP]
+>
+> Changing Name on the Reconfigure screen will change the name of the WiFi SSID Scanner device the integration provides, but will not change the individual sensor entity names. This only happens at set-up, not reconfigure.
 
 ![(Re)Configure](.github/images/wifi_ssid_mon_reconfig_screen.png)
 

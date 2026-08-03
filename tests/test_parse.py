@@ -171,3 +171,53 @@ def test_normalize_access_point_hidden():
     assert result["hidden"] is True
     assert result["label"] == "Hidden-0002"
     assert result["ssid_anomaly"] is True
+
+
+# ---------------------------------------------------------------------------
+# Section 6: rounding at parse time.
+#
+# The trap this must avoid is a "valid input" assertion: `_safe_float("37.2")
+# == approx(37.2)` passes unchanged if the rounding is deleted, so it proves
+# nothing. The input below has more precision than the helper keeps, which is
+# the only shape of test that can fail when `round(...)` is removed.
+#
+# This matters because it is invisible on a dashboard:
+# `suggested_display_precision` hides excess decimals on screen while the
+# unrounded value still reaches the recorder and long-term statistics.
+# ---------------------------------------------------------------------------
+
+
+def test_safe_float_rounds_at_parse_time():
+    """Excess precision is curtailed where the value is parsed."""
+    from custom_components.wifi_ssid_monitor.parse import _safe_float
+
+    # Controllers emit values like this; 3 dp is what reaches the recorder.
+    assert _safe_float("99.930600002408") == 99.931
+    assert _safe_float(66.6666666666) == 66.667
+    assert _safe_float(-42.987654321) == -42.988
+
+    # A value already inside the precision is returned unchanged.
+    assert _safe_float("37.25") == 37.25
+
+
+def test_safe_float_tolerates_absent_and_bad_values():
+    """None, empty string and bad types fall back to the default."""
+    from custom_components.wifi_ssid_monitor.parse import _safe_float
+
+    assert _safe_float(None) is None
+    assert _safe_float("") is None
+    assert _safe_float("not-a-number") is None
+    assert _safe_float([1, 2, 3]) is None
+    assert _safe_float(None, 1.5) == 1.5
+
+
+def test_safe_int_tolerates_absent_and_bad_values():
+    """The integer helper carries the same tolerance contract."""
+    from custom_components.wifi_ssid_monitor.parse import _safe_int
+
+    assert _safe_int("48") == 48
+    assert _safe_int("48.9") == 48
+    assert _safe_int(None) is None
+    assert _safe_int("") is None
+    assert _safe_int("not-a-number") is None
+    assert _safe_int(None, 7) == 7

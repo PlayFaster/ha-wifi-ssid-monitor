@@ -35,7 +35,7 @@ class WifiScanButton(WifiScanEntity, ButtonEntity):
 
     _attr_about = (
         "Runs a scan immediately, including while Pause Polling is on — an "
-        "explicit request is always honoured."
+        "explicit request is always honored."
     )
 
     def __init__(
