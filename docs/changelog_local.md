@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
   - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
@@ -78,6 +79,80 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.1-dev12] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full
+
+**The devcontainer is running.** Everything flagged unvalidated in `[2.0.1-dev6]` through `[2.0.1-dev9]` is now backed by a real run: `pytest` **217 passed at 100% coverage**, `mypy --strict` clean, `ruff`, hassfest and the remaining validations passing.
+
+**One source change in this entry** (`quality_scale.yaml`); everything else is documents, records and findings. No behavior changed.
+
+### Changed
+
+- **`docs/FUTURE.md` → `docs/ROADMAP.md`**, refactored to `roadmap_format.md`. Closes `x_proj_checks_20260802.md` §3.3, which listed WiFi as needing "a rename plus a refactor". Six groups replace the previous per-release delivered tables and mixed opportunities section. **Done is now membership by provenance**, so the off-roadmap v2.0.0 deliveries no longer qualify — they are kept in an explicitly labelled subsection rather than dropped, because this is the first conversion and losing content in the move would be indistinguishable from losing it by accident.
+
+  Three items merged into one **Per-network entities** item with a shared foundation and three phases (my-WiFi count and offline sensors → per-network device trackers → per-network signal sensors). They were one feature listed three times: all three read the same list, and building them separately would have produced three lists, two parallel presence calculations and a signal sensor with no defined "gone" state.
+
+  Phase 2's entity type is **decided: `device_tracker` on `BaseScannerEntity`**, with a dated prior-art subsection so it is not re-searched. An access point is a physical device, so `home` states the useful fact — it is in or near this house — which holds for a network the user owns and equally for one they are watching, and the transition to `not_home` is the event worth having. `ScannerEntity` is recorded as the wrong class and the one that would be actual misuse: it is for devices that connect to the IP network and are identified by MAC, which an observed AP does not do.
+
+  The old presence item's "is my work laptop nearby?" framing is removed — a laptop does not broadcast an SSID, so the example described something the feature cannot do.
+
+- **`.shared/dev_std/roadmap_format.md` → v1.2.0.** New **§4 Tone and language** with a test — _does the opening sentence say what would be built?_ — after the conversion produced an item promising something that "cannot be fooled and needs no per-install tuning" without ever saying it was two entities. States explicitly that uncertainty is in scope and length is not the target, so it is not read as an instruction to be terse. Sections renumbered from 4 onward.
+
+- **`.shared/dev_std/dev_standards.md` → 1.21.0: §12 extended from entity icons to action icons.** A gap in the standard, not in this project. The `**Test:**` tag had carried check (c) for services since 1.13.0 while the section's **Standard** line and `Icons (standard)` bullet described entities only — so the tag mandated a test for a requirement the section never stated, and every project read §12's body and correctly concluded action icons were not required. Found here: `icons.json` carries **no `services` block** while six actions are registered, and the finding had nowhere to attach.
+
+  The Standard line now names action coverage; a new **Action icons (standard)** bullet gives the required nested `{"service": "mdi:…"}` form, records the flat string form as legacy-but-working, and states **where these icons appear** — the automation and script editors and Developer Tools → Actions, and nowhere on the device page or an entity, which is why an integration missing them looks entirely normal. Check (c) renamed Services → Actions and made bidirectional. Tag header corrected from "Two checks" to three. Also recorded that **no IQS rule reaches action icons**, so this half of §12 is PlayFaster-only.
+
+  All four projects' `icons.json` were enumerated: **ZTE** 4 actions nested (the reference), **UniFi** 7 actions flat/legacy, **WiFi** and **Huawei** no block at all. Cross-project status and UniFi's format conversion tracked in `x_proj_checks_20260802.md` **§3.7** (that document bumped to v1.1.0). §12's `DONE` cells for ZTE and UniFi are now assessed against superseded wording and were **deliberately not changed** — they belong to those projects' own review passes.
+
+- **`custom_components/wifi_ssid_monitor/quality_scale.yaml`: `reauthentication-flow` `done` → `exempt`**, with a comment. Not a shortfall — `async_step_reauth` and `async_step_reauth_confirm` exist and re-validate the interface — but this integration stores **no credential**: the Supervisor token is read from `SUPERVISOR_TOKEN` at call time and never enters the config entry or a schema, so nothing can fail authentication and `ConfigEntryAuthFailed` is never raised. `done` read as an authentication surface that does not exist. The comment records that the steps are **retained**, so they are not later removed as dead code. Matrix cell in `ha_quality_standard.md` moved to `N/A` to match; that document is now **v1.15.2**.
+
+### Notes
+
+- **Four standards were mutation-proved to have no working guard.** Each mutation was reverted and the revert confirmed by `git status --short` on `custom_components/` and `tests/`; the full suite was re-run green afterwards.
+
+  | Mutation | Result |
+  | :-- | :-- |
+  | Removed `min_limit`/`max_limit` from `strongest_unknown_signal` | **217/217 pass** — §6 guard-band coverage unguarded |
+  | Deleted `entity.sensor.interface` from `icons.json` | **217/217 pass** — §12 icons unguarded |
+  | Flipped four `is_drift=True` → `False` in `health.py` | **217/217 pass** — the `[2.0.1-dev7]` attribute split unguarded |
+  | (`test_async_remove_entry` already asserts nothing) | cannot fail — §21 unguarded |
+
+  The `drift` one is the most valuable missing test in the project: §19's attribute set is a **published contract** users write templates against, `is_drift` appears nowhere in `tests/`, and re-tagging a check today would break nothing.
+
+- **The §14 sweep is effective — and its `entity_registry_enabled_default` patch is inert here.** Removing `severity` from the health sensor's `_unrecorded_attributes` failed both the runtime sweep and the static guard, so `[2.0.1-dev8]`'s test is not in the state `zte_router_5g`'s was. But **no entity in this project is disabled by default**, so the class of failure that patch was added for cannot occur; keep it, but do not read its presence as evidence the sweep was validated against that case. `MIN_ENTITIES_SWEPT` is still `2` against a **measured 16** — the sweep counts only entities publishing attributes, so 16 of 18 is correct, and at `2` the staleness guard is nearly vacuous.
+
+- **§21 corrected: the drift bug is not live here.** `[2.0.1-dev9]` claimed it was. A probe confirmed all three store keys reach `Store.async_remove` and both sides build them from the same three helpers in `const.py`. The gap is a missing guard, not a defect — which lowers its urgency without changing its status.
+
+- **§9 is `N/A`, not `PENDING`.** The integration stores no secret to pre-fill. Like §10, a real answer rather than an unassessed one.
+
+- **§12 translations reconcile clean**, verified by the code-to-artefact check rather than by comparing the two JSON files: 18 of 18 entity keys across all five present platforms resolve in both `strings.json` and `translations/en.json`, with no orphan in either direction. The standard is met; what is missing is the test that keeps it met.
+
+- **Guard bands are already in place — only the test is outstanding.** Worth stating plainly, because the §6 finding is easy to misread as "add bounds". All four sensors that §6 asks about declare them: `count` and `unknown_count` 0–256, `new_24h` 0–4096, `strongest_unknown_signal` 0–100. The other three carry neither a unit nor a `state_class` and correctly need none — `interface` and `strongest_unknown_ssid` are text, `last_updated` is a `TIMESTAMP` device class. Both `number` entities are bounded by `native_min_value` / `native_max_value`.
+
+- **The `about` omission assessment was revised.** The review recorded both un-annotated sensors — `interface` and `last_updated` — as correct omissions under §14. Half wrong: `wlan0` is self-explanatory only to someone who already knows what an interface is, which is the opposite of what an `about` note is for. `interface` gains a note; `last_updated` stays omitted, since a timestamp named "Last Updated" does explain itself and §14 warns that annotating everything trains users to ignore notes. The recorded omission set is therefore **one entity, not two**.
+
+### Reviews
+
+Two full passes were run. Both reports are in `.notes/dev_std/`; the consolidated work list is `.notes/issues/changes_20260803/wifi_changes_20260803.md`.
+
+- **`dev_std_review` — `.notes/dev_std/dev_std_review_20260803_1438.md`.** First on this project. All 22 sections: **9 DONE, 9 PARTIAL, 0 PENDING, 4 N/A**, 20 findings. Gaps are almost entirely coverage rather than correctness. Two are not: `docs/all_sensors.md` documents a **two sub-device architecture that does not exist** — one flat `DeviceInfo`, no `via_device`, no `async_get_or_create`, no `group` field anywhere — and `about` notes shipped to users carry UK spellings against `doc_style.md`, which `codespell` does not flag. §19 and §20 were assessed as the strongest work in the family.
+
+- **`iqs_next_steps` at `SCAN=Full` — `.notes/dev_std/next_steps_20260803_1451.md`.** All 48 `done` cells re-validated against source rather than accepted. **All 48 hold; no gap at any tier.** The three 1e verification checks all ran with real coverage and were clean: cross-table verdict diff 54 compared with no mismatches, code-to-artefact reconciliation clean on all five platforms, YAML-vs-matrix 54 compared with zero conflicts.
+
+  **One finding was raised and withdrawn before it was recorded.** `icon-translations` was drafted as a downgrade to PARTIAL because `icons.json` carries no `services` block while six actions are registered. That was wrong: the Gold rule is _"Entities implement entity icon translations"_ and is **entity-scoped**. Service icons are real — they render in the automation and script editors and the Developer Tools Actions picker — but they belong to `dev_standards` §12 check (c), not to any IQS rule. The cell stands at `done` and the item is tracked in the changes document.
+
+  **`test-coverage` carries no quality requirement, verified.** The rule text is _"Above 95% test coverage for all integration modules"_, with `config-flow-test-coverage` requiring 100% of `config_flow.py` at Bronze. Neither says anything about assertions, meaningfulness or test quality. An earlier draft of the report editorialised that the 100% figure was "true and incomplete"; that extended the rule past what it claims and was removed. The four unguarded standards above are `dev_standards` findings and are recorded there.
+
+### Records
+
+- **`dev_standards.md` → Section Conformance**, 10 cells in the `wifi_ssid_monitor` column: §2 → `N/A`; §3, §5, §6, §11, §12, §13, §14, §16, §21 → `PARTIAL`.
+- **`dev_standards.md` → Standards Test Coverage**, 2 cells: §9 `PENDING` → **`N/A`**, §14 `UNVERIFIED` → **`DONE`** — the first cell in that table to clear the §11 mutation bar in this project. Known-gaps bullets rewritten to match.
+- **`dev_standards.md` → Project Deviations**, 2 entries: **§3** (no root registered before forwarding; root keyed on `entry_id`, which is not on the identity ladder — there is no MAC, no IP, and the monitored host is the HA machine itself) and **§13** (Refresh Now ships as `scan_now`, deliberately not renamed because HA never renames an existing `entity_id`). §5 display scaling was **not** recorded as a deviation: it is an unmet bullet awaiting a decision, not a decision already taken.
+- No version entry appended to `dev_standards.md` — this pass changed matrix cells and their bullets, not the standard's own text.
+
+### Fixed
+
+- **`docs/DEVELOPMENT.md`** — the live cross-reference to `FUTURE.md` updated to `ROADMAP.md`. The dated `changelog_local` mention at `[1.6.0]` is left as-is: it records what was true at the time, per `roadmap_format.md` §1.
+
 ## [2.0.1-dev11] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps
 
 ### Changed
@@ -113,30 +188,45 @@ Reinforced example automations in `README.md` to prevent false triggers during s
 
 Six sections now carry a `**Test:**` tag — tagged only where breaking the standard is **silent** and the check is **exact**. This project's cells:
 
-| §   | What the test must assert                                    | Status         |
-| :-- | :----------------------------------------------------------- | :------------- |
-| 6   | rounding applied at parse time                               | **PENDING**    |
-| 9   | stored secrets never pre-filled into a schema                | **PENDING**    |
-| 10  | session-terminating call awaited on unload                   | **N/A**        |
-| 12  | translations + icons reconciled against code / live entities | **PENDING**    |
-| 14  | runtime sweep: every published attribute unrecorded          | **UNVERIFIED** |
-| 21  | live `store.key` among the keys removal actually deletes     | **PENDING**    |
+| §   | What the test must assert                                    | Status      |
+| :-- | :----------------------------------------------------------- | :---------- |
+| 6   | rounding applied at parse time                               | **PENDING** |
+| 9   | stored secrets never pre-filled into a schema                | **N/A**     |
+| 10  | session-terminating call awaited on unload                   | **N/A**     |
+| 12  | translations + icons reconciled against code / live entities | **PENDING** |
+| 14  | runtime sweep: every published attribute unrecorded          | **DONE**    |
+| 21  | live `store.key` among the keys removal actually deletes     | **PENDING** |
 
 Detail:
 
 - **§10 is `N/A`, and that is a real answer rather than an unassessed one.** The Supervisor API holds no session to terminate, so there is nothing for an unload test to assert. The two router integrations both need this test; this one does not.
 - **§6** — `_safe_float` (`parse.py:63`) rounds to 3 dp correctly, but no test asserts it: `test_safe_float_bad_types` covers bad input only, and in fact exercises `normalize_signal` rather than the helper directly.
-- **§21 is the most concrete gap in this table.** `tests/test_init.py::test_async_remove_entry` sets an entry up, removes it, and **asserts nothing at all**. It is named for the standard, counts toward coverage, and cannot fail — the exact shape of problem the new §11 mutation bar exists to reject. `unifi_network_monitor` has a real version to model on. This project writes three `Store` files, so the drift bug §21 describes — removal silently deleting nothing — is live here.
-- **§12** — `tests/test_services.py::test_exception_translations` checks one exception key. That satisfies the IQS `exception-translations` rule, **not** this tag, which requires reconciling every entity `translation_key` and every icon against the code.
-- **§14** — the sweep was ported on 2026-07-27 but has never been executed, so it has not cleared the §11 bar. `UNVERIFIED`, deliberately not `DONE`.
+- **§21 is the most concrete gap in this table.** `tests/test_init.py::test_async_remove_entry` sets an entry up, removes it, and **asserts nothing at all**. It is named for the standard, counts toward coverage, and cannot fail — the exact shape of problem the new §11 mutation bar exists to reject. `unifi_network_monitor` has a real version to model on.
 
-> [!IMPORTANT] Still no devcontainer for this project, so nothing in `[2.0.1-dev7]`, `[2.0.1-dev8]` or the statuses above has been verified by a test run. The `drift` attribute change in dev7 is a **behaviour** change and is the one most worth running first.
+  **Corrected 2026-08-03:** this entry previously claimed the §21 drift bug "is live here". It is not. `async_remove_entry` builds its key list from `all_storage_keys()`, and the coordinator builds its three `Store` keys from the same three helpers, so the two sides cannot diverge by construction. A probe confirmed it: all three keys are passed to `Store.async_remove`, none missed. The gap is a **missing test**, not a live defect — which lowers its urgency but not its status, since nothing currently stops a fourth store being added without a matching helper.
+
+- **§9 is `N/A`, established 2026-08-03.** The integration stores no secret to pre-fill. The Supervisor token is read from `SUPERVISOR_TOKEN` in the environment at call time (`api.py:26`) and never enters the config entry or any schema; `config_flow.py` collects only name, interface, and the SSID lists. Like §10, this is a real answer rather than an unassessed one.
+- **§12** — `tests/test_services.py::test_exception_translations` checks one exception key. That satisfies the IQS `exception-translations` rule, **not** this tag, which requires reconciling every entity `translation_key` and every icon against the code.
+
+  **Reconciled by hand 2026-08-03 and clean:** `strings.json` and `icons.json` carry the same 16 entity keys, with no orphan in either direction, and every one resolves to a key in the code. So the standard is **met**; what is missing is the test that keeps it met. Note that service names and descriptions live inline in `services.yaml` rather than in a `services` block in `strings.json` — the older supported style, not a defect, but outside what an entity-key reconciliation test would cover.
+
+- **§14** — the sweep was ported on 2026-07-27 and executed for the first time on 2026-08-03. It passes and found nothing leaked, so `DONE`. See the caveats in `[2.0.1-dev8]`: it has not been mutation-checked in this project, and `MIN_ENTITIES_SWEPT` is still at its placeholder value.
+
+> [!NOTE] **Updated 2026-08-03.** The devcontainer is running, and `[2.0.1-dev7]`, `[2.0.1-dev8]` and this entry are backed by a real run: `pytest` 100% pass at 100% coverage, `mypy --strict` clean, other validations passing. §14 moves to `DONE` on that basis.
+>
+> **The four `PENDING` cells are unaffected by a green run, and that is the point.** They are missing tests, not unverified ones — a suite that passes says nothing about an assertion nobody wrote. §21 is the sharp case: `test_async_remove_entry` still sets an entry up, removes it and asserts nothing, so it passes, counts toward the coverage figure, and cannot fail. A 100% pass rate is precisely the condition under which that defect is invisible.
 
 ## [2.0.1-dev8] - 2026-07-27 - §14 Enforcement Test
 
 Implements the enforcement half of `dev_standards` §14 as revised at **Standard Version 1.12.0**. The attribute fixes themselves landed in `[2.0.1-dev7]`; this entry adds the test that stops them recurring.
 
-> [!IMPORTANT] **Unvalidated.** This project's devcontainer was not running, so the new test file has **never been executed**. `ruff format` and `ruff check` were run against this project's own config by copying the file into a running sibling container; both clean. `MIN_ENTITIES_SWEPT` is set to 2 based on this project's entity count and may need tuning on first run.
+> [!NOTE] **Validated 2026-08-03.** The devcontainer is running and the sweep has now been executed: it passes, as does the rest of the suite at 100% coverage with `mypy --strict` clean. It found no leaked attribute, so the static fixes in `[2.0.1-dev7]` were complete.
+>
+> **Mutation-checked 2026-08-03 and effective.** Removing `severity` from the health sensor's `_unrecorded_attributes` failed both the runtime sweep and the static guard, so the sweep is doing real work here — it is not in the state `zte_router_5g`'s was, where the test passed with a key deliberately removed.
+>
+> Two notes from that run. The `entity_registry_enabled_default` patch is **inert in this project**: no entity here sets `entity_registry_enabled_default = False`, so the failure mode it was added for cannot occur. Keep it — it costs nothing and the moment a disabled-by-default entity is added it starts mattering — but do not read its presence as evidence the sweep was validated against that case, because there is no such case to validate against.
+>
+> And `MIN_ENTITIES_SWEPT` is still `2` against a measured **16**. The sweep counts only entities that publish attributes, so 16 of the 18 in `docs/all_sensors.md` is correct and the two skipped ones publish none. Raise the floor to 16 so a setup regression that sweeps almost nothing is caught; at `2` the guard is nearly vacuous.
 
 ### Added
 
@@ -153,7 +243,9 @@ Implements the enforcement half of `dev_standards` §14 as revised at **Standard
 
 ## [2.0.1-dev7] - 2026-07-27 - §19 `drift` Attribute
 
-> [!IMPORTANT] **Unvalidated.** This project's devcontainer was not running, so no pytest, mypy or coverage run backs these changes. `ruff format` and `ruff check` **were** run, against this project's own `pyproject.toml` and `.validate/pyproject_common.toml`, by copying the three edited files into a running sibling container — both clean. Treat everything below as needing a validation pass before release.
+> [!NOTE] **Validated 2026-08-03.** The devcontainer is running. `pytest` passes at 100% with 100% coverage, `mypy --strict` is clean, and the remaining validations pass. The code below is no longer resting on the `ruff`-only checks originally done by copying files into a sibling container.
+>
+> [!WARNING] **The `drift` split itself is unguarded, found 2026-08-03.** Flipping four `is_drift=True` tags in `health.py` to `False` — reversing most of this entry's behaviour change — leaves the whole suite passing, 217 tests. No test asserts that a drift-tagged check lands in `drift` rather than `degraded_capabilities`; `is_drift` appears nowhere in `tests/`, and `drift` only in the static hygiene guard, which asserts the attribute is unrecorded and says nothing about its contents. 100% coverage means those lines executed, not that the classification was checked. This is the most valuable test missing from the project: it guards a documented attribute contract that users template against, and re-tagging a check today would break nothing.
 
 ### Added
 
@@ -167,7 +259,7 @@ Implements the enforcement half of `dev_standards` §14 as revised at **Standard
 
 - **`severity` and `networks_scanned` were published but not recorder-excluded.** Found while adding `drift` to `_unrecorded_attributes`. §19 requires the health detail to live in _unrecorded_ attributes, and `_unrecorded_attributes` had fallen behind `extra_state_attributes` — so two diagnostic fields, one of them changing on every scan, were being written to the recorder database on every state change. All published attributes are now listed, with a comment stating the list must track the property.
 
-  **This is why the sibling project caught its equivalent and this one did not:** `zte_router_5g` has `test_attributes_are_unrecorded`, which walks the published attributes and asserts each is excluded. It flagged its own missing entry on the first run of this change. No equivalent test exists here — worth adding when this project is next validated.
+  **This is why the sibling project caught its equivalent and this one did not:** `zte_router_5g` has `test_attributes_are_unrecorded`, which walks the published attributes and asserts each is excluded. It flagged its own missing entry on the first run of this change. No equivalent test existed here at the time — `tests/test_entity_hygiene.py` in `[2.0.1-dev8]` is that test, and it now passes.
 
 - **Pre-existing E501** on the `degraded_capabilities` line in `binary_sensor.py`, wrapped by `ruff format`. It predates this session and indicates this file has not been linted recently.
 
@@ -179,9 +271,9 @@ Implements the enforcement half of `dev_standards` §14 as revised at **Standard
 
 Follows a three-way review of `wifi_ssid_monitor`, `unifi_network_monitor` and `zte_router_5g`, checking that the three meet the shared standards the **same way** rather than merely meeting them. The functionality differs by design; the approaches should not.
 
-> [!IMPORTANT]
+> [!NOTE]
 >
-> **Not yet validated.** These changes were made while this project's devcontainer was not running. `pytest`, `ruff` and `mypy` have **not** been run against them — do that before this entry is considered complete.
+> **Validated 2026-08-03.** The devcontainer is running. `pytest` passes at 100% with 100% coverage, `mypy --strict` is clean, and the remaining validations pass. The attribute renames and the test-file rename are confirmed by a real run; this entry is complete.
 
 ### Changed
 

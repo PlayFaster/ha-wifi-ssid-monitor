@@ -44,9 +44,16 @@ rules:
   integration-owner: done
   log-when-unavailable: done
   parallel-updates: done
-  reauthentication-flow: done
+  reauthentication-flow:
+    status: exempt
+    comment: |
+      No credentials to re-authenticate. The Supervisor token is read from the
+      SUPERVISOR_TOKEN environment variable at call time and is never stored in
+      the config entry or rendered into any schema, so no authentication can
+      fail and ConfigEntryAuthFailed is never raised.
+      async_step_reauth / async_step_reauth_confirm are retained and
+      re-validate the interface if Home Assistant ever initiates the flow.
   test-coverage: done
-
   # Gold
   devices: done
   diagnostics: done

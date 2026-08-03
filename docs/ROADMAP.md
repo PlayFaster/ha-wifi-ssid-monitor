@@ -44,19 +44,41 @@ Naming the expected networks removes all three, and needs no threshold.
 
 **No dynamic entity creation**, which is what keeps this phase at Medium and lets it ship first.
 
-#### Phase 2 — per-network presence entities · **Effort High**
+#### Phase 2 — per-network device trackers · **Effort High**
 
 One entity per network showing whether it is currently visible. This is the phase that carries the hard mechanism; phases 1 and 3 are cheap on either side of it.
 
-- **Entity type is undecided** — a `binary_sensor` or a `device_tracker`. `device_tracker` is the closer fit if the network being visible is treated as a location signal (a phone hotspot arriving home), `binary_sensor` if it is treated as equipment being up. This should be settled before any code, because it is not a cheap change afterwards.
+- **`device_tracker`, built on `BaseScannerEntity`** — decided, see the prior art below. An access point is a physical device, and `home` states the useful fact: that device is in or near this house. That holds for a network the user owns and equally for one they are suspicious of, where the day the state changes to `not_home` is the point of tracking it at all. A `binary_sensor` was the alternative and is rejected: presence binary sensors carry a motion or occupancy connotation they do not shed, and a broadcasting AP is not that.
 - **Scope option** — which networks get an entity, because "all of them" in a dense location is hundreds. The choices are: off (default), my-WiFi only, known only, unknown only, or an explicit list. Off by default matters: a user upgrading should not silently acquire a hundred entities.
 - **Created on sighting, not on configuration.** An entity appears the first time a network matching the scope is seen, so the list does not have to be written by hand in advance.
 - **Cleanup by age** — an action and a button that remove entities for networks not seen for N days (configurable, default 90, matching the existing history TTL). Creation on sighting means entities accumulate, so an explicit prune is part of the mechanism and not an afterthought.
-- **A defined "gone" state** — `unknown` when the network is not visible but the scan is healthy, `unavailable` only when the scan itself failed. This is the existing convention and phase 3 depends on it.
+- **A defined "gone" state** — `not_home` when the network is not visible but the scan is healthy, `unavailable` only when the scan itself failed. `is_connected` is `False`, not `None`, in the first case: the scan ran and the network was not in it, which is a negative answer rather than no answer. Phase 3 depends on this distinction.
 
 **Watch out for:** a wildcard in an explicit scope list matching far more networks than intended. The resolved set needs a cap, with the overflow reported rather than silently truncated.
 
 **Relationship to phase 1.** Once this exists, `My WiFi Online` is a rollup of the my-WiFi subset of these entities. It must be reimplemented as that rollup rather than left running as a second, parallel presence calculation.
+
+##### Prior art — `device_tracker` is sanctioned for this
+
+Checked 2026-08-03, so it does not need re-searching. Home Assistant defines a device tracker as "a read-only entity that provides presence information" and imposes no rule tying it to people; the Person integration is an optional consumer of device trackers, not their definition. Three base classes exist and picking the right one is the whole question:
+
+| Class | Meant for | Fit here |
+| :-- | :-- | :-- |
+| `ScannerEntity` | "tracking devices which connect to an IP network and can be identified by MAC address" | **No.** An observed AP does not connect to this network — its beacon is read passively. Using this class would be the actual misuse. |
+| `BaseScannerEntity` | "integrations which have scanners which do not track connection to a WLAN or other local network, for example scanners which track connection to a BLE beacon" | **Yes.** A WiFi beacon is the same shape as a BLE beacon: broadcast, passive, no association. |
+| `TrackerEntity` | GPS coordinates or zone membership | No. There are no coordinates. |
+
+**The `home` state is correct, not a compromise.** An AP is a physical device at a fixed place, so `home` asserts that the device is in or near this house — true for a network the user owns and equally true for one they are watching. The state changing to `not_home` is the event worth having.
+
+**`binary_sensor` was the alternative.** Rejected: presence binary sensors are conventionally motion or occupancy, and that reading does not come off. A network is not activity.
+
+**The volume risk is real and is precedent, not theory.** The iBeacon integration "will not automatically create iBeacon devices for beacons that do not broadcast their name to avoid inundating your system with transient devices" — it hit this exact problem and answered it with restraint rather than by avoiding the entity type. The scope option, off-by-default, and cleanup-by-age above are this integration's version of that answer, and they are the part that has to be right.
+
+**Two things to know about the current model**, from the entity-model change of 2026-06-15:
+
+- `BaseScannerEntity` reports `tracking_type: "connection"`. Slightly awkward wording for "its beacon is visible", but it is a capability attribute rather than anything user-facing, and there is no third value to prefer.
+- Connection-based trackers can now be bound to any user-selected zone, not only `home`. Useful for a second instance on a Raspberry Pi somewhere other than the house, which would otherwise report its neighbours as `home`.
+- Also deprecated in that release, stopping in Core 2027.7: `battery_level`, and `TrackerEntity.location_name` in favour of `in_zones`. Neither is used here, but do not copy either from an older integration as a model.
 
 #### Phase 3 — per-network signal sensors · **Effort Low once phase 2 exists**
 
@@ -158,7 +180,7 @@ Phases of the per-network entities item are listed separately because their Effo
 | :----------------------------------- | :--------- | :------- | :---------------- |
 | Per-network entities                 | To Be Done | ⭐⭐⭐⭐ | High overall      |
 | — phase 1, my-WiFi count and offline | To Be Done | ⭐⭐⭐⭐ | Medium            |
-| — phase 2, presence entities         | To Be Done | ⭐⭐⭐   | High              |
+| — phase 2, device trackers           | To Be Done | ⭐⭐⭐   | High              |
 | — phase 3, signal sensors            | To Be Done | ⭐⭐⭐   | Low after phase 2 |
 | Visit-count threshold                | To Be Done | ⭐⭐⭐   | Low               |
 | Appearance / disappearance events    | To Be Done | ⭐⭐⭐   | Medium            |
@@ -216,6 +238,7 @@ Items that were on this roadmap and have since been built. Detail is in `CHANGEL
 
 ## Version Control
 
+- **v2.2.0** (2026-08-03) — **Phase 2 entity type decided: `device_tracker` on `BaseScannerEntity`**, with a dated prior-art subsection so it is not re-searched. Home Assistant ties device trackers to presence, not to people, and `BaseScannerEntity` exists precisely for scanners that observe a beacon without any network association — a WiFi beacon is the BLE-beacon case. `ScannerEntity` is recorded as the wrong class and the one that would be actual misuse: it is for devices that connect to the IP network and are identified by MAC, which an observed AP does not do. The `home` state is recorded as correct rather than tolerated — an AP is a physical device, so `home` asserts it is in or near the house, which is as true of a suspicious network as of the user's own, and the transition to `not_home` is the event worth having. `binary_sensor` rejected for carrying a motion/occupancy connotation that does not come off. The entity volume risk stands and is answered by the scope option, off-by-default and cleanup-by-age already specified; the iBeacon integration's refusal to auto-create trackers for unnamed beacons is recorded as precedent for that being the right answer rather than a reason to avoid the entity type. Notes the 2026-06-15 entity-model change: `tracking_type: "connection"`, user-selectable zones, and the `battery_level` / `location_name` deprecations stopping in Core 2027.7. The "gone" state bullet corrected from `unknown` to `not_home` with `is_connected` `False` rather than `None`.
 - **v2.1.0** (2026-08-03) — **Three items merged into one.** "Track your own WiFi online", "Per-SSID presence binary sensors" and "Per-SSID signal quality sensors" were one feature listed three times: all three read the same list, and building them separately would have produced three lists, two parallel presence calculations, and a signal sensor with no defined "gone" state. Now **Per-network entities**, with a shared foundation (the my-WiFi list, its actions, absence debounce, Integration Health deference) and three phases — my-WiFi count and offline sensors, per-network presence entities, per-network signal sensors — so the end state is designed once and phase 1 is not built in a way phase 2 has to undo. Phase 2 is stated as `binary_sensor` **or** `device_tracker`, undecided, with created-on-sighting lifecycle, a scope option defaulting to off, and cleanup by age. The old presence entry's "is my work laptop nearby?" framing is removed: a laptop does not broadcast an SSID, so the example described something the feature cannot do. **Visit-count threshold** is a Number control, not an options-flow field. **Appearance / disappearance events** now states what an automation actually gets — events for every network, with selection done in the automation's own condition, and no per-network filter in the integration — and the three glitch guards that make them usable: visit-count on appearance, consecutive-miss debounce on disappearance, health deference and rate limiting on both, each shared with another item. **Proximity alert hysteresis** moved To Be Done → Maybe with a trigger; it is a predicted flap, not an observed one. Prose edited throughout against `roadmap_format.md` §4.
 - **v2.0.0** (2026-08-03) — Restructured to `roadmap_format.md` v1.1.0 and renamed from `docs/FUTURE.md`. Six groups replace the previous per-release "delivered" tables plus a mixed opportunities section. **Done is now membership by provenance**, so the "beyond the roadmap" v2.0.0 paragraph — `parse.py` normalization, the pause-polling switch, the `get_networks` response action, the LTS new-networks sensor, `ssid_anomaly`, the diagnostics sanitizer, coalesced storage writes — no longer qualifies as a roadmap item. **It is kept anyway**, in an explicitly labelled **Off-roadmap deliveries** subsection, along with the retired-unbuilt "first detected events" option: this is the first conversion of this document, and losing content in the move would be indistinguishable from losing it by accident. Both subsections state why they are not Done proper. A later revision may prune them once `CHANGELOG.md` is confirmed to carry everything. Forward items carry Value and Effort; **Track your own WiFi online** is the highest-value forward item and the only one of the three "named network" items needing no dynamic entity creation, so it is To Be Done while the two per-SSID items are Maybe with stated triggers. **Channel crowding map** moved to Revisit with an explicit reopening trigger; **multi-interface aggregation** and **System Role** to Declined, each opening with the decision in one plain sentence. Framing that treated earlier revisions as milestones — "delivered since the original roadmap", "remaining original roadmap items" — removed.
 - **v1.6.0** (2026-07-23) — Added "Delivered with v2.0.0". Marked BSSID support (API uncertainty resolved — `mac` is present), "First Seen" events (delivered as the restart-surviving `wifi_ssid_monitor_new_network` bus event) and hardware health monitoring (delivered as the Integration Health sensor plus repairs) as delivered. Retired "First Detected Events" as superseded. Updated the channel crowding map assessment (channel now derived from `frequency`), the appearance/disappearance scope (first-seen half delivered) and proximity hysteresis to the 0–100% scale. Added per-SSID signal quality sensors, cross-linked with per-SSID presence.
