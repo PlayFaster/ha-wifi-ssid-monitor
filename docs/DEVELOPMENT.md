@@ -42,7 +42,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 - **`entry.runtime_data` Pattern (v1.4.4-dev2)**: The coordinator is stored on `entry.runtime_data` rather than `hass.data[DOMAIN]`. HA manages the lifecycle automatically - `async_unload_entry` needs no manual cleanup beyond unloading platforms. Platform files access it with `coordinator: WifiScanCoordinator = entry.runtime_data`. Update listeners (`async_reload_entry`) also read it directly. Tests set `mock_config_entry.runtime_data = mock_coordinator` before calling `async_forward_entry_setups`.
 - **Explicit Coordinator `config_entry` (HA polling option)**: Pass `config_entry=entry` to `DataUpdateCoordinator.__init__`. HA core's `_schedule_refresh()` reads `self.config_entry.pref_disable_polling` - the flag behind the "Enable polling for changes" system option - and skips arming the next timer when it's OFF (the "Scan Now" button and `homeassistant.update_entity` still fetch via `async_refresh` / `async_request_refresh`, which ignore the flag). Passing the entry explicitly is also required going forward: HA deprecated implicit `ContextVar` detection and reports it as an error from **2026.8** (the argument dates from **2024.8**, hence the minimum-HA bump to 2024.8.0). **Corrected 2026-08-03:** this bullet previously said the project has no "Pause Polling" switch, so the system option was the only route to manual-only updates. That was true when written and has not been since v2.0.0 — `switch.stop_polling` ships as a `CONFIG` entity. **The two are not equivalent and both are worth having:**
 
-  | | Pause Polling switch | "Enable polling for changes" = OFF |
+  |  | Pause Polling switch | "Enable polling for changes" = OFF |
   | :-- | :-- | :-- |
   | Level | This integration | Home Assistant system option |
   | Mechanism | `_async_update_data` returns cached data | The next timer is never armed |
@@ -50,6 +50,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
   | Visible in | The device page, and automatable as an entity | The integration's system options menu |
 
   The switch is the one to reach for: it is discoverable, scriptable, and honors explicit requests by design. The system option remains the harder stop, and is what `config_entry=entry` above exists to make work. Full write-up: `.shared/info/sys_options_enable_polling.md`.
+
 - **Repair Issues (v1.4.4-dev2)**: Persistent API failures surface in the HA Repairs panel via `ir.async_create_issue(hass, DOMAIN, "supervisor_unavailable", ...)`. The issue is cleared with `ir.async_delete_issue()` on the next successful scan. Issue title/description strings live under the `"issues"` key in `strings.json` and `translations/en.json`, keyed by the issue id (`supervisor_unavailable`).
 - **Button Platform (v1.5.0-dev1)**: The `button` entity has no state value - it exists solely for its `async_press()` action. The implementation simply calls `await self._coordinator.async_refresh()`. No `CoordinatorEntity` inheritance is needed because buttons don't display coordinator data; they just trigger it. This is the lightest possible HA entity pattern.
 - **`fnmatch` Pattern Matching (v1.5.0-dev1)**: Replaced exact-string known SSID comparisons with `fnmatch.fnmatch(ssid, pattern)`. This is backward-compatible - existing strings without wildcards behave as exact matches. Case-sensitive by design (SSIDs are case-sensitive byte strings). The check is a simple `any(fnmatch.fnmatch(ssid, p) for p in known_patterns)` per SSID.
@@ -106,7 +107,7 @@ Added 2026-08-03. The suite was at 100% line coverage and 217 passing, and **fou
 
 **Guard bands are the exception to "sweep the live entities".** A guard band is never published as a state or an attribute — its only observable effect is a value that never appears — so nothing a running instance can be asked will reveal one. That check reads the descriptions statically. Decide which kind you need before writing the test.
 
-**On the `_unrecorded_attributes` repetition.** Every class that declares its own set must repeat `"about"` from the mixin. Home Assistant does **not** merge this attribute across the class hierarchy — `Entity.__init_subclass__` unions the *component* set with the class's *own* attribute and never walks the MRO — so a subclass assignment shadows the mixin's set completely. `dev_standards` §14 claimed the opposite until 2026-08-03; the repetition looks redundant and is not. The sweep above catches an omission, which is the reason it does not have to be remembered.
+**On the `_unrecorded_attributes` repetition.** Every class that declares its own set must repeat `"about"` from the mixin. Home Assistant does **not** merge this attribute across the class hierarchy — `Entity.__init_subclass__` unions the _component_ set with the class's _own_ attribute and never walks the MRO — so a subclass assignment shadows the mixin's set completely. `dev_standards` §14 claimed the opposite until 2026-08-03; the repetition looks redundant and is not. The sweep above catches an omission, which is the reason it does not have to be remembered.
 
 ## 4. Technical Pitfalls & Fixes
 

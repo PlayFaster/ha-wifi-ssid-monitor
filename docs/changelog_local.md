@@ -7,9 +7,9 @@ All changes to this project will be documented in this file. This is the detaile
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - §14 Enforcement Test](#201-dev8---2026-07-27---14-enforcement-test)
   - [\[2.0.1-dev7\] - 2026-07-27 - §19 `drift` Attribute](#201-dev7---2026-07-27---19-drift-attribute)
@@ -194,7 +194,7 @@ The changes list is now complete. Priority 3 records decisions that were held in
 - **`docs/DEVELOPMENT.md` → new §3c "Standards Sweeps — why 100% coverage was not enough"**, with the table of what was broken and what still passed. Also corrects the stale "99% test coverage" claim to 100% / 233 tests, and adds a version entry covering this session's three corrections to that file.
 
 - **`docs/ROADMAP.md` → v2.6.0.** Two items added at the **top** of To Be Done for the next session:
-  - **Prevent every band switch being off at once.** All three can be turned off, leaving the integration reporting almost nothing while looking healthy — and not simply zero, because a network whose band did not resolve still passes the filter, so the counts read *wrong* rather than empty. The only existing signal is the `no_known_networks` check, gated behind five sightings of a known network **and** three consecutive scans, so a fresh install gets nothing at all. Preferred fix is to re-enable 2.4 GHz when the last band goes off, with the surprise made visible; a repair issue is recorded as the cheaper alternative.
+  - **Prevent every band switch being off at once.** All three can be turned off, leaving the integration reporting almost nothing while looking healthy — and not simply zero, because a network whose band did not resolve still passes the filter, so the counts read _wrong_ rather than empty. The only existing signal is the `no_known_networks` check, gated behind five sightings of a known network **and** three consecutive scans, so a fresh install gets nothing at all. Preferred fix is to re-enable 2.4 GHz when the last band goes off, with the surprise made visible; a repair issue is recorded as the cheaper alternative.
   - **`get_networks` should scan rather than read the last scan**, withdrawing the §16 deviation recorded earlier the same day.
 
   Also v2.4.0 earlier: a **Blocked** group added and removed within the hour, when the hidden-network question it held was answered on hardware.
@@ -211,7 +211,7 @@ The `dev_standards` Project Compliance matrices were written during the `[2.0.1-
 
 - **Project Deviations, 2 entries added** (§5 display scaling, §16 `get_networks` reading the cache), joining §3 and §13. All four are the same class — a section bullet deliberately not followed, with the reasoning recorded — and leaving two of them undocumented while the other two were written up was inconsistent.
 
-  **§16 was then superseded the same day.** On review, the reasoning behind keeping the cache — that a scan costs a round trip and a caller could loop — was judged to protect a hypothetical caller at the expense of every real one: an action asking what is in range *now* should not answer with a reading up to a full scan interval old. It is now a **To Be Done** item in `ROADMAP.md` and the deviation row is marked for deletion when that lands, rather than reading as a standing position. `last_updated` and `stale` stay, becoming an honest report of whether the forced fetch succeeded.
+  **§16 was then superseded the same day.** On review, the reasoning behind keeping the cache — that a scan costs a round trip and a caller could loop — was judged to protect a hypothetical caller at the expense of every real one: an action asking what is in range _now_ should not answer with a reading up to a full scan interval old. It is now a **To Be Done** item in `ROADMAP.md` and the deviation row is marked for deletion when that lands, rather than reading as a standing position. `last_updated` and `stale` stay, becoming an honest report of whether the forced fetch succeeded.
 
 **Four sections stay `PARTIAL` on purpose.** §3, §5, §13 and §16 are deliberate non-conformance with recorded rationale, not unfinished work. They are not `DONE`, because the section's own bullet is genuinely unmet; they are not `PENDING`, because each section is otherwise implemented and only one named bullet is at issue.
 

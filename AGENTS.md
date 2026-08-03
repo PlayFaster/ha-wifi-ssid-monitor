@@ -97,7 +97,7 @@ Several standards here are enforced by sweeps over a **set**, not by spot checks
 | A health check in `CHECKS` | `test_every_check_has_a_firing_fixture`, `test_every_finding_is_classified_exactly_once` | Add a fixture that makes it fire, and classify it in `_EXPECTED_DRIFT` or `_EXPECTED_CAPABILITY`. `is_drift` defaults to `False`, so a new check is a capability unless it opts in. |
 | A fourth `Store` | `test_async_remove_entry_deletes_every_live_store` | Add the key to `all_storage_keys()` in `const.py`, which both the coordinator and `async_remove_entry` build from. |
 
-- **`SLF001` and `RET504` are exempted for `tests/**` only.** This comes from the **synced** `pyproject.toml` — do not edit that file, see [shared conventions → Synced Files](.shared/dev_std/agent_conventions.md). Tests must reach private state (asserting on `_unrecorded_attributes`, driving `coordinator._async_update_data()`), so forbidding it would forbid the tests the standards require. Production code is not exempt: a genuine need there gets a `# ruff: noqa` at the site.
+- **`SLF001` and `RET504` are exempted for `tests/**`only.** This comes from the **synced**`pyproject.toml`— do not edit that file, see [shared conventions → Synced Files](.shared/dev_std/agent_conventions.md). Tests must reach private state (asserting on`\_unrecorded_attributes`, driving `coordinator.\_async_update_data()`), so forbidding it would forbid the tests the standards require. Production code is not exempt: a genuine need there gets a `# ruff: noqa` at the site.
 
 ## Development Environment
 
