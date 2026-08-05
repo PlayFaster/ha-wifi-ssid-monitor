@@ -302,6 +302,7 @@
       "type": "shell"
     },
     {
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && python3 .workbench/check_test_assertions.py; echo \"\"; if grep -q \"Assertion Audit: PASSED\" .reports/test_assertions.txt 2>/dev/null; then echo -e \"\u001b[1;32m✔  Assertion Audit: PASSED\u001b[0m\"; else echo -e \"\u001b[1;31m✖  Assertion Audit: FAILED (report-only — see .reports/test_assertions.txt)\u001b[0m\"; fi; }",
       "label": "Tests: Assertion Audit",
       "presentation": {
         "panel": "dedicated",
