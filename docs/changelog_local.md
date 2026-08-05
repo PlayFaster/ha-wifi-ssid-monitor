@@ -5,14 +5,15 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev18\] - 2026-08-05 - Bump PHACC; Update AGENTS](#201-dev18---2026-08-05---bump-phacc-update-agents)
   - [\[2.0.1-dev17\] - 2026-08-05 - Mutation Testing Scoped to Three Modules](#201-dev17---2026-08-05---mutation-testing-scoped-to-three-modules)
   - [\[2.0.1-dev16\] - 2026-08-05 - Zero-Assertion Audit; Event Test Rewritten](#201-dev16---2026-08-05---zero-assertion-audit-event-test-rewritten)
   - [\[2.0.1-dev15\] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken](#201-dev15---2026-08-05---branch-coverage-to-100-eight-tests-for-paths-never-taken)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - §14 Enforcement Test](#201-dev8---2026-07-27---14-enforcement-test)
   - [\[2.0.1-dev7\] - 2026-07-27 - §19 `drift` Attribute](#201-dev7---2026-07-27---19-drift-attribute)
@@ -84,6 +85,12 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.1-dev18] - 2026-08-05 - Bump PHACC; Update AGENTS.md
+
+### Bumps
+
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.351 to 0.13.353
+
 ## [2.0.1-dev17] - 2026-08-05 - Mutation Testing Scoped to Three Modules
 
 No production code changed. Configuration and documentation only.
@@ -94,7 +101,7 @@ Mutation testing changes the code deliberately and asks whether any test notices
 
 Measured here on 2026-08-05:
 
-| Module | Survivors |  |
+| Module | Survivors | Note |
 | :-- | --: | :-- |
 | `config_flow.py` | 82% | Tests mock `WifiScanAPI`; nearly every survivor was an argument to it replaced with `None`. None findable. |
 | `diagnostics.py` | 39% | Mocks nothing. Several were real. |
