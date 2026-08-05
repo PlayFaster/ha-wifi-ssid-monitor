@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev17\] - 2026-08-05 - Mutation Testing Scoped to Three Modules](#201-dev17---2026-08-05---mutation-testing-scoped-to-three-modules)
   - [\[2.0.1-dev16\] - 2026-08-05 - Zero-Assertion Audit; Event Test Rewritten](#201-dev16---2026-08-05---zero-assertion-audit-event-test-rewritten)
   - [\[2.0.1-dev15\] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken](#201-dev15---2026-08-05---branch-coverage-to-100-eight-tests-for-paths-never-taken)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
@@ -83,6 +84,43 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.1-dev17] - 2026-08-05 - Mutation Testing Scoped to Three Modules
+
+No production code changed. Configuration and documentation only.
+
+### Why
+
+Mutation testing changes the code deliberately and asks whether any test notices. Run unscoped across this integration it produced **412 survivors** and was close to useless — because a mutation of a call into a **mocked** object cannot be detected by any test, so it always survives.
+
+Measured here on 2026-08-05:
+
+| Module | Survivors |  |
+| :-- | --: | :-- |
+| `config_flow.py` | 82% | Tests mock `WifiScanAPI`; nearly every survivor was an argument to it replaced with `None`. None findable. |
+| `diagnostics.py` | 39% | Mocks nothing. Several were real. |
+
+So the whole-project number measures how much this project mocks, not how good its tests are. Scoping to modules whose tests exercise real code cuts the field from 2,751 mutants to 555.
+
+### Added
+
+- **`.validate/mutmut_modules.txt`** — `parse.py`, `diagnostics.py`, `health.py`. `config_flow.py` and `__init__.py` were tried and rejected by measurement. The sync assembles this into `setup.cfg`; the base file and the task come from the workbench (`dev-workbench/CHANGELOG.md` `[2.2.6-dev5]`).
+
+- **`AGENTS.md` v1.0.10** — records the list and, more importantly, the rejections. Without that written down the next agent points the tool at everything, gets 412 survivors and concludes it is useless.
+
+### Verified
+
+First scoped run: 555 mutants across the three modules, **362 killed, 105 survived**. Survivors are not defects until judged — sampling in `diagnostics.py` gave roughly half real gaps and half changes that break no property.
+
+One concrete finding is recorded and **not yet acted on**: nothing asserts that the diagnostics pseudonymiser allocates _stable_ tokens. `test_diagnostics_tokens_stable_and_substance_kept` checks that one token cross-references across sections, but not that a BSSID keeps the same token between calls — which is the module's stated purpose.
+
+### Notes
+
+- **`setup.cfg` now exists at the project root.** It is read by codespell, so a malformed one fails `Validate All` outright rather than being skipped.
+- **`mutants/` is a cache, not scratch.** mutmut re-tests only functions that changed since the last run. It is gitignored; delete it by hand only after changing the module list.
+- Background: `.shared/info/test_better_docs/testing_approach.md` and `mutation_testing_setup.md`. The other three projects still need their lists — `.shared/issues/x_proj_checks_20260802.md` §2.7.
+
+---
+
 ## [2.0.1-dev16] - 2026-08-05 - Zero-Assertion Audit; Event Test Rewritten
 
 No production code changed. One test rewritten; the project now reports zero tests that assert nothing.
@@ -95,7 +133,7 @@ No production code changed. One test rewritten; the project now reports zero tes
 
 ### Changed
 
-- **`test_event_fire_missing_key_in_network_map` now asserts what reached the bus.** A recording listener is registered *behind* the raising one — if the exception aborted delivery, the recorder would see nothing — and the test asserts exactly one event, for `NetA`, carrying the right `ssid`, `bssid` and `entry_id`.
+- **`test_event_fire_missing_key_in_network_map` now asserts what reached the bus.** A recording listener is registered _behind_ the raising one — if the exception aborted delivery, the recorder would see nothing — and the test asserts exactly one event, for `NetA`, carrying the right `ssid`, `bssid` and `entry_id`.
 
   This is the second of the three outcomes the audit documents, and the one most often got wrong. "It must not raise" was a real contract here; the fix was to assert the observable consequence, not to bolt on a trivial assertion.
 
@@ -136,14 +174,14 @@ Each of the twelve was triaged against three outcomes — a missing test, a dead
 
 All eight were **mutation-proved**, per dev_standards §11: each was confirmed to fail when the thing it guards is broken, then the source restored.
 
-| Mutation | Result |
-| :-- | :-- |
-| `if ttl_days > 0:` → `if True:` | killed |
-| `scanned_at < last_updated` → `>` | killed |
-| `if status in (400, 404):` → `if True:` | killed |
+| Mutation                                                   | Result |
+| :--------------------------------------------------------- | :----- |
+| `if ttl_days > 0:` → `if True:`                            | killed |
+| `scanned_at < last_updated` → `>`                          | killed |
+| `if status in (400, 404):` → `if True:`                    | killed |
 | `isinstance(…, str)` → `"strongest_unknown_ssid" in clean` | killed |
-| `if clean.get("bssid"):` → `if "bssid" in clean:` | killed |
-| `if clean.get("key"):` → `if "key" in clean:` | killed |
+| `if clean.get("bssid"):` → `if "bssid" in clean:`          | killed |
+| `if clean.get("key"):` → `if "key" in clean:`              | killed |
 
 Final: **241 tests, 100% line coverage, 100% branch coverage, 0 partial branches**, ruff clean, `mypy --strict` clean.
 

@@ -1,0 +1,16 @@
+# Modules worth mutating in this project, one glob per line.
+#
+# The sync appends these under `only_mutate=` in setup.cfg, indented. Do not
+# indent them here and do not use commas — see the notes in setup.cfg.
+#
+# Include a module when its tests exercise real code. Leave it out when the
+# tests mock its collaborator: a mutation of a call into a mock cannot be
+# detected by any test, so it becomes a survivor you read and discard.
+#
+# Assessed by measurement on 2026-08-05. config_flow.py and __init__.py were
+# tried and rejected — config_flow returned 82% survivors, almost all of them
+# arguments to WifiScanAPI, which its tests replace with a mock.
+
+*/parse.py
+*/diagnostics.py
+*/health.py

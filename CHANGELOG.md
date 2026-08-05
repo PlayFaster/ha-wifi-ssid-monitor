@@ -23,8 +23,6 @@ All notable changes to this project will be documented in this file.
 
 - **Automation example resilience**: README example automations updated with transient state filters (`not_from` / `has_value`) to prevent false triggers during Home Assistant restarts or router reboots.
 
-_Full technical detail for every change in this release is in [`docs/changelog_local.md`](docs/changelog_local.md).*
-
 ---
 
 ## [2.0.0] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames
@@ -275,6 +273,7 @@ Entry structure — headers, titles, category headings and the split between thi
 ---
 
 - [Changelog: WiFi SSID Monitor](#changelog-wifi-ssid-monitor)
+  - [\[2.0.1\] - 2026-08-05](#201---2026-08-05)
   - [\[2.0.0\] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames](#200---2026-07-25---signal-as-a-percentage-health-sensor-breaking-renames)
   - [\[1.6.1\] - 2026-07-04 - Release - Reconfigure Shows All Settings; Polling Toggle](#161---2026-07-04---release---reconfigure-shows-all-settings-polling-toggle)
   - [\[1.6.0\] - 2026-06-12 - Proximity Alert, Persistent History and Denylist](#160---2026-06-12---proximity-alert-persistent-history-and-denylist)
