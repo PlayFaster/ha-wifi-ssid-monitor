@@ -518,6 +518,32 @@ async def test_prune_history_overflow_and_invalid_band(
 
 
 @pytest.mark.asyncio
+async def test_prune_history_ttl_zero_keeps_everything(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A TTL of zero means keep forever, not expire immediately.
+
+    Zero is a sentinel, not a duration. Dropping the guard would compute a
+    cutoff of "now" and delete every history entry on the next prune — silently,
+    because the integration would carry on scanning and simply forget that it
+    had ever seen anything before.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    now = dt_util.now()
+    ancient = now - timedelta(days=3650)
+
+    coordinator._last_seen["Ancient"] = ancient
+    coordinator._first_seen["Ancient"] = ancient
+    coordinator._visit_counts["Ancient"] = 5
+
+    coordinator._prune_history(now, 0)
+
+    assert coordinator._last_seen["Ancient"] == ancient
+    assert coordinator._first_seen["Ancient"] == ancient
+    assert coordinator._visit_counts["Ancient"] == 5
+
+
+@pytest.mark.asyncio
 async def test_health_drift_strikes_repair_lifecycle_and_exception(
     hass, mock_config_entry, mock_wifi_api
 ):
@@ -620,7 +646,14 @@ async def test_signal_unit_change_and_event_suppression(
 async def test_event_fire_missing_key_in_network_map(
     hass, mock_config_entry, mock_wifi_api
 ):
-    """Event fire loop handles missing key and listener exceptions gracefully."""
+    """A key absent from the map is skipped, and the rest still fire.
+
+    Two failures are possible here and only one of them is a crash. A raising
+    listener must not stop the loop, and a key with no matching network must be
+    passed over rather than firing an event with missing fields — so this
+    asserts which events actually reached the bus, not merely that nothing
+    was raised.
+    """
     coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
     mock_config_entry.add_to_hass(hass)
     coordinator._event_baseline_done = True
@@ -631,7 +664,16 @@ async def test_event_fire_missing_key_in_network_map(
     def bad_listener(event):
         raise RuntimeError("Event listener failure")
 
+    received: list[dict] = []
+
+    @callback
+    def recording_listener(event):
+        received.append(event.data)
+
+    # The raising listener is registered first: if it aborted delivery, the
+    # recorder behind it would see nothing.
     hass.bus.async_listen("wifi_ssid_monitor_new_network", bad_listener)
+    hass.bus.async_listen("wifi_ssid_monitor_new_network", recording_listener)
     network_map = {
         "NetA": {
             "key": "NetA",
@@ -645,6 +687,13 @@ async def test_event_fire_missing_key_in_network_map(
         }
     }
     coordinator._fire_new_network_events({"NetA", "NonExistentKey"}, network_map)
+    await hass.async_block_till_done()
+
+    # Exactly one event: "NonExistentKey" has no network to describe.
+    assert [event["key"] for event in received] == ["NetA"]
+    assert received[0]["ssid"] == "NetA"
+    assert received[0]["bssid"] == "AA:11"
+    assert received[0]["entry_id"] == mock_config_entry.entry_id
 
 
 @pytest.mark.asyncio

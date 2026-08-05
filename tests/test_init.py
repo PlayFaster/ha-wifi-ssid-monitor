@@ -291,6 +291,93 @@ async def test_async_setup_entry_migrate_legacy_scan_bands_all(
 
 
 @pytest.mark.asyncio
+async def test_legacy_scan_bands_does_not_overwrite_an_explicit_band_switch(
+    hass: HomeAssistant,
+):
+    """A half-migrated entry keeps the switch the user set.
+
+    Both the legacy enum and the new switches can be present at once — an
+    install that migrated, was downgraded, and migrated again. The enum is the
+    older statement of intent and must not win.
+    """
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_INTERFACE,
+        CONF_SCAN_INTERVAL,
+        CONF_SHOW_24GHZ,
+        DEFAULT_SCAN_INTERVAL,
+        DOMAIN,
+        LEGACY_CONF_SCAN_BANDS,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan0_mig_bands_partial",
+        title="WiFi SSID Monitor",
+        data={},
+        options={
+            CONF_INTERFACE: "wlan0",
+            LEGACY_CONF_SCAN_BANDS: "all",
+            CONF_SHOW_24GHZ: False,
+            CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+        },
+        entry_id="test_entry_bands_partial",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    # "all" would have set this True. The explicit switch survives.
+    assert entry.options[CONF_SHOW_24GHZ] is False
+    assert LEGACY_CONF_SCAN_BANDS not in entry.options
+
+
+@pytest.mark.asyncio
+async def test_data_migration_keeps_an_interval_already_in_options(
+    hass: HomeAssistant,
+):
+    """Migrating data to options must not reset a chosen scan interval.
+
+    The default is only a fallback for entries that predate the setting. An
+    entry carrying both legacy ``data`` and a chosen interval would otherwise
+    be silently returned to 10 minutes on upgrade.
+    """
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_INTERFACE,
+        CONF_SCAN_INTERVAL,
+        DEFAULT_SCAN_INTERVAL,
+        DOMAIN,
+    )
+
+    chosen = DEFAULT_SCAN_INTERVAL + 300
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan0_mig_interval",
+        title="WiFi SSID Monitor",
+        data={CONF_INTERFACE: "wlan0"},
+        options={CONF_SCAN_INTERVAL: chosen},
+        entry_id="test_entry_mig_interval",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.data == {}
+    assert entry.options[CONF_SCAN_INTERVAL] == chosen
+    assert entry.options[CONF_INTERFACE] == "wlan0"
+
+
+@pytest.mark.asyncio
 async def test_get_networks_service(hass: HomeAssistant, mock_config_entry):
     """Test the get_networks service returns networks data."""
     from custom_components.wifi_ssid_monitor.const import DOMAIN
@@ -1276,3 +1363,71 @@ async def test_get_networks_reports_freshness(hass: HomeAssistant, mock_config_e
     # the 3-strike hold; the caller is told, not starved.
     assert degraded["total_matched"] == 1
     assert degraded["last_updated"] == healthy["last_updated"]
+
+
+@pytest.mark.asyncio
+async def test_get_networks_reports_the_oldest_scan_across_entries(
+    hass: HomeAssistant, mock_config_entry
+):
+    """With two entries merged, `last_updated` is the oldest of the scans.
+
+    One field describes a response assembled from several coordinators, so it
+    has to carry the weakest guarantee among them. Reporting the newest would
+    describe the whole result as fresher than part of it actually is, which is
+    the failure `last_updated` exists to prevent.
+    """
+    from datetime import timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.wifi_ssid_monitor.const import CONF_INTERFACE, DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+    second = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan1",
+        title="WiFi SSID Monitor wlan1",
+        data={},
+        options={**mock_config_entry.options, CONF_INTERFACE: "wlan1"},
+        entry_id="test_entry_second_interface",
+    )
+    second.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[
+            {
+                "mac": "AA:BB:CC:00:00:01",
+                "ssid": "Net1",
+                "signal": 60,
+                "frequency": 5240,
+            }
+        ],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Adding the second entry loads it as a side effect of the first setup.
+    assert second.runtime_data is not None
+
+    now = dt_util.utcnow()
+    older = now - timedelta(hours=2)
+    # First entry scanned longest ago; second is current. Iteration order puts
+    # the older one first, so the newer must be rejected rather than accepted.
+    mock_config_entry.runtime_data.last_update_success_time = older
+    second.runtime_data.last_update_success_time = now
+
+    result = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "all", "band": "all"},
+        blocking=True,
+        return_response=True,
+    )
+
+    # The field is serialized for the service response, not returned as a
+    # datetime. Comparing against `now` as well guards the direction: an
+    # implementation taking the newest would pass a bare "is not None" check.
+    assert result["last_updated"] == older.isoformat()
+    assert result["last_updated"] != now.isoformat()
+    assert result["total_matched"] == 2

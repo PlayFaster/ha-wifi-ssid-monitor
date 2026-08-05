@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.0.1] - 2026-08-05
+
+### Summary
+
+- Action icons added for all 6 domain service calls in the Home Assistant UI and automation editor.
+- Data freshness indicators (`last_updated` and `stale`) added to `get_networks` action responses.
+- `about` explanatory attribute added to the Interface sensor (`sensor.wifi_ssid_monitor_interface`).
+- README example automations hardened with transient state guards against false triggers during Home Assistant restarts.
+
+### Added
+
+- **Action icons in HA UI**: Icons added for `add_ssid`, `clear_last_seen`, `get_networks`, `remove_ssid`, `scan_now`, and `set_ssids` (`icons.json`), rendering in Developer Tools and automation editors.
+- **Data freshness metadata on `get_networks` action**: Response now includes `last_updated` timestamp and a `stale` flag (`true` when the last scan failed).
+- **Interface sensor `about` attribute**: `sensor.wifi_ssid_monitor_interface` now includes an `about` attribute explaining the adapter being scanned.
+
+### Changed
+
+- **Automation example resilience**: README example automations updated with transient state filters (`not_from` / `has_value`) to prevent false triggers during Home Assistant restarts or router reboots.
+
+_Full technical detail for every change in this release is in [`docs/changelog_local.md`](docs/changelog_local.md).*
+
+---
+
 ## [2.0.0] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames
 
 > **This release has breaking changes - see the Breaking section.**

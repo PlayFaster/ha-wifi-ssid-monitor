@@ -5,6 +5,8 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev16\] - 2026-08-05 - Zero-Assertion Audit; Event Test Rewritten](#201-dev16---2026-08-05---zero-assertion-audit-event-test-rewritten)
+  - [\[2.0.1-dev15\] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken](#201-dev15---2026-08-05---branch-coverage-to-100-eight-tests-for-paths-never-taken)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
   - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
@@ -78,6 +80,78 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.2\] - 2026-04-02 - Branding and Mock Supervisor](#102---2026-04-02---branding-and-mock-supervisor)
   - [\[1.0.1\] - 2026-04-02 - Test Coverage to 99%](#101---2026-04-02---test-coverage-to-99)
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
+
+---
+
+## [2.0.1-dev16] - 2026-08-05 - Zero-Assertion Audit; Event Test Rewritten
+
+No production code changed. One test rewritten; the project now reports zero tests that assert nothing.
+
+### Why
+
+`Validate All` gained a `Tests: Assertion Audit` step (see `dev-workbench/CHANGELOG.md` `[2.2.6-dev3]`). It found one test here.
+
+`test_event_fire_missing_key_in_network_map` called `_fire_new_network_events` with `{"NetA", "NonExistentKey"}` and a deliberately raising listener attached, then ended. It was named for two behaviours and checked neither. Only one of the two possible failures is a crash: a raising listener must not abort delivery to the listeners behind it, and a key with no matching network must be **skipped** rather than firing an event with missing fields. Nothing verified either.
+
+### Changed
+
+- **`test_event_fire_missing_key_in_network_map` now asserts what reached the bus.** A recording listener is registered *behind* the raising one — if the exception aborted delivery, the recorder would see nothing — and the test asserts exactly one event, for `NetA`, carrying the right `ssid`, `bssid` and `entry_id`.
+
+  This is the second of the three outcomes the audit documents, and the one most often got wrong. "It must not raise" was a real contract here; the fix was to assert the observable consequence, not to bolt on a trivial assertion.
+
+### Verified
+
+Mutation-proved, and specifically proved **stronger than what it replaced**: making a missing key fire anyway with placeholder content leaves the original test passing — nothing raises — and kills the rewrite. Source restored and verified unchanged.
+
+Final: **241 tests, 100% line coverage, 100% branch coverage, 0 partial branches, 0 zero-assertion tests**, ruff clean, `mypy --strict` clean.
+
+---
+
+## [2.0.1-dev15] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken
+
+No production code changed. Eight tests added, closing every partial branch in the integration.
+
+### Why
+
+The suite reported **100% line coverage** and had done for weeks. Enabling `--cov-branch` on the same unmodified suite reported **99%**, with twelve conditions that had never once been false. Line coverage answers "was this executed"; every one of these lines was executed, on one path only.
+
+Each of the twelve was triaged against three outcomes — a missing test, a dead guard to delete, or a deliberate exemption. **All twelve were missing tests.** No guard turned out to be unreachable, and nothing was exempted.
+
+### Added
+
+- **`test_diagnostics.py` — two tests for degenerate payloads.** Every guard in `_sanitize_data` is a type check, and each had only ever been shown a complete payload. The sanitizer runs against `coordinator.data`, which holds stale or partial data across a failed poll, so these shapes are not hypothetical. `test_sanitize_data_tolerates_a_payload_with_nothing_detected` asserts a `None` SSID stays `None` — tokenizing it would fabricate a network the scan never saw. `test_sanitize_networks_handles_an_entry_with_no_bssid_or_key` asserts the label is still tokenized when both optional fields are absent; an entry that skipped sanitizing because a field was missing would leak the SSID it is keyed on.
+
+- **`test_api.py` — two tests separating states that both return nothing.**
+  - `test_get_access_points_empty_list_is_not_a_missing_key`: an empty scan and a missing `accesspoints` key both return `[]`, so only `last_response_had_ap_key` distinguishes "the radio saw nothing" from "the Supervisor did not answer the question" — and the health checks read that flag. Only the missing-key case had ever been tested.
+  - `test_get_access_points_server_error_does_not_blame_the_interface`: only 400 and 404 mean "no such interface". Every previously tested non-200 was one of those, so nothing checked that a 500 leaves `last_interface_present` alone. Clearing it on any non-200 would raise a missing-hardware repair issue whenever the Supervisor had a bad minute.
+
+- **`test_init.py` — two half-migrated-install tests and one multi-entry test.**
+  - `test_legacy_scan_bands_does_not_overwrite_an_explicit_band_switch`: the legacy enum and the new switches can both be present, and the enum is the older statement of intent. It must not win.
+  - `test_data_migration_keeps_an_interval_already_in_options`: the default is a fallback for entries predating the setting, not a reset. An entry carrying both legacy `data` and a chosen interval would otherwise be silently returned to 10 minutes on upgrade.
+  - `test_get_networks_reports_the_oldest_scan_across_entries`: `last_updated` describes a response merged from several coordinators, so it must carry the weakest guarantee among them. The multi-entry path was never exercised, so nothing checked the direction of the comparison.
+
+- **`test_coordinator.py` — `test_prune_history_ttl_zero_keeps_everything`.** `last_seen_ttl_days = 0` is a sentinel meaning keep forever, not a duration. Without the guard the cutoff becomes "now" and every history entry is dropped on the next prune — silently, because scanning continues and the integration simply forgets it had ever seen anything.
+
+### Verified
+
+All eight were **mutation-proved**, per dev_standards §11: each was confirmed to fail when the thing it guards is broken, then the source restored.
+
+| Mutation | Result |
+| :-- | :-- |
+| `if ttl_days > 0:` → `if True:` | killed |
+| `scanned_at < last_updated` → `>` | killed |
+| `if status in (400, 404):` → `if True:` | killed |
+| `isinstance(…, str)` → `"strongest_unknown_ssid" in clean` | killed |
+| `if clean.get("bssid"):` → `if "bssid" in clean:` | killed |
+| `if clean.get("key"):` → `if "key" in clean:` | killed |
+
+Final: **241 tests, 100% line coverage, 100% branch coverage, 0 partial branches**, ruff clean, `mypy --strict` clean.
+
+### Notes
+
+- The coverage task now runs with `--cov-branch` and prints the `# pragma: no cover` exclusion count; that change is in the synced `tasks.json` and reaches all four projects. See `dev-workbench/CHANGELOG.md` `[2.2.6-dev2]`.
+- `docs/DEVELOPMENT.md` says "100% line coverage". Still true, and now understated.
+- Full programme and rationale: `.shared/issues/test_metrics_rollout_20260805.md`.
 
 ---
 

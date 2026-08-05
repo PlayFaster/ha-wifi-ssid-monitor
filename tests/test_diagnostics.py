@@ -19,7 +19,9 @@ from custom_components.wifi_ssid_monitor.const import (
 )
 from custom_components.wifi_ssid_monitor.diagnostics import (
     _Pseudonymizer,
+    _sanitize_data,
     _sanitize_list,
+    _sanitize_networks,
     async_get_config_entry_diagnostics,
 )
 from tests.conftest import MockConfigEntry
@@ -186,3 +188,49 @@ def test_pseudonymizer_preserves_sentinels():
     pseudo = _Pseudonymizer()
     assert pseudo.ssid(HIDDEN_FALLBACK_LABEL) == HIDDEN_FALLBACK_LABEL
     assert pseudo.ssid(NO_NETWORKS_SENTINEL) == NO_NETWORKS_SENTINEL
+
+
+def test_sanitize_data_tolerates_a_payload_with_nothing_detected():
+    """A scan that saw nothing sanitizes without inventing identities.
+
+    Every guard in ``_sanitize_data`` is a type check, and until this test each
+    one had only ever been shown a complete payload. The sanitizer runs against
+    ``coordinator.data``, which holds stale or partial data across a failed
+    poll, so the shapes it must survive are not hypothetical.
+    """
+    payload = {
+        "count": 0,
+        "unknown_count": 0,
+        "strongest_unknown_ssid": None,
+        "strongest_unknown_signal": None,
+    }
+
+    clean = _sanitize_data(payload)
+
+    # A missing section must stay missing. Tokenizing ``None`` would fabricate
+    # a network the scan never saw, which is worse than leaking nothing.
+    assert clean["strongest_unknown_ssid"] is None
+    assert clean == payload
+    assert clean is not payload
+    assert "networks" not in clean
+
+
+def test_sanitize_networks_handles_an_entry_with_no_bssid_or_key():
+    """A network carrying neither a BSSID nor a history key is still relabelled.
+
+    Both fields are optional in the parsed payload. The label must still be
+    tokenized — an entry that skipped sanitizing because a field was absent
+    would leak the SSID it is keyed on.
+    """
+    pseudo = _Pseudonymizer()
+
+    clean = _sanitize_networks(
+        {"NeighbourNet": {"signal": 55, "band": "5 GHz", "bssid": "", "key": None}},
+        pseudo,
+    )
+
+    (label,) = clean
+    assert label != "NeighbourNet"
+    assert clean[label]["bssid"] == ""
+    assert clean[label]["key"] is None
+    assert clean[label]["signal"] == 55
