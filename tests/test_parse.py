@@ -444,3 +444,68 @@ def test_no_frequency_anywhere_yields_a_channel_below_one():
     for mhz in range(2400, 7200):
         channel, _ = frequency_to_channel(mhz)
         assert channel is None or channel >= 1, f"{mhz} MHz gave channel {channel}"
+
+
+# ---------------------------------------------------------------------------
+# A channel number is an integer
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("mhz", [2412, 2484, 5180, 5935, 5955, 7115])
+def test_a_channel_is_an_int_not_a_float(mhz):
+    """`//` not `/`. The value tests cannot see this, because `1.0 == 1`.
+
+    Changing floor division to true division leaves every existing assertion
+    passing and puts `1.0` on the channel sensor. It is the one mutation in
+    this function that looks equivalent and is not.
+    """
+    channel, _ = frequency_to_channel(mhz)
+    assert isinstance(channel, int)
+    assert not isinstance(channel, bool)
+
+
+# ---------------------------------------------------------------------------
+# normalize_essid — the two ways a name is judged anomalous
+# ---------------------------------------------------------------------------
+#
+# There are two independent paths and each has its own blind spot. The regex
+# catches characters it lists and the result shows up as `sanitized != text`.
+# Anything Unicode calls a format character but the regex does not list is
+# caught only by the category check underneath.
+
+
+def test_a_control_character_is_anomalous_via_the_substitution():
+    """A C0 control is category Cc, so only the regex path can catch it.
+
+    `anomalous = sanitized != text` is what reports it. Replacing that with a
+    constant sends the answer to the category check below, which tests for
+    `Cf` and would return False — an SSID carrying a BEL would be reported as
+    ordinary.
+    """
+    sanitized, anomalous = normalize_essid("Home\x07Net")
+
+    assert anomalous is True
+    assert "\x07" not in sanitized
+    assert sanitized == "Home\u00b7Net"
+
+
+def test_a_format_character_outside_the_regex_is_still_anomalous():
+    """U+2060 WORD JOINER is `Cf` but is not in the regex ranges.
+
+    The regex leaves it alone, so `sanitized == text` and the first path says
+    nothing. Only the `unicodedata.category(ch) == "Cf"` check finds it, and
+    that comparison is against an exact two-character category name — `"cf"`
+    or `"CF"` matches nothing and silently disables this whole path.
+    """
+    sanitized, anomalous = normalize_essid("Home\u2060Net")
+
+    assert anomalous is True
+    assert sanitized == "Home\u2060Net", "not in the regex, so it is not replaced"
+
+
+def test_an_ordinary_name_is_not_anomalous_by_either_path():
+    """Neither path fires on a plain name, including one with punctuation."""
+    sanitized, anomalous = normalize_essid("Cafe-Guest_5G")
+
+    assert anomalous is False
+    assert sanitized == "Cafe-Guest_5G"

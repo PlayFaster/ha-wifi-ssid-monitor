@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev23\] - 2026-08-06 - First Full Mutation Run: 92 Survivors Triaged, 8 Killed](#201-dev23---2026-08-06---first-full-mutation-run-92-survivors-triaged-8-killed)
   - [\[2.0.1-dev22\] - 2026-08-06 - health.py Thresholds and the Dispatch Loop](#201-dev22---2026-08-06---healthpy-thresholds-and-the-dispatch-loop)
   - [\[2.0.1-dev21\] - 2026-08-06 - 6 GHz Channel Numbering Corrected](#201-dev21---2026-08-06---6-ghz-channel-numbering-corrected)
   - [\[2.0.1-dev20\] - 2026-08-06 - Boundary Tests: 25 Mutants Killed in parse.py and diagnostics.py](#201-dev20---2026-08-06---boundary-tests-25-mutants-killed-in-parsepy-and-diagnosticspy)
@@ -88,6 +89,62 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.1-dev23] - 2026-08-06 - First Full Mutation Run: 92 Survivors Triaged, 8 Killed
+
+Tests only. No production code changed.
+
+The first `Tests: Mutation Check` run since `mutmut` was actually installed: **553 mutants, 461 killed, 92 survived — an 83% kill rate.** Every survivor was read from the `mutants/` tree and classified. Eight were worth killing.
+
+### Verified from the run
+
+The work in `[2.0.1-dev20]` through `[2.0.1-dev22]` holds. `frequency_to_channel` went from nine boundary survivors to three, and those three were one thing (below). The `run_checks` loop, `check_empty_scan`'s gate, `check_band_unresolved`'s majority threshold and the BSSID pseudonym tests all kill their mutants.
+
+### Added — `tests/test_parse.py`
+
+- **`test_a_channel_is_an_int_not_a_float`** — `//` changed to `/` survived in all three bands. `(2412 - 2407) / 5` is `1.0`, every existing value assertion still passes because `1.0 == 1`, and Home Assistant would display the channel as **"1.0"**. It needs a type assertion, not a value one. **The one mutation in this function that looks equivalent and is not.**
+
+- **`test_a_control_character_is_anomalous_via_the_substitution`** and **`test_a_format_character_outside_the_regex_is_still_anomalous`** — `normalize_essid` has two independent anomaly paths covering **disjoint Unicode categories**, and each needs its own input:
+
+| Input | In `_ANOMALOUS_CHARS`? | Category | Caught by |
+| :-- | :-- | :-- | :-- |
+| `\x07` BEL | yes | `Cc` | `sanitized != text` |
+| `⁠` WORD JOINER | **no** | `Cf` | `unicodedata.category(ch) == "Cf"` |
+
+Replacing `anomalous = sanitized != text` with a constant sends a control character to the category check, which tests for `Cf`, so a BEL in an SSID is reported as ordinary. And the category comparison is against an exact two-character name — `"cf"` or `"CF"` matches nothing and silently disables that path entirely.
+
+This is also why the pre-existing `test_normalize_essid_anomaly` never covered the second path: it uses `​`, which the regex catches first, so the category check never runs. U+2060 is the only kind of input that reaches it.
+
+- `test_an_ordinary_name_is_not_anomalous_by_either_path`.
+
+### Added — `tests/test_integration_health.py`
+
+- **`test_field_absent_everywhere_is_serious_at_exactly_the_majority`** — the **same** `>= _MAJORITY` threshold fixed in `check_band_unresolved` by `[2.0.1-dev22]`, surviving two functions away. Fixing one instance of a pattern without checking for others is what left it. Moving it to `>` is worse than a downgrade: this check stops firing and `check_field_absent_minority`, bounded by `< _MAJORITY`, never starts — a field missing on 90% of networks would produce **no finding at all**.
+
+- **`test_band_unresolved_says_nothing_when_every_band_resolved`** — the minor branch is gated on `fraction > 0`. Relaxing it to `>= 0` fires on a completely healthy scan, reporting "0% of networks reported a frequency outside the known ranges" every poll.
+
+### Verification
+
+Eight mutations applied by hand and restored with `sha256sum -c` verified `OK`. **All eight killed.**
+
+The harness now checks the mutation **applied** before believing the result, after `[2.0.1-dev22]` nearly recorded a false survivor from a `sed` that silently matched nothing. That guard reported `diff: can't stat` on the last run — `sed -i` replaces by rename and the check raced it. The source was verified clean afterwards by grepping for every mutation marker and confirming all three `// 5` divisions intact. **Comparing checksums rather than shelling out to `diff` is the more reliable form of that guard.**
+
+### Result
+
+326 tests, **100% line and 100% branch coverage** (1,371 statements, 354 branches, 0 partial), 0 of 258 zero-assertion. ruff, mypy clean.
+
+### The remaining 84, and why they stay
+
+| Bucket | Count | Disposition |
+| :-- | --: | :-- |
+| String sentinels and case flips | 29 | Noise. Killable only by asserting message wording. |
+| `message=None` | 8 | Same category. |
+| `severity=None` | 1 | Arguably worth a coverage sweep asserting every check sets a valid severity. |
+| Equivalent | ~6 | `_safe_int`/`_safe_float` `or`→`and` (the `except` catches what the guard would); `_Pseudonymizer` token counters `+1`→`-1`/`+2` (tokens stay unique and stable, nothing depends on starting at 1). |
+| `async_get_config_entry_diagnostics` | 20 | The Home Assistant entry point — dict assembly over `entry` and `coordinator` attributes the tests mock. The mocked-boundary case the module list exists to exclude. |
+| `normalize_access_point` | 8 | Mostly `_safe_int(raw.get("channel"))` → `_safe_int(None)`, which differs only when the Supervisor sends an explicit channel _and_ the frequency did not resolve. Testable, narrow. |
+
+**83% is where this stops paying on this project.** The remainder is noise, genuine equivalents, and one function whose collaborator is mocked by design.
 
 ## [2.0.1-dev22] - 2026-08-06 - health.py Thresholds and the Dispatch Loop
 

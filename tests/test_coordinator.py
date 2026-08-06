@@ -1,22 +1,32 @@
 """Tests for WiFi SSID Monitor coordinator."""
 
 from datetime import timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 
+from custom_components.wifi_ssid_monitor import coordinator as coordinator_module
 from custom_components.wifi_ssid_monitor.api import WifiScanError
 from custom_components.wifi_ssid_monitor.const import (
+    CANARY_MIN_VISITS,
+    CONF_DENYLIST_SSIDS,
     CONF_INCLUDE_HIDDEN,
+    CONF_KNOWN_SSIDS,
     CONF_LAST_SEEN_TTL_DAYS,
     CONF_SHOW_5GHZ,
     CONF_SHOW_24GHZ,
     EVENT_NEW_NETWORK,
+    FETCH_STRIKE_LIMIT,
+    HEALTH_STARTUP_GRACE_SCANS,
+    HISTORY_MAX_ENTRIES,
+    ISSUE_SUPERVISOR_UNAVAILABLE,
+    NEW_NETWORK_EVENT_MAX_PER_CYCLE,
 )
 from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
+from custom_components.wifi_ssid_monitor.health import SEVERITY_SERIOUS
 
 # Frequencies for the two bands, so fixtures don't rely on a channel field.
 FREQ_24 = 2437  # channel 6
@@ -304,8 +314,19 @@ async def test_resilience_resets_on_success(hass, mock_config_entry, mock_wifi_a
     mock_wifi_api.get_access_points.return_value = [
         {"mac": "AA:BB:CC:00:00:01", "ssid": "Net1", "signal": 60, "frequency": FREQ_5}
     ]
-    await coordinator._async_update_data()
+    with patch.object(coordinator_module.ir, "async_delete_issue") as mock_delete:
+        await coordinator._async_update_data()
+
+    # Covers finding ASSERT.1 from recommendations_20260806.md. Recovery does
+    # three things on the same three lines (coordinator.py:461-464) and only
+    # the counter was asserted: a stale repair left on the user's Repairs
+    # panel, or an unset timestamp feeding `last_good_update`, both passed.
     assert coordinator._failure_count == 0
+    assert coordinator.last_update_success_time is not None
+    assert any(
+        call.args[-1] == ISSUE_SUPERVISOR_UNAVAILABLE
+        for call in mock_delete.call_args_list
+    ), "recovery must clear the outage repair issue"
 
 
 @pytest.mark.asyncio
@@ -793,4 +814,575 @@ async def test_capability_finding_lands_in_degraded_capabilities_not_drift(
     assert snapshot["drift"] == [], (
         "a capability finding must not appear under drift — that would raise a "
         "payload-changed alarm for a missing adapter"
+    )
+
+
+# ===========================================================================
+# testing_deeper_lev1_review — recommendations_20260806.md
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_established_known_keys_threshold_and_pattern(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Both terms of the canary's membership test are pinned.
+
+    Covers finding BVA.1 from recommendations_20260806.md.
+
+    This set is the input to `check_known_network_canary` — it decides whether
+    the "all your known networks vanished at once" alarm can fire at all. A
+    wrong threshold or a broken pattern match empties it, and the check then
+    returns None on its first line for every scan, with nothing failing.
+
+    `Neighbour` is the case that pins the second term: a version ignoring
+    `known_patterns` would return all four keys.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    coordinator._visit_counts = {
+        "HomeNet": CANARY_MIN_VISITS - 1,
+        "OfficeNet": CANARY_MIN_VISITS,
+        "LabNet": CANARY_MIN_VISITS + 1,
+        "Neighbour": 99,
+    }
+
+    result = coordinator.established_known_keys(["Home*", "Office*", "Lab*"])
+
+    assert result == {"OfficeNet", "LabNet"}
+
+
+@pytest.mark.asyncio
+async def test_ttl_expiry_is_exact_at_the_cutoff(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The TTL boundary is inclusive, asserted one second either side.
+
+    Covers finding BVA.2 from recommendations_20260806.md.
+
+    The existing TTL test uses a timestamp 100 days past a 30-day TTL, which
+    cannot distinguish `<=` from `<`. All three history maps are checked
+    because `_drop_keys` removes from all three together.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    now = dt_util.now()
+    cutoff = now - timedelta(days=30)
+
+    stamps = {
+        "Older": cutoff - timedelta(seconds=1),
+        "Exactly": cutoff,
+        "Newer": cutoff + timedelta(seconds=1),
+    }
+    coordinator._last_seen = dict(stamps)
+    coordinator._first_seen = dict(stamps)
+    coordinator._visit_counts = dict.fromkeys(stamps, 1)
+
+    coordinator._prune_history(now, 30)
+
+    assert set(coordinator._last_seen) == {"Newer"}
+    assert set(coordinator._first_seen) == {"Newer"}
+    assert set(coordinator._visit_counts) == {"Newer"}
+
+
+@pytest.mark.asyncio
+async def test_startup_grace_filters_drift_findings_independently(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The grace window is asserted apart from the strike budget.
+
+    Covers finding BVA.3 from recommendations_20260806.md.
+
+    The existing coverage loops five scans with a comment naming "2 grace + 3
+    strikes", so the two thresholds are only ever tested multiplied together
+    and either could move while the other absorbs it. This asserts on
+    `_drift_strikes` rather than on `problem`, because `problem` stays False
+    through both windows and would pass either way.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    # No frequency -> no band resolves -> a drift finding, not a capability one.
+    mock_wifi_api.get_access_points.return_value = [
+        {"mac": "AA:BB:CC:00:00:01", "ssid": "Net1", "signal": 50},
+        {"mac": "AA:BB:CC:00:00:02", "ssid": "Net2", "signal": 40},
+    ]
+
+    # `_scans_completed` is incremented BEFORE `_apply_health` reads it
+    # (coordinator.py:536 then :538), so the guard `_scans_completed <
+    # HEALTH_STARTUP_GRACE_SCANS` is already False on the second scan. A
+    # constant of 2 therefore grants ONE scan of grace, not two. That is the
+    # behaviour; this test pins it so the off-by-one cannot drift further.
+    for scan in range(1, HEALTH_STARTUP_GRACE_SCANS):
+        await coordinator._async_update_data()
+        assert "band_unresolved_all" not in coordinator._drift_strikes, (
+            f"scan {scan} is inside the grace window; the finding must be "
+            "filtered out, not merely left unconfirmed"
+        )
+
+    await coordinator._async_update_data()
+    assert coordinator._drift_strikes.get("band_unresolved_all") == 1
+
+
+@pytest.mark.asyncio
+async def test_history_cap_prunes_only_above_the_limit(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """At exactly the cap nothing is dropped; one over drops exactly one.
+
+    Covers finding BVA.4 from recommendations_20260806.md.
+
+    `overflow > 0` versus `>= 0` is invisible when only the over-cap case is
+    tested — the latter would sort the whole history and slice nothing on
+    every single poll.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    now = dt_util.now()
+    coordinator._last_seen = {
+        f"Net_{i:05d}": now - timedelta(seconds=i) for i in range(HISTORY_MAX_ENTRIES)
+    }
+    oldest = f"Net_{HISTORY_MAX_ENTRIES - 1:05d}"
+
+    coordinator._prune_history(now, 0)
+
+    assert len(coordinator._last_seen) == HISTORY_MAX_ENTRIES
+    assert oldest in coordinator._last_seen
+
+    coordinator._last_seen["Net_extra"] = now - timedelta(seconds=HISTORY_MAX_ENTRIES)
+    coordinator._prune_history(now, 0)
+
+    assert len(coordinator._last_seen) == HISTORY_MAX_ENTRIES
+    assert "Net_extra" not in coordinator._last_seen
+
+
+@pytest.mark.asyncio
+async def test_new_24h_window_is_inclusive_at_the_edge(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A network first seen exactly 24 hours ago still counts.
+
+    Covers finding BVA.5 from recommendations_20260806.md.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    now = dt_util.now()
+    cutoff = now - timedelta(hours=24)
+    coordinator._first_seen = {
+        "Older": cutoff - timedelta(seconds=1),
+        "Exactly": cutoff,
+        "Newer": cutoff + timedelta(seconds=1),
+    }
+
+    assert coordinator._count_new_within(now, hours=24) == 2
+
+
+@pytest.mark.asyncio
+async def test_event_cap_at_exactly_the_limit_suppresses_nothing(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Exactly the cap fires every event and logs no suppression.
+
+    Covers finding BVA.6 from recommendations_20260806.md.
+
+    Tested only above the cap, the suppression notice firing when nothing was
+    suppressed would go unseen — `suppressed` is 0 here and the log line must
+    not appear.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    coordinator._event_baseline_done = True
+
+    mock_wifi_api.get_access_points.return_value = [
+        {
+            "mac": f"AA:BB:CC:00:{i:02x}:01",
+            "ssid": f"CapNet_{i:02d}",
+            "signal": 70,
+            "frequency": FREQ_5,
+        }
+        for i in range(NEW_NETWORK_EVENT_MAX_PER_CYCLE)
+    ]
+
+    fired = []
+    hass.bus.async_listen(EVENT_NEW_NETWORK, lambda evt: fired.append(evt))
+
+    with patch.object(coordinator_module._LOGGER, "info") as mock_info:
+        await coordinator._async_update_data()
+        await hass.async_block_till_done()
+
+    assert len(fired) == NEW_NETWORK_EVENT_MAX_PER_CYCLE
+    assert not any("suppressed" in str(call) for call in mock_info.call_args_list), (
+        "nothing was suppressed, so the suppression notice must not be logged"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_network_known_only_by_its_bssid_is_classified_known(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A MAC in the known list matches, as the docstring promises.
+
+    Covers finding COMBO.1 from recommendations_20260806.md.
+
+    `_is_unknown` matches each pattern against the network key AND the BSSID.
+    Nothing in the suite passed a MAC in either list, so the whole second half
+    of both conditions was unexercised — a documented, user-facing capability
+    with no test.
+    """
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_KNOWN_SSIDS: "AA:BB:CC:00:00:01"},
+    )
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_wifi_api.get_access_points.return_value = [
+        {
+            "mac": "AA:BB:CC:00:00:01",
+            "ssid": "ByMac",
+            "signal": 60,
+            "frequency": FREQ_5,
+        },
+        {
+            "mac": "AA:BB:CC:00:00:02",
+            "ssid": "Other",
+            "signal": 50,
+            "frequency": FREQ_5,
+        },
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert "ByMac" not in data["unknown_ssids"]
+    assert "Other" in data["unknown_ssids"]
+
+
+@pytest.mark.asyncio
+async def test_a_bssid_wildcard_matches_every_radio_of_one_vendor(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A MAC prefix wildcard matches, which is the point of allowing patterns.
+
+    Covers finding COMBO.1 from recommendations_20260806.md.
+    """
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_KNOWN_SSIDS: "AA:BB:CC:*"},
+    )
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_wifi_api.get_access_points.return_value = [
+        {
+            "mac": "AA:BB:CC:00:00:01",
+            "ssid": "Mine1",
+            "signal": 60,
+            "frequency": FREQ_5,
+        },
+        {
+            "mac": "AA:BB:CC:00:00:02",
+            "ssid": "Mine2",
+            "signal": 50,
+            "frequency": FREQ_5,
+        },
+        {
+            "mac": "FF:EE:DD:00:00:03",
+            "ssid": "Theirs",
+            "signal": 40,
+            "frequency": FREQ_5,
+        },
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert data["unknown_ssids"] == ["Theirs"]
+
+
+@pytest.mark.asyncio
+async def test_a_network_with_no_bssid_does_not_break_pattern_matching(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The `bssid and ...` short-circuit is exercised, not just present.
+
+    Covers finding COMBO.1 from recommendations_20260806.md.
+
+    A hidden network whose `mac` is absent reaches `_is_unknown` with
+    `bssid=None`. Without the guard, `fnmatch(None, pattern)` raises and takes
+    the whole scan down. This asserts the scan completes and classifies.
+    """
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_KNOWN_SSIDS: "AA:BB:CC:*"},
+    )
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_wifi_api.get_access_points.return_value = [
+        {"ssid": "NoMacNet", "signal": 60, "frequency": FREQ_5},
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert data["count"] == 1
+    assert data["unknown_ssids"] == data["ssids"]
+
+
+@pytest.mark.asyncio
+async def test_the_denylist_beats_the_known_list(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A network on both lists is unknown — the denylist wins.
+
+    Covers finding COMBO.2 from recommendations_20260806.md.
+
+    `_is_unknown` loops the denylist first and returns True on a match. The
+    rule is stated in its docstring and nothing enforced it: reordering the
+    two loops passed the entire suite.
+    """
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={
+            **mock_config_entry.options,
+            CONF_KNOWN_SSIDS: "Guest*",
+            CONF_DENYLIST_SSIDS: "GuestNet",
+        },
+    )
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_wifi_api.get_access_points.return_value = [
+        {
+            "mac": "AA:BB:CC:00:00:01",
+            "ssid": "GuestNet",
+            "signal": 60,
+            "frequency": FREQ_5,
+        },
+        {
+            "mac": "AA:BB:CC:00:00:02",
+            "ssid": "GuestWifi",
+            "signal": 50,
+            "frequency": FREQ_5,
+        },
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert "GuestNet" in data["unknown_ssids"], "on both lists — denylist wins"
+    assert "GuestWifi" not in data["unknown_ssids"], "known only — stays known"
+
+
+@pytest.mark.asyncio
+async def test_supervisor_unreachable_is_published_on_the_runtime_path(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A warm integration that runs out of strikes publishes the outage.
+
+    Covers finding COMBO.3 from recommendations_20260806.md.
+
+    Two of the four permutations of `not cold_start and _failure_count <=
+    FETCH_STRIKE_LIMIT` were covered. This is the fourth: warm start, count
+    above the limit — the path where a running integration finally gives up.
+    `supervisor_unreachable` appeared in the suite only as a hardcoded fixture
+    value, never produced by the code under test.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    coordinator.data = {"count": 0, "ssids": [], "unknown_ssids": [], "networks": {}}
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("supervisor gone")
+
+    for _ in range(FETCH_STRIKE_LIMIT):
+        await coordinator._async_update_data()
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["problem"] is True
+    assert snapshot["severity"] == SEVERITY_SERIOUS
+    assert snapshot["degraded_capabilities"] == ["supervisor_unreachable"]
+    assert snapshot["drift"] == [], "no payload arrived, so no drift verdict"
+    assert snapshot["cold_start"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_scan_reporting_two_signal_units_resolves_to_none(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Disagreeing units mean no unit, not an arbitrary pick.
+
+    Covers finding COMBO.4 from recommendations_20260806.md.
+
+    Every other test scan reports one unit throughout, so the `else None`
+    branch never ran. It matters twice: the payload must not claim a unit it
+    cannot determine, and `check_signal_unit_flip` must not read the
+    ambiguity as a format change and raise a false drift alarm.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    mock_wifi_api.get_access_points.return_value = [
+        {"mac": "AA:BB:CC:00:00:01", "ssid": "Pct", "signal": 60, "frequency": FREQ_5},
+        {"mac": "AA:BB:CC:00:00:02", "ssid": "Dbm", "signal": -60, "frequency": FREQ_5},
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert data["signal_unit"] is None
+    assert coordinator._baseline_signal_unit is None
+    assert coordinator.health_snapshot["drift"] == []
+
+
+@pytest.mark.asyncio
+async def test_a_non_string_stored_timestamp_is_discarded(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The `TypeError` half of the stored-timestamp guard.
+
+    Covers finding ERR.1 from recommendations_20260806.md, narrowed.
+
+    `test_initialize_handles_all_store_errors_and_corrupt_timestamps` already
+    covers the `ValueError` path with a malformed string, so only the
+    `TypeError` half was untested — a stored value that is not a string at
+    all, which is what a partially-written or hand-edited `.storage` file
+    produces. A test using only a bad string passes with `TypeError` removed
+    from the clause, so the two are separate cases.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    coordinator.store.async_load = AsyncMock(
+        return_value={
+            "Good": "2026-01-01T12:00:00+00:00",
+            "IsANumber": 1735732800,
+            "IsNull": None,
+            "IsAList": ["2026-01-01T12:00:00+00:00"],
+        }
+    )
+    coordinator.store_first_seen.async_load = AsyncMock(return_value={})
+    coordinator.store_visit_counts.async_load = AsyncMock(return_value={})
+
+    await coordinator.async_initialize()
+
+    assert set(coordinator._last_seen) == {"Good"}, (
+        "the readable entry must survive alongside the unreadable ones"
+    )
+
+
+@pytest.mark.asyncio
+async def test_clear_history_twice_is_a_no_op_the_second_time(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Calling the clear action twice leaves the same state as once.
+
+    Covers finding IDEM.1 from recommendations_20260806.md.
+
+    This is exposed as a user-facing action, so a double-click or a script
+    loop calls it twice in quick succession. It also resets the event
+    baseline, which must be left armed once — not compounded.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    now = dt_util.now()
+    coordinator._last_seen = {"Net1": now}
+    coordinator._first_seen = {"Net1": now}
+    coordinator._visit_counts = {"Net1": 3}
+    coordinator._event_baseline_done = True
+
+    await coordinator.async_clear_history()
+    await coordinator.async_clear_history()
+
+    assert coordinator._last_seen == {}
+    assert coordinator._first_seen == {}
+    assert coordinator._visit_counts == {}
+    assert coordinator._event_baseline_done is False
+    assert await coordinator.store.async_load() == {}
+
+
+@pytest.mark.asyncio
+async def test_clearing_history_does_not_replay_the_backlog(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A mid-session clear re-arms the baseline instead of firing everything.
+
+    Covers finding IDEM.2 from recommendations_20260806.md.
+
+    `async_clear_history` sets `_event_baseline_done` back to False so the
+    next scan records the existing set silently. Only the `__init__` path was
+    covered — one test set the flag by hand. This covers the reset, which is
+    the path a user actually triggers, and where getting it wrong dumps every
+    network in range into their automations at once.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    await coordinator._async_update_data()  # baseline established
+
+    fired = []
+    hass.bus.async_listen(EVENT_NEW_NETWORK, lambda evt: fired.append(evt))
+
+    await coordinator.async_clear_history()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert fired == [], "every key is new after a clear, and none may fire"
+
+    mock_wifi_api.get_access_points.return_value = [
+        *mock_wifi_api.get_access_points.return_value,
+        {
+            "mac": "AA:BB:CC:00:00:09",
+            "ssid": "Arrived",
+            "signal": 40,
+            "frequency": FREQ_5,
+        },
+    ]
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert len(fired) == 1, "the baseline must re-arm, not stay disabled"
+    assert fired[0].data["ssid"] == "Arrived"
+
+
+@pytest.mark.asyncio
+async def test_held_data_during_an_outage_is_the_complete_payload(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """An outage returns the real payload, every key intact.
+
+    Covers finding RETVAL.1 from recommendations_20260806.md.
+
+    The resilience tests use a four-key stub dict, so nothing verified that a
+    consumer reading `signal_unit` or `interface` during an outage still finds
+    them. This holds a genuine payload and asserts it comes back whole.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    good = await coordinator._async_update_data()
+    coordinator.data = good
+
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("down")
+    held = await coordinator._async_update_data()
+
+    assert held == good, "the held payload must be the last good one, unaltered"
+    for key in ("interface", "signal_unit", "strongest_unknown_ssid", "new_24h"):
+        assert key in held, f"{key} must survive an outage"
+
+
+@pytest.mark.asyncio
+async def test_new_24h_reflects_the_pruned_first_seen_map(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The count is computed after the prune that rewrites its input.
+
+    Covers finding RETVAL.2 from recommendations_20260806.md.
+
+    `new_24h` reads `_first_seen`, which `_prune_history` rewrites earlier in
+    the same scan. The two steps were tested separately and their interaction
+    was not — a prune removing a recent entry would lower the count silently.
+    """
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_LAST_SEEN_TTL_DAYS: 30},
+    )
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    now = dt_util.now()
+
+    # Recent but long absent: inside the 24h window, outside the TTL.
+    coordinator._first_seen = {"Stale": now - timedelta(hours=1)}
+    coordinator._last_seen = {"Stale": now - timedelta(days=100)}
+    coordinator._visit_counts = {"Stale": 1}
+
+    data = await coordinator._async_update_data()
+
+    assert "Stale" not in coordinator._first_seen, "pruned by TTL"
+    assert data["new_24h"] == len(data["ssids"]), (
+        "only the networks seen this scan count; the pruned entry must not"
     )

@@ -465,3 +465,28 @@ def test_run_checks_returns_an_empty_list_when_nothing_fires(monkeypatch):
     """The healthy case is an empty list, not None."""
     monkeypatch.setattr(health, "CHECKS", (lambda _f: None,))
     assert run_checks(ScanFacts()) == []
+
+
+def test_field_absent_everywhere_is_serious_at_exactly_the_majority():
+    """9 of 10 missing is 0.9, and `>=` means this check owns it.
+
+    The same threshold as `check_band_unresolved`, in a different function.
+    Moving it to `>` leaves the payload silently unreported: this check stops
+    firing and `check_field_absent_minority`, bounded by `< _MAJORITY`, never
+    starts. A field missing on 90% of networks would produce no finding at all.
+    """
+    facts = ScanFacts(normalized=[_ap(mac=None)] * 9 + [_ap()], total_aps=10)
+    finding = check_field_absent_everywhere(facts)
+    assert finding is not None
+    assert finding.severity == SEVERITY_SERIOUS
+
+
+def test_band_unresolved_says_nothing_when_every_band_resolved():
+    """Zero missing must produce no finding.
+
+    The minor branch is gated on `fraction > 0`. Relaxing it to `>= 0` makes
+    it fire on a completely healthy scan, reporting "0% of networks reported a
+    frequency outside the known ranges" every poll.
+    """
+    facts = ScanFacts(normalized=[_ap(), _ap(), _ap()], total_aps=3)
+    assert check_band_unresolved(facts) is None
