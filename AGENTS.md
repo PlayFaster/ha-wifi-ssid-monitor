@@ -84,7 +84,7 @@ For the service names, parameters, and descriptions see [`docs/all_sensors.md`](
 
 Shared conventions (ruff/mypy strictness, `PARALLEL_UPDATES`, `translation_key`, icons, exception tuple syntax, markdown emoji rules) are in [shared conventions §4–5](.shared/dev_std/agent_conventions.md). Project-specific additions:
 
-- `type: ignore` comments are used in several places to suppress mypy errors on HA base classes that lack complete stubs — this is expected.
+- **There is not a single `type: ignore` in this project** — zero in `custom_components/`, zero in `tests/`. Strict mypy passes without suppressions, so adding one is a signal that something is wrong with the annotation rather than with the stubs. Justify it in the commit if you add one.
 - The `.comp/` directory contains unrelated scratch/reference files; ignore it.
 - `quality_scale.yaml` tracks compliance with HA Integration Quality Scale (currently Platinum level).
 

@@ -15,6 +15,7 @@ from custom_components.wifi_ssid_monitor.const import (
     CONF_INTERFACE,
     CONF_KNOWN_SSIDS,
     HIDDEN_FALLBACK_LABEL,
+    HIDDEN_KEY_PREFIX,
     NO_NETWORKS_SENTINEL,
 )
 from custom_components.wifi_ssid_monitor.diagnostics import (
@@ -234,3 +235,84 @@ def test_sanitize_networks_handles_an_entry_with_no_bssid_or_key():
     assert clean[label]["bssid"] == ""
     assert clean[label]["key"] is None
     assert clean[label]["signal"] == 55
+
+
+async def test_a_bssid_keeps_one_pseudonym_everywhere_it_appears(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """One real BSSID must map to one token, in every place it appears.
+
+    This is the module's stated purpose — "allocates a stable pseudonym for
+    each, and rewrites them everywhere". A hidden network carries the same MAC
+    twice: once as its ``bssid`` field, and once embedded in its ``hidden:``
+    history key. If those two paths allocate independently, the sanitized file
+    still says the truth about signal and channel but no longer says that the
+    two rows are the same radio, which is the whole reason to keep the file.
+
+    Nothing asserted this before. ``_sanitize_networks`` reaches ``bssid`` via
+    ``pseudo.bssid`` and ``key`` via ``pseudo.history_key``; only the shared
+    ``_bssid_tokens`` dict makes them agree.
+    """
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.runtime_data = _coordinator_with_data()
+
+    diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+    networks = diag["coordinator"]["data"]["networks"]
+
+    (hidden,) = [n for n in networks.values() if n["hidden"]]
+
+    # The key is ``hidden:<token>``; strip the prefix and compare to the field.
+    assert hidden["key"].startswith(HIDDEN_KEY_PREFIX)
+    assert hidden["key"][len(HIDDEN_KEY_PREFIX) :] == hidden["bssid"]
+
+
+def test_two_different_bssids_never_share_a_pseudonym():
+    """Distinct MACs must get distinct tokens — the map has to be injective.
+
+    "Stable" alone is satisfied by returning a constant, which would merge every
+    neighbouring AP into one and quietly destroy the file's meaning. Stability
+    and distinctness are separate properties and both are load-bearing.
+    """
+    pseudo = _Pseudonymizer()
+    macs = ["AA:BB:CC:00:00:01", "AA:BB:CC:00:00:02", "AA:BB:CC:00:00:03"]
+
+    tokens = [pseudo.bssid(m) for m in macs]
+
+    assert len(set(tokens)) == len(macs)
+    # And repeating the whole set returns the same tokens in the same order.
+    assert [pseudo.bssid(m) for m in macs] == tokens
+
+
+def test_a_bssid_reached_through_a_history_key_shares_the_field_token():
+    """``history_key`` and ``bssid`` must resolve a MAC to the same token.
+
+    The unit-level statement of the property above. ``history_key`` routes a
+    ``hidden:`` key through ``bssid()`` rather than ``ssid()`` precisely so the
+    two namespaces do not diverge — a MAC tokenized as an SSID would get an
+    ``ssid-N`` token and stop cross-referencing.
+    """
+    pseudo = _Pseudonymizer()
+    mac = "AA:BB:CC:00:00:07"
+
+    field_token = pseudo.bssid(mac)
+    key_token = pseudo.history_key(f"{HIDDEN_KEY_PREFIX}{mac}")
+
+    assert key_token == f"{HIDDEN_KEY_PREFIX}{field_token}"
+    assert not field_token.startswith("ssid-")
+
+
+def test_an_ssid_and_a_bssid_do_not_collide_on_one_token():
+    """The two namespaces are separate and must stay visibly separate.
+
+    Both counters start at 1. If either used the other's dict, the first SSID
+    and the first BSSID would both be token 1 and a reader could not tell a
+    network label from a radio address.
+    """
+    pseudo = _Pseudonymizer()
+
+    ssid_token = pseudo.ssid("NeighbourNet")
+    bssid_token = pseudo.bssid("AA:BB:CC:00:00:01")
+
+    assert ssid_token != bssid_token
+    assert ssid_token.startswith("ssid-")
+    assert bssid_token.startswith("bssid-")

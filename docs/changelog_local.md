@@ -5,6 +5,8 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev20\] - 2026-08-06 - Boundary Tests: 25 Mutants Killed in parse.py and diagnostics.py](#201-dev20---2026-08-06---boundary-tests-25-mutants-killed-in-parsepy-and-diagnosticspy)
+  - [\[2.0.1-dev19\] - 2026-08-06 - AGENTS.md: `type: ignore` Claim Corrected](#201-dev19---2026-08-06---agentsmd-type-ignore-claim-corrected)
   - [\[2.0.1-dev18\] - 2026-08-05 - Bump PHACC; Update AGENTS.md](#201-dev18---2026-08-05---bump-phacc-update-agentsmd)
   - [\[2.0.1-dev17\] - 2026-08-05 - Mutation Testing Scoped to Three Modules](#201-dev17---2026-08-05---mutation-testing-scoped-to-three-modules)
   - [\[2.0.1-dev16\] - 2026-08-05 - Zero-Assertion Audit; Event Test Rewritten](#201-dev16---2026-08-05---zero-assertion-audit-event-test-rewritten)
@@ -84,6 +86,71 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.1-dev20] - 2026-08-06 - Boundary Tests: 25 Mutants Killed in parse.py and diagnostics.py
+
+Tests only. No production code changed.
+
+### Why
+
+The mutation assessment in `[2.0.1-dev17]` left 18 boundary and comparison survivors — mutants that change behaviour and that no test noticed. Nine were in `frequency_to_channel` alone, where **every band edge could move by one MHz undetected**. The existing table sampled the middle of each band, which is exactly where an off-by-one is invisible.
+
+A misplaced edge is not cosmetic. Widening 2.4 GHz by one channel makes a 5 GHz radio report as 2.4 GHz, and the band filter then hides a network the user asked to see. Narrowing one drops a legitimate AP to "band unknown".
+
+### Added — `tests/test_parse.py`
+
+- **`test_every_band_edge_is_exact`** — 16 cases pinning every boundary on **both sides, one MHz apart**. Inside the band proves inclusion; one MHz outside proves the bound has not been widened. Either alone leaves the edge free to move in one direction.
+- **`test_channel_arithmetic_is_pinned_at_both_ends_of_each_band`** — 11 cases. One sample per band cannot distinguish a wrong offset from a wrong divisor, because both produce the right answer somewhere. Two points as far apart as the band allows pin the line.
+- **`test_a_recognised_frequency_never_returns_a_half_answer`** — channel and band are decided together; one without the other means the range test and the arithmetic have drifted apart.
+- **`test_normalize_signal_boundaries`** — the zero crossing and the 0-100 clamp. Zero is a percentage, not dBm: a `<= 0` there would route a legitimate "no signal" reading through the dBm conversion and report it as **100%**.
+- **`test_normalize_signal_rounds_rather_than_truncates`** — truncation would bias every reading low. Banker's rounding is the actual behaviour and is now pinned, so a change to `int()` cannot pass quietly.
+- **`test_history_key_falls_back_to_the_bssid`** and two companions — each half of the `not hidden and ssid` conjunction. A hidden network keyed on a spoofable SSID is how two APs merge into one history entry.
+
+### Added — `tests/test_diagnostics.py`
+
+`diagnostics.py` states its purpose in its own docstring — _"allocates a stable pseudonym for each, and rewrites them everywhere"_ — and **nothing asserted it for BSSIDs**. The one test named for it built a fresh `_Pseudonymizer`, called `ssid()` twice, and never touched a BSSID.
+
+- **`test_a_bssid_keeps_one_pseudonym_everywhere_it_appears`** — a hidden network carries the same MAC twice, once as its `bssid` field and once inside its `hidden:` history key. Those reach the pseudonymizer by different routes (`pseudo.bssid` vs `pseudo.history_key`) and only the shared `_bssid_tokens` dict makes them agree. Without it the sanitized file still tells the truth about signal and channel but no longer says the two rows are the same radio — which is the reason to keep the file at all.
+- **`test_two_different_bssids_never_share_a_pseudonym`** — injectivity. "Stable" alone is satisfied by returning a constant, which would merge every neighbouring AP into one. Stability and distinctness are separate properties and both are load-bearing.
+- **`test_a_bssid_reached_through_a_history_key_shares_the_field_token`** — the unit-level statement of the same property.
+- **`test_an_ssid_and_a_bssid_do_not_collide_on_one_token`** — both counters start at 1, so a crossed dict would make the first SSID and the first BSSID both token 1, and a reader could not tell a network label from a radio address.
+
+### Verification
+
+**26 mutations applied by hand, one at a time, each restored from a byte copy with `sha256sum -c` verified `OK`. 25 killed.**
+
+| Function | Killed | What was mutated |
+| :-- | --: | :-- |
+| `frequency_to_channel` | 17 / 17 | Every band edge in both directions, every offset, the divisor, the channel-14 island |
+| `normalize_signal` | 4 / 4 | Sign test, both clamp ends, round-vs-truncate |
+| `history_key` | 3 / 3 | Each half of the conjunction, and `and` → `or` |
+| `_safe_int` | 1 / 2 | Float coercion killed; see below |
+
+**The one survivor is an equivalent mutant, not a gap.** Removing the `value == ""` half of `_safe_int`'s guard changes nothing: `float("")` raises `ValueError`, which the `except` below already converts to the same `default`. Fifteen input shapes were checked — `""`, `"  "`, `b""`, `[]`, `{}`, `True`, `"nan"` among them — and **no input distinguishes the two versions**. There is no test to write; one that "killed" it would assert the implementation rather than the behaviour. The guard stays as documentation that empty-string-means-absent is intended.
+
+`mutmut` is not installed in this devcontainer, so the sweep was done by the hand-mutation procedure in `agent_conventions.md` §2. No git command was used at any point.
+
+### Result
+
+291 tests, **100% line and 100% branch coverage** (1,368 statements, 352 branches, 0 partial), 0 zero-assertion tests of 238 audited.
+
+### Open — not acted on
+
+**6 GHz frequencies between 5925 and 5949 MHz return negative channel numbers.** The range test admits from 5925, but the arithmetic is `(freq - 5950) // 5`, so 5925 yields channel **−5** and 5950–5954 yield channel **0**; channel 1 is 5955. This is reachable — 6E channel 2 sits at 5935 MHz and would report as channel −3.
+
+The **band** edge at 5925 is correct and is now pinned, because the allocation does start there. No test asserts the negative channel is correct, deliberately. Fixing it is a source change and is awaiting a decision.
+
+## [2.0.1-dev19] - 2026-08-06 - AGENTS.md: `type: ignore` Claim Corrected
+
+Documentation only. No code, tests or configuration changed.
+
+### Fixed
+
+- **`AGENTS.md` claimed `type: ignore` is "used in several places to suppress mypy errors on HA base classes that lack complete stubs — this is expected."** The measured count is **zero** — none in `custom_components/`, none in `tests/`. The line was inherited from a sibling project's conventions block and was never true here.
+
+  It is worth correcting rather than deleting, because the false version pre-authorized the thing it described: an agent reading it would add a `type: ignore` and consider the matter covered by convention. The replacement states the actual position — strict mypy passes with no suppressions anywhere, so a new one is a signal that the annotation is wrong, not that the stubs are incomplete, and it needs justifying.
+
+  This is the file agents read before touching anything, which is why a wrong line in it costs more than a wrong line elsewhere.
 
 ## [2.0.1-dev18] - 2026-08-05 - Bump PHACC; Update AGENTS.md
 

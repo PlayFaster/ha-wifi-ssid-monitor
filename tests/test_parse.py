@@ -221,3 +221,166 @@ def test_safe_int_tolerates_absent_and_bad_values():
     assert _safe_int("") is None
     assert _safe_int("not-a-number") is None
     assert _safe_int(None, 7) == 7
+
+
+# ---------------------------------------------------------------------------
+# Band edges — every comparison in frequency_to_channel, pinned
+# ---------------------------------------------------------------------------
+#
+# Mutation testing found nine surviving mutants in `frequency_to_channel`
+# alone: every `<=` and `>=` bound could move by one, and every offset and
+# divisor could change, without a single test noticing. The existing table
+# above samples the middle of each band, which is exactly where an off-by-one
+# is invisible.
+#
+# A misplaced edge is not cosmetic. Widening 2.4 GHz by one channel makes a
+# 5 GHz radio report as 2.4 GHz, and the band filter then hides a network the
+# user asked to see. Narrowing one drops a legitimate AP to "band unknown".
+
+
+@pytest.mark.parametrize(
+    ("mhz", "band"),
+    [
+        # 2.4 GHz: the contiguous run, then channel 14 as a separate island.
+        (2411, None),
+        (2412, "2.4 GHz"),
+        (2472, "2.4 GHz"),
+        (2473, None),
+        (2483, None),
+        (2484, "2.4 GHz"),
+        (2485, None),
+        # 5 GHz.
+        (5149, None),
+        (5150, "5 GHz"),
+        (5895, "5 GHz"),
+        (5896, None),
+        # The gap between the 5 GHz and 6 GHz allocations is real, not an
+        # oversight — 5896-5924 belongs to neither and must stay unknown.
+        (5924, None),
+        # 6 GHz.
+        (5925, "6 GHz"),
+        (7125, "6 GHz"),
+        (7126, None),
+    ],
+)
+def test_every_band_edge_is_exact(mhz, band):
+    """Each band boundary is asserted on both sides, one MHz apart.
+
+    Pinning the value inside the band proves it is included; pinning the value
+    one MHz outside proves the bound has not been widened. Both are needed —
+    either alone leaves the edge free to move in one direction.
+    """
+    assert frequency_to_channel(mhz)[1] == band
+
+
+@pytest.mark.parametrize(
+    ("mhz", "channel"),
+    [
+        # (freq - 2407) // 5 across the whole 2.4 GHz run.
+        (2412, 1),
+        (2437, 6),
+        (2472, 13),
+        (2484, 14),
+        # (freq - 5000) // 5 across the whole 5 GHz run.
+        (5150, 30),
+        (5180, 36),
+        (5895, 179),
+        # (freq - 5950) // 5 in the 6 GHz run, from channel 1 upward.
+        (5955, 1),
+        (6175, 45),
+        (7125, 235),
+    ],
+)
+def test_channel_arithmetic_is_pinned_at_both_ends_of_each_band(mhz, channel):
+    """The offset and divisor in each band's formula are fixed by two points.
+
+    One sample cannot distinguish a wrong offset from a wrong divisor — both
+    produce the right answer somewhere. Two points per band, as far apart as
+    the band allows, pin the line.
+    """
+    assert frequency_to_channel(mhz)[0] == channel
+
+
+@pytest.mark.parametrize("mhz", [2412, 2484, 5150, 5955, 7125])
+def test_a_recognised_frequency_never_returns_a_half_answer(mhz):
+    """Channel and band are decided together and must both be present.
+
+    A frequency that is in a band but yields no channel — or the reverse —
+    means the range test and the arithmetic have drifted apart.
+    """
+    channel, band = frequency_to_channel(mhz)
+    assert channel is not None
+    assert band is not None
+
+
+# ---------------------------------------------------------------------------
+# normalize_signal — the sign test and the clamp
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected_pct", "expected_unit"),
+    [
+        # The sign test picks the unit. Zero is a percentage, not dBm: a
+        # `<= 0` here would route a legitimate "no signal" reading through the
+        # dBm conversion and report it as 100%.
+        (0, 0, "percent"),
+        (1, 1, "percent"),
+        (-1, 100, "dBm"),
+        # The clamp holds at both ends and does not clip a valid reading.
+        (100, 100, "percent"),
+        (101, 100, "percent"),
+        (999, 100, "percent"),
+    ],
+)
+def test_normalize_signal_boundaries(raw, expected_pct, expected_unit):
+    """The zero crossing and the 0-100 clamp are both exact."""
+    pct, _, unit = normalize_signal(raw)
+    assert (pct, unit) == (expected_pct, expected_unit)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"), [(0.4, 0), (0.5, 0), (0.6, 1), (99.5, 100), (99.4, 99)]
+)
+def test_normalize_signal_rounds_rather_than_truncates(raw, expected):
+    """A fractional percentage rounds; truncation would bias every reading low.
+
+    ``round`` is banker's rounding, so 0.5 goes to 0 and 99.5 to 100. That is
+    the behaviour, and pinning it stops a change to ``int()`` passing quietly.
+    """
+    assert normalize_signal(raw)[0] == expected
+
+
+# ---------------------------------------------------------------------------
+# history_key — which branch decides identity
+# ---------------------------------------------------------------------------
+
+
+def test_history_key_prefers_the_ssid_only_when_not_hidden():
+    """A named, visible network keys on its SSID."""
+    assert (
+        history_key({"hidden": False, "ssid": "HomeNet", "mac": "AA:BB"}) == "HomeNet"
+    )
+
+
+@pytest.mark.parametrize(
+    "network",
+    [
+        {"hidden": True, "ssid": "HomeNet", "mac": "AA:BB"},
+        {"hidden": False, "ssid": None, "mac": "AA:BB"},
+        {"hidden": False, "ssid": "", "mac": "AA:BB"},
+    ],
+)
+def test_history_key_falls_back_to_the_bssid(network):
+    """Hidden, or unnamed, both route to the MAC — the `and` needs both sides.
+
+    Flipping the conjunction to `or`, or dropping either half, still passes a
+    test that only checks the happy path. A hidden network keyed on a spoofable
+    SSID is how two APs merge into one history entry.
+    """
+    assert history_key(network) == "hidden:AA:BB"
+
+
+def test_history_key_with_neither_a_name_nor_a_mac():
+    """Nothing to key on falls back to the shared label rather than raising."""
+    assert history_key({"hidden": True, "ssid": None, "mac": None}) == "[hidden]"
