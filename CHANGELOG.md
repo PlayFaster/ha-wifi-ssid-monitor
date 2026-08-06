@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [2.0.1] - 2026-08-06
+## [2.0.1] - 2026-08-06 - Release
 
 ### Summary
 
