@@ -4,23 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [2.0.1] - 2026-08-05
+## [2.0.1] - 2026-08-06
 
 ### Summary
 
+- Action response freshness metadata (`last_updated`, `stale`) added to `get_networks`.
+- `drift` classification attribute added to the Integration Health sensor.
 - Action icons added for all 6 domain service calls in the Home Assistant UI and automation editor.
-- Data freshness indicators (`last_updated` and `stale`) added to `get_networks` action responses.
-- `about` explanatory attribute added to the Interface sensor (`sensor.wifi_ssid_monitor_interface`).
+- Interface diagnostic sensor gained an `about` explanatory attribute.
 - README example automations hardened with transient state guards against false triggers during Home Assistant restarts.
 
 ### Added
 
-- **Action icons in HA UI**: Icons added for `add_ssid`, `clear_last_seen`, `get_networks`, `remove_ssid`, `scan_now`, and `set_ssids` (`icons.json`), rendering in Developer Tools and automation editors.
-- **Data freshness metadata on `get_networks` action**: Response now includes `last_updated` timestamp and a `stale` flag (`true` when the last scan failed).
-- **Interface sensor `about` attribute**: `sensor.wifi_ssid_monitor_interface` now includes an `about` attribute explaining the adapter being scanned.
+- **`drift` attribute on Integration Health binary sensor**: Exposes structural platform changes (`drift`) separately from operational outages (`degraded_capabilities`), allowing templates and automations to distinguish environment changes from hardware failures. `binary_sensor.wifi_ssid_monitor_integration_health`
+- **Data freshness metadata in `get_networks` action response**: Action responses now return `last_updated` (timestamp of the scan) and `stale` (`true` if the latest scan failed). `get_networks`
+- **Action icons in HA UI**: Added MDI icons to all six service actions (`add_ssid`, `clear_last_seen`, `get_networks`, `remove_ssid`, `scan_now`, `set_ssids`) for clearer display in HA automation/script editors.
+- **Explanatory `about` note on Interface sensor**: `sensor.wifi_ssid_monitor_interface` now carries an unrecorded `about` attribute detailing adapter scope.
 
 ### Changed
 
+- **Repair issue text reworded**: `signal_format_changed` repair description updated to present observed data changes neutrally.
 - **Automation example resilience**: README example automations updated with transient state filters (`not_from` / `has_value`) to prevent false triggers during Home Assistant restarts or router reboots.
 
 ---
@@ -273,7 +276,7 @@ Entry structure — headers, titles, category headings and the split between thi
 ---
 
 - [Changelog: WiFi SSID Monitor](#changelog-wifi-ssid-monitor)
-  - [\[2.0.1\] - 2026-08-05](#201---2026-08-05)
+  - [\[2.0.1\] - 2026-08-06](#201---2026-08-06)
   - [\[2.0.0\] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames](#200---2026-07-25---signal-as-a-percentage-health-sensor-breaking-renames)
   - [\[1.6.1\] - 2026-07-04 - Release - Reconfigure Shows All Settings; Polling Toggle](#161---2026-07-04---release---reconfigure-shows-all-settings-polling-toggle)
   - [\[1.6.0\] - 2026-06-12 - Proximity Alert, Persistent History and Denylist](#160---2026-06-12---proximity-alert-persistent-history-and-denylist)
