@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev21\] - 2026-08-06 - 6 GHz Channel Numbering Corrected](#201-dev21---2026-08-06---6-ghz-channel-numbering-corrected)
   - [\[2.0.1-dev20\] - 2026-08-06 - Boundary Tests: 25 Mutants Killed in parse.py and diagnostics.py](#201-dev20---2026-08-06---boundary-tests-25-mutants-killed-in-parsepy-and-diagnosticspy)
   - [\[2.0.1-dev19\] - 2026-08-06 - AGENTS.md: `type: ignore` Claim Corrected](#201-dev19---2026-08-06---agentsmd-type-ignore-claim-corrected)
   - [\[2.0.1-dev18\] - 2026-08-05 - Bump PHACC; Update AGENTS.md](#201-dev18---2026-08-05---bump-phacc-update-agentsmd)
@@ -13,9 +14,9 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.1-dev15\] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken](#201-dev15---2026-08-05---branch-coverage-to-100-eight-tests-for-paths-never-taken)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - §14 Enforcement Test](#201-dev8---2026-07-27---14-enforcement-test)
   - [\[2.0.1-dev7\] - 2026-07-27 - §19 `drift` Attribute](#201-dev7---2026-07-27---19-drift-attribute)
@@ -86,6 +87,52 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.1-dev21] - 2026-08-06 - 6 GHz Channel Numbering Corrected
+
+**This changes what users see.** A 6 GHz access point on channel 2 has been reporting **channel −3**, and frequencies at either end of the band have been reporting channel numbers that do not exist.
+
+### Bumps
+
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.353 to 0.13.354
+
+### Fixed
+
+- **`parse.frequency_to_channel` now implements 6 GHz channel numbering as the standard defines it**, rather than deriving it from one formula.
+
+  **Channel 2 is an explicit exception.** It sits at **5935 MHz — below channel 1 at 5955** — and does not follow `(freq - 5950) / 5`, which yields −3. IEEE 802.11ax D6.1 §27.3.22.2 defines it separately, and Linux `cfg80211` special-cases the same literal in `ieee80211_freq_khz_to_channel()`. It is now a literal here too.
+
+  **The band is wider than its channel range at both ends.** 6 GHz opens at 5925 MHz but the lowest channel centre is 5955; it runs to 7125 but the highest channel is 233 at 7115. A frequency inside the band with no channel of its own now reports `(None, "6 GHz")` — band known, channel unknown — instead of a computed number.
+
+  Reporting `None` is what rule 1 of this module requires: a field that cannot be determined becomes `None`. It also matters practically, because `normalize_access_point` falls back to any explicit `channel` the Supervisor supplied only when the derived one is `None`. A fabricated number denied it that fallback.
+
+| Frequency           | Before   | After                  |
+| :------------------ | :------- | :--------------------- |
+| 5935 (6E channel 2) | −3       | **2**                  |
+| 5925-5954           | −5 … 0   | no channel, band 6 GHz |
+| 5955-7119           | 1-233    | unchanged              |
+| 7120-7125           | 234, 235 | no channel, band 6 GHz |
+
+### Added
+
+- **`test_no_frequency_anywhere_yields_a_channel_below_one`** — sweeps 2400-7200 MHz and asserts every result is `None` or ≥ 1. This is the test that found the defect, and it is the shape worth copying: it asks one question of **every** frequency rather than of the ones somebody thought to list. The per-case tests around it all passed while a 30 MHz stretch returned negative channels.
+- `test_6ghz_channel_2_is_the_documented_exception`, `test_a_6ghz_frequency_with_no_channel_reports_the_band_only` (7 cases), `test_6ghz_real_channels_still_resolve` (4 cases).
+
+### Corrected in the tests added by [2.0.1-dev20]
+
+Two cases written yesterday asserted the broken behaviour as correct. Both were found by making the fix, not by re-reading the tests.
+
+- **`(7125, 235)` was pinned as the top of the 6 GHz range.** Channel 235 does not exist; 7125 is the band edge, not a channel centre. Now `(7115, 233)`. The same class of defect as the one being fixed, and it had been written into a test as the expected value.
+- **`test_a_recognised_frequency_never_returns_a_half_answer` used 7125**, which now correctly returns a band with no channel. Changed to 7115, and 5935 added.
+- A case in the new tests was also wrong: **7116 is channel 233**, not an invalid frequency. 7116-7119 floor to 233, consistent with 2413 → channel 1 elsewhere in the function. The invalid range starts at 7120.
+
+### Verification
+
+Nine mutations applied by hand and restored with `sha256sum -c` verified `OK` — **all nine killed**: the channel-2 literal and its value, both ends of the new channel-range guard in both directions, and the band edges and offset.
+
+`frequency_to_channel` now stands at **26 boundary mutants killed, none surviving**.
+
+**305 tests, 100% line and 100% branch coverage** (1,371 statements, 354 branches, 0 partial). ruff and mypy clean.
 
 ## [2.0.1-dev20] - 2026-08-06 - Boundary Tests: 25 Mutants Killed in parse.py and diagnostics.py
 

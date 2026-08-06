@@ -288,7 +288,7 @@ def test_every_band_edge_is_exact(mhz, band):
         # (freq - 5950) // 5 in the 6 GHz run, from channel 1 upward.
         (5955, 1),
         (6175, 45),
-        (7125, 235),
+        (7115, 233),
     ],
 )
 def test_channel_arithmetic_is_pinned_at_both_ends_of_each_band(mhz, channel):
@@ -301,7 +301,7 @@ def test_channel_arithmetic_is_pinned_at_both_ends_of_each_band(mhz, channel):
     assert frequency_to_channel(mhz)[0] == channel
 
 
-@pytest.mark.parametrize("mhz", [2412, 2484, 5150, 5955, 7125])
+@pytest.mark.parametrize("mhz", [2412, 2484, 5150, 5935, 5955, 7115])
 def test_a_recognised_frequency_never_returns_a_half_answer(mhz):
     """Channel and band are decided together and must both be present.
 
@@ -384,3 +384,63 @@ def test_history_key_falls_back_to_the_bssid(network):
 def test_history_key_with_neither_a_name_nor_a_mac():
     """Nothing to key on falls back to the shared label rather than raising."""
     assert history_key({"hidden": True, "ssid": None, "mac": None}) == "[hidden]"
+
+
+# ---------------------------------------------------------------------------
+# 6 GHz channel numbering — the two places the formula alone is wrong
+# ---------------------------------------------------------------------------
+#
+# IEEE 802.11ax D6.1 27.3.22.2 defines channel 2 at 5935 MHz, BELOW channel 1
+# at 5955, as an explicit exception to `(freq - 5950) / 5`. Linux cfg80211
+# special-cases the same value in `ieee80211_freq_khz_to_channel`.
+#
+# And the band opens at 5925 while the lowest channel centre is 5955 and the
+# highest is 7115 (channel 233), though the band runs to 7125. So a frequency
+# can sit inside the band with no channel of its own, at either end.
+
+
+def test_6ghz_channel_2_is_the_documented_exception():
+    """5935 MHz is channel 2, which the formula cannot produce.
+
+    `(5935 - 5950) // 5` is -3. Channel 2 sits below channel 1 and is defined
+    separately in the standard, so it has to be handled as a literal.
+    """
+    assert frequency_to_channel(5935) == (2, "6 GHz")
+
+
+@pytest.mark.parametrize("mhz", [5925, 5930, 5940, 5950, 5954, 7120, 7125])
+def test_a_6ghz_frequency_with_no_channel_reports_the_band_only(mhz):
+    """Inside the band, outside the channel range: band known, channel unknown.
+
+    These are the frequencies the arithmetic gets wrong. Below 5955 it yields
+    zero or a negative channel; above 7115 it yields a channel past 233. Both
+    are numbers no radio can be on.
+
+    Reporting the band and leaving the channel `None` is what the module's own
+    rule 1 requires — a field that cannot be determined becomes `None`, and
+    `normalize_access_point` then falls back to any explicit `channel` the
+    Supervisor supplied. Inventing a number denies that fallback the chance.
+    """
+    channel, band = frequency_to_channel(mhz)
+    assert band == "6 GHz"
+    assert channel is None
+
+
+@pytest.mark.parametrize(
+    ("mhz", "channel"), [(5955, 1), (5975, 5), (6175, 45), (7115, 233)]
+)
+def test_6ghz_real_channels_still_resolve(mhz, channel):
+    """The channels that do exist are unaffected: 1 at 5955 to 233 at 7115."""
+    assert frequency_to_channel(mhz) == (channel, "6 GHz")
+
+
+def test_no_frequency_anywhere_yields_a_channel_below_one():
+    """A channel number is 1 or greater, in every band, or it is None.
+
+    The 6 GHz arithmetic produced -5 through 0 for a whole 30 MHz stretch and
+    nothing noticed, because no test asked the one question that covers every
+    band at once.
+    """
+    for mhz in range(2400, 7200):
+        channel, _ = frequency_to_channel(mhz)
+        assert channel is None or channel >= 1, f"{mhz} MHz gave channel {channel}"
