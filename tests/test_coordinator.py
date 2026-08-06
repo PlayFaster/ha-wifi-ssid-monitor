@@ -906,12 +906,8 @@ async def test_startup_grace_filters_drift_findings_independently(
         {"mac": "AA:BB:CC:00:00:02", "ssid": "Net2", "signal": 40},
     ]
 
-    # `_scans_completed` is incremented BEFORE `_apply_health` reads it
-    # (coordinator.py:536 then :538), so the guard `_scans_completed <
-    # HEALTH_STARTUP_GRACE_SCANS` is already False on the second scan. A
-    # constant of 2 therefore grants ONE scan of grace, not two. That is the
-    # behaviour; this test pins it so the off-by-one cannot drift further.
-    for scan in range(1, HEALTH_STARTUP_GRACE_SCANS):
+    # The constant means what it says: this many scans are inside the window.
+    for scan in range(1, HEALTH_STARTUP_GRACE_SCANS + 1):
         await coordinator._async_update_data()
         assert "band_unresolved_all" not in coordinator._drift_strikes, (
             f"scan {scan} is inside the grace window; the finding must be "

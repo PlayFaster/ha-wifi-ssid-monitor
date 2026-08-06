@@ -533,7 +533,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 strongest_signal = signal
                 strongest_label = label
 
-        self._scans_completed += 1
+        # The counter is incremented AFTER the health pass, not before, so
+        # `_apply_health` sees the number of scans completed *before* this one.
+        # Incrementing first made HEALTH_STARTUP_GRACE_SCANS grant one fewer
+        # scan of grace than its name says — a 2 meant one scan.
         try:
             self._apply_health(
                 ScanFacts(
@@ -553,6 +556,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             _LOGGER.debug(
                 "Health computation failed; treating as healthy", exc_info=True
             )
+        self._scans_completed += 1
 
         if signal_unit and self._baseline_signal_unit is None:
             self._baseline_signal_unit = signal_unit

@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev24\] - 2026-08-06 - Test Depth Review: 20 Tests, Startup Grace Corrected](#201-dev24---2026-08-06---test-depth-review-20-tests-startup-grace-corrected)
   - [\[2.0.1-dev23\] - 2026-08-06 - First Full Mutation Run: 92 Survivors Triaged, 8 Killed](#201-dev23---2026-08-06---first-full-mutation-run-92-survivors-triaged-8-killed)
   - [\[2.0.1-dev22\] - 2026-08-06 - health.py Thresholds and the Dispatch Loop](#201-dev22---2026-08-06---healthpy-thresholds-and-the-dispatch-loop)
   - [\[2.0.1-dev21\] - 2026-08-06 - 6 GHz Channel Numbering Corrected](#201-dev21---2026-08-06---6-ghz-channel-numbering-corrected)
@@ -89,6 +90,57 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.1-dev24] - 2026-08-06 - Test Depth Review: 20 Tests, Startup Grace Corrected
+
+`testing_deeper_lev1_review` then `testing_deeper_lev1_implement`, run at stage 4 with all four signals clean. 19 findings, 18 implemented as 20 tests, one source fix.
+
+### Fixed
+
+- **`HEALTH_STARTUP_GRACE_SCANS = 2` granted one scan of grace, not two.** `_scans_completed` was incremented **before** `_apply_health` read it, so the guard `_scans_completed < HEALTH_STARTUP_GRACE_SCANS` was already false on the second scan. The counter now increments **after** the health pass, so it means "scans completed before this one" and the constant means what it says.
+
+  Safe to move: `facts.scans_completed` is populated on `ScanFacts` and read by no check — verified before changing it.
+
+  **Effect:** the first possible health alarm moves from the 4th scan to the 5th. At the default 10-minute interval, 50 minutes instead of 40. No behaviour change otherwise.
+
+  **How it hid:** the only test touching the grace window looped five scans with a comment reading _"Startup grace (2 scans) then the drift strike budget (3)"_ — so the two thresholds were only ever tested multiplied together, and 5 is exactly enough either way. That test passes before and after the fix. Finding BVA.3 wrote a test for the grace window **alone**, which failed, which is how the off-by-one surfaced.
+
+### Added — 20 tests
+
+`tests/test_coordinator.py` — 15 new, 1 extended. `tests/test_api.py` — 3 new plus a `_request_info()` helper.
+
+The gaps clustered in one place: **four of the seven thresholds in `const.py` appeared in no test file at all.**
+
+- **BVA.1** `established_known_keys` had no test of any kind. It is the input to the canary check — a wrong threshold or a broken pattern match empties the set and `check_known_network_canary` then returns `None` on its first line for every scan, with nothing failing. Both terms of its conjunction are now pinned.
+- **COMBO.1** — `_is_unknown` matches each pattern against the key **and** the BSSID, and the docstring promises users can list MAC addresses. **No test anywhere passed a MAC in either list.** Three tests now cover an exact MAC, a MAC wildcard, and the `bssid is None` short-circuit. No defect found; the capability was untested, not broken.
+- **COMBO.2** — the denylist-wins rule is stated in `_is_unknown`'s docstring and nothing enforced it. Reordering the two loops passed the entire suite.
+- **COMBO.3** — `supervisor_unreachable` appeared in the suite only as a hardcoded fixture value, never produced by the code under test. The warm-start-out-of-strikes path is now driven.
+- **COMBO.4** — a scan where two access points report different signal units. The `else None` branch had never run.
+- **ERR.2 / ERR.3** — `aiohttp.ContentTypeError` was claimed in two `except` clauses and exercised in neither; it is what the Supervisor raises when it answers with an HTML error page. Plus the catch-all wrapper, asserting `__cause__` survives so the original traceback is not lost.
+- **IDEM.2** — `async_clear_history` re-arms the event baseline, and only the `__init__` path was covered. Clearing history mid-session must fire **no** events on the next scan, then re-arm. Getting that wrong dumps every network in range into a user's automations at once.
+- Plus BVA.2, BVA.4-6 (TTL cutoff, history cap, 24-hour window, event cap — each pinned on both sides), ERR.1, ASSERT.1, IDEM.1, RETVAL.1-2.
+
+### Added — `mutation_equivalents.md`
+
+`.notes/issues/testing_deeper/mutation_equivalents.md` — an **undated, cumulative** record of mutants proved to change no observable behaviour, read before triaging a mutation run.
+
+It exists because `_safe_int`'s `or` → `and` was proved equivalent **twice in one day**. The dated `recommendations_YYYYMMDD.md` files record what one run found; nothing carried between runs. The risk is not the wasted time — it is that an equivalent mutant eventually gets "killed" by a test asserting the implementation rather than the behaviour, and that test stays forever.
+
+Seeded with the `_safe_int` / `_safe_float` pair (15 input shapes checked, none distinguishing), the `_Pseudonymizer` counter offsets, and a separate section for survivors that **are** killable but judged not worth it — which keeps the one open question, `severity=None` on `check_signal_unit_flip`, visible rather than buried.
+
+### Three corrections to the analysis, found by implementing it
+
+- **ERR.1 was half wrong.** I wrote that nothing exercised the corrupt-timestamp guard. An existing test already passes `"corrupt-iso"`, covering `ValueError`; only the `TypeError` half was missing. Missed because the grep used `not-a-date|invalid.*timestamp` and the fixture says `corrupt-iso`. The test was narrowed to non-string values.
+- **My first `ContentTypeError` mocks used `request_info=None`.** `str(ContentTypeError)` reads `request_info.real_url`, so the logger raised inside the handler and the failure was misattributed to the catch-all — the clause under test was never reached. The `_request_info()` helper documents why.
+- **ASSERT.2 was recorded and not implemented.** It targets five argument-free `assert_called_once()` calls on methods taking no arguments. Writing `assert_called_once_with()` there would assert an empty signature and could not fail.
+
+### Result
+
+326 → **346 tests**, 100% line and 100% branch coverage (1,371 statements, 354 branches, 0 partial), 0 of 278 zero-assertion. ruff clean.
+
+### Related, in other repos
+
+The mutmut cache fix (`cache_invalidation_files` + `on_dependency_change`) is in `dev-workbench`; the prompt read-step that makes `mutation_equivalents.md` actually get read is in `shared`.
 
 ## [2.0.1-dev23] - 2026-08-06 - First Full Mutation Run: 92 Survivors Triaged, 8 Killed
 
