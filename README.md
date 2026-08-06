@@ -1530,7 +1530,7 @@ The integration utilizes a custom polling mechanism designed to interact with th
 
 ### 🆔 Stable Entities & Interface Identity
 
-- **Interface-Based Identity**: The integration registers its unique ID based on `wifi_ssid_monitor_{interface}`. This prevents duplicate configurations for the same interface and ensures entity history remains stable.
+- **Interface-Based Identity**: The integration registers its unique ID based on `wifi_ssid_monitor_{interface}`. This prevents duplicate configurations for the same interface and ensures entity history remains stable. It also means **one adapter per entry, and more than one adapter is supported** - add the integration again and choose the other interface.
 - **Data Validation & Normalization Boundary**: Values retrieved from the Supervisor API pass through a single parsing boundary (`parse.py`). Signal is normalized to a 0–100% quality scale, frequencies are mapped to channels and 2.4/5/6 GHz bands, and out-of-bounds metrics are safely clamped.
 
 ### 💾 Files Written to `config/.storage`
@@ -1597,6 +1597,28 @@ Entries older than the **Last Seen History TTL** (default 90 days) are pruned au
 - Check the **Integration Health** binary sensor - its `issues` attribute names what it detected (e.g. a missing interface). The [Integration Health Problem Alert](#-integration-health-problem-alert) example notifies you automatically.
 - Review the Home Assistant logs for detailed error messages.
 - Its a computer, turning it off and on again never hurts.
+
+---
+
+</details>
+
+#### 📶 **Can I monitor more than one WiFi adapter?**
+
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
+</summary><br>
+
+Yes, if your HA system has one than one WiFi adapter, it can be added.
+
+Add the integration a second time and pick the other interface. Each adapter becomes its own entry with its own device, its own entities, its own known and blocked lists, and its own history. Nothing is shared between them.
+
+- The interface is part of the unique ID, so the same adapter cannot be added twice.
+- Actions that take a `config_entry_id` target one adapter; those that do not apply to all of them.
+- Repair notifications name the adapter they came from, so two adapters raising the same problem stay separate.
+
+Worth having if you run a second adapter pointed at a different band or placed elsewhere in the building. If you have the standard one adapter, ignore all of this.
 
 ---
 
@@ -1729,7 +1751,7 @@ Because Home Assistant keeps most of it on purpose. This is **Home Assistant beh
 | Renames, icons, areas, labels, enabled/disabled state | **30 days**, in the entity registry | Restored |
 | **Network history** (this integration's `.storage` files) | Not kept - deleted with the integration | Starts fresh |
 
-The **30 days** applies only to that fourth row - the entity-registry customizations. Statistics aren't on a timer at all, and your entity IDs come back either way. So re-adding after a year still reconnects your graphs; you would just need to redo any renames. Restarting Home Assistant in between makes no difference to any of this. Only this integration's own `first_seen` / `visit_count` history is genuinely lost - **New Networks (24h)** rebaselines.
+The **30 days** applies only to that fourth row - the entity-registry customizations. Statistics aren't on a timer at all, and your entity IDs come back either way. So re-adding after a year still reconnects your graphs; you would just need to redo any renames. Restarting Home Assistant in between makes no difference to any of this. Only this integration's own `first_seen` / `visit_count` history is genuinely lost - **New Networks (24h)** starts from scratch.
 
 **If you actually wanted a clean slate**, Home Assistant doesn't really offer one - and in practice you rarely need it. Two supported options exist:
 

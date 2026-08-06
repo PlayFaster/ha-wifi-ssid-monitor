@@ -5,6 +5,8 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
+  - [\[2.0.1\] - 2026-08-06 - Release - Multi SSID Plus More Fixes; Major Test Improvements](#201---2026-08-06---release---multi-ssid-plus-more-fixes-major-test-improvements)
   - [\[2.0.1-dev25\] - 2026-08-06 - Code Review: 12 Findings Fixed](#201-dev25---2026-08-06---code-review-12-findings-fixed)
   - [\[2.0.1-dev24\] - 2026-08-06 - Test Depth Review: 20 Tests, Startup Grace Corrected](#201-dev24---2026-08-06---test-depth-review-20-tests-startup-grace-corrected)
   - [\[2.0.1-dev23\] - 2026-08-06 - First Full Mutation Run: 92 Survivors Triaged, 8 Killed](#201-dev23---2026-08-06---first-full-mutation-run-92-survivors-triaged-8-killed)
@@ -92,6 +94,88 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.1] - 2026-08-06 - Release
+
+### Summary
+
+Maintenance update focused on edge-case bug fixes and test coverage expansion. Most underlying work is internal (expanding the test suite to 363 tests with 100% coverage). No changes to user workflows, dashboards, or automations are required.
+
+### Added
+
+- **`drift` attribute on Integration Health**: Exposes structural platform changes separately from operational outages on `binary_sensor.wifi_ssid_monitor_integration_health`.
+- **Data freshness metadata**: Returns `last_updated` timestamp and `stale` flag in `get_networks` action responses.
+- **Action icons**: Added MDI icons to service actions for HA UI automation and script editors.
+- **`about` note on Interface sensor**: Added unrecorded `about` attribute to `sensor.wifi_ssid_monitor_interface`.
+
+### Fixed
+
+- **Multi-radio AP signal tracking**: Networks broadcast by multiple radios now report the strongest signal instead of fluctuating between radios.
+- **6 GHz channel calculation**: Fixed edge-of-band 6 GHz frequencies reporting negative or non-existent channel numbers.
+- **Missing adapter reporting**: Integration Health sensor flags a missing adapter immediately on the first scan after restart.
+- **Repair notification isolation & cleanup**: Prevented multi-adapter Repair issues from overwriting each other, and ensured Repair issues clear upon integration removal.
+- **Scan Now debouncing**: Pressing Scan Now twice quickly no longer returns cached results from the prior scan.
+- **Slider setting retention**: Rapid configuration changes no longer overwrite pending slider value updates.
+- **Diagnostics and error logging**: Improved Supervisor error handling, shutdown history logging, and health check error transparency.
+
+### Changed
+
+- **Automation example resilience**: README example automations updated with transient state filters (`not_from` / `has_value`).
+- **Repair issue description**: Reworded `signal_format_changed` description to present data changes neutrally.
+
+### Under the hood
+
+- Test suite expanded from 241 to 363 tests at 100% line and branch coverage with mutation testing validation.
+
+## [2.0.1] - 2026-08-06 - Release - Multi SSID Plus More Fixes; Major Test Improvements
+
+### Summary
+
+**Most of the work in this release is not visible to you.** It went into testing — the suite grew to 363 tests covering every line and every branch of the integration, and that work found the handful of real faults listed under Fixed below. Nothing changes about how you use it, and there is nothing to update in your dashboards or automations.
+
+What you will notice, if you were affected:
+
+- **A network broadcast by two radios reports its strongest signal**, rather than flipping between them.
+- **6 GHz channels are reported correctly.** Some networks reported negative or non-existent channel numbers.
+- **The Integration Health sensor reports a missing WiFi adapter straight away** instead of staying silent for the first two scans.
+- **Scan Now no longer reports the result of the previous scan** when pressed twice quickly.
+- **Repairs work properly when you have more than one adapter configured**, and no longer linger after the integration is deleted.
+
+### Added
+
+- **`drift` attribute on Integration Health binary sensor**: Exposes structural platform changes (`drift`) separately from operational outages (`degraded_capabilities`), allowing templates and automations to distinguish environment changes from hardware failures. `binary_sensor.wifi_ssid_monitor_integration_health`
+- **Data freshness metadata in `get_networks` action response**: Action responses now return `last_updated` (timestamp of the scan) and `stale` (`true` if the latest scan failed). `get_networks`
+- **Action icons in HA UI**: Added MDI icons to all six service actions (`add_ssid`, `clear_last_seen`, `get_networks`, `remove_ssid`, `scan_now`, `set_ssids`) for clearer display in HA automation/script editors.
+- **Explanatory `about` note on Interface sensor**: `sensor.wifi_ssid_monitor_interface` now carries an unrecorded `about` attribute detailing adapter scope.
+
+### Fixed
+
+- **6 GHz channel numbers were wrong at the edges of the band.** Channel 2 sits at 5935 MHz — below channel 1 — and is a documented exception in the WiFi standard rather than something the usual arithmetic produces; it was being reported as **channel −3**. Frequencies at the very top of the band reported channel numbers that do not exist. A 6 GHz network whose channel cannot be determined now reports its band with no channel, rather than an invented one.
+
+- **A missing WiFi adapter was not reported for the first two scans after a restart.** If the adapter had been renamed — an OS update changing `wlan0` to `wlp2s0` is the usual way in — every entity was unavailable while the Integration Health sensor read **no problem**, for around 20 minutes. It now says so on the first scan. During normal running the existing three-strike delay still applies, so a brief hiccup does not raise an alarm.
+
+- **With two adapters configured, their Repair notifications overwrote each other.** All entries shared one notification slot, so a healthy adapter cleared a failing adapter's Repair on every scan — the card appearing and disappearing repeatedly, and never saying which adapter it referred to.
+
+- **Repair notifications stayed forever after deleting the integration.** They cannot be dismissed by hand, and the integration that would clear them was gone. They are now removed when the integration is deleted.
+
+- **A network broadcast by more than one radio flipped between them.** A dual-band access point, or a mesh with several nodes on one name, reported whichever radio the system happened to list last — so the band, channel and signal shown could change with nothing changing in your home. It now reports the strongest signal of the set, which is the useful answer for spotting an unknown network nearby.
+
+- **Scan Now could report the previous scan's result.** Pressing it twice within ten seconds coalesces into one scan; the second press was reporting the earlier scan's outcome — most confusingly, showing a failure again after a retry that had not yet run. A press that does not trigger a scan is now silent.
+
+- **A slider value could be lost if you changed something else immediately after.** The scan interval and threshold controls save shortly after you stop moving them; a settings change in that moment discarded the value, and it snapped back with no explanation.
+
+- **Diagnostics and logging**: an unexpected response from the Supervisor is now reported as a bad API response rather than an internal error; failures to save history during shutdown are now logged rather than silently ignored; and a fault inside the health check no longer hides the error that actually caused a scan to fail.
+
+### Changed
+
+- **Automation example resilience**: README example automations updated with transient state filters (`not_from` / `has_value`) to prevent false triggers during Home Assistant restarts or router reboots.
+- **Repair issue text reworded**: `signal_format_changed` repair description updated to present observed data changes neutrally.
+
+### Under the hood
+
+Not user-facing, recorded for completeness. The test suite went from 241 to 363 tests at 100% line and branch coverage, with mutation testing added to check the tests themselves actually detect faults. That process is what surfaced every fault in the Fixed section above — none was reported from the field.
+
+---
+
 ## [2.0.1-dev25] - 2026-08-06 - Code Review: 12 Findings Fixed
 
 Full `code_review` pass, run by an independent sub-agent because the same-day changes to `coordinator.py` and `parse.py` were made by the agent that would otherwise have reviewed them. **0 Critical, 0 High, 4 Medium, 8 Low.** Every Medium was verified against the source before being acted on. Report: `.notes/code_review/code_review_20260806_2140.md`.
@@ -136,7 +220,7 @@ Eleven implemented; L8 declined.
 
 ### Added — 19 tests
 
-Failing test first for every behaviour change. 344 → **363**.
+Failing test first for every behavior change. 344 → **363**.
 
 **Eight of them exist because coverage caught what review did not.** After the first pass every test passed and coverage had dropped from 100% to 99% — 7 statements and 5 partial branches, every one in the defensive code just written: guard clauses, the error-logging loop, the new `except` block. Code added _because_ it is hard to trigger, and therefore never exercised unless the number forces it.
 
@@ -144,7 +228,7 @@ Two of those eight earned their place beyond the percentage: the button now has 
 
 ### Verified correct — recorded so the next review can skip them
 
-The reviewer was asked to scrutinise four state-lifecycle areas and cleared all four with reasons, which is more useful than silence:
+The reviewer was asked to scrutinize four state-lifecycle areas and cleared all four with reasons, which is more useful than silence:
 
 - **`_force_refresh_once`** — read and cleared in the first two statements of `_async_update_data`, before any `try`, `await` or early return, so no path out can leave it set. Not the `dev_standards` §13 regression.
 - **`_event_baseline_done`** — `_process_scan` and `_fire_new_network_events` are fully synchronous, so a `clear_last_seen` landing during the API await produces the intended outcome in either order. No backlog replay, no permanent suppression.
@@ -171,7 +255,7 @@ Five of these findings are plausibly family-wide and are recorded as **CHECK** r
 
   Safe to move: `facts.scans_completed` is populated on `ScanFacts` and read by no check — verified before changing it.
 
-  **Effect:** the first possible health alarm moves from the 4th scan to the 5th. At the default 10-minute interval, 50 minutes instead of 40. No behaviour change otherwise.
+  **Effect:** the first possible health alarm moves from the 4th scan to the 5th. At the default 10-minute interval, 50 minutes instead of 40. No behavior change otherwise.
 
   **How it hid:** the only test touching the grace window looped five scans with a comment reading _"Startup grace (2 scans) then the drift strike budget (3)"_ — so the two thresholds were only ever tested multiplied together, and 5 is exactly enough either way. That test passes before and after the fix. Finding BVA.3 wrote a test for the grace window **alone**, which failed, which is how the off-by-one surfaced.
 
@@ -192,9 +276,9 @@ The gaps clustered in one place: **four of the seven thresholds in `const.py` ap
 
 ### Added — `mutation_equivalents.md`
 
-`.notes/issues/testing_deeper/mutation_equivalents.md` — an **undated, cumulative** record of mutants proved to change no observable behaviour, read before triaging a mutation run.
+`.notes/issues/testing_deeper/mutation_equivalents.md` — an **undated, cumulative** record of mutants proved to change no observable behavior, read before triaging a mutation run.
 
-It exists because `_safe_int`'s `or` → `and` was proved equivalent **twice in one day**. The dated `recommendations_YYYYMMDD.md` files record what one run found; nothing carried between runs. The risk is not the wasted time — it is that an equivalent mutant eventually gets "killed" by a test asserting the implementation rather than the behaviour, and that test stays forever.
+It exists because `_safe_int`'s `or` → `and` was proved equivalent **twice in one day**. The dated `recommendations_YYYYMMDD.md` files record what one run found; nothing carried between runs. The risk is not the wasted time — it is that an equivalent mutant eventually gets "killed" by a test asserting the implementation rather than the behavior, and that test stays forever.
 
 Seeded with the `_safe_int` / `_safe_float` pair (15 input shapes checked, none distinguishing), the `_Pseudonymizer` counter offsets, and a separate section for survivors that **are** killable but judged not worth it — which keeps the one open question, `severity=None` on `check_signal_unit_flip`, visible rather than buried.
 
@@ -344,7 +428,7 @@ The remaining `health.py` survivors are 5 × `message=None`, 1 × `severity=None
 
 ### Corrected in the tests added by [2.0.1-dev20]
 
-Two cases written yesterday asserted the broken behaviour as correct. Both were found by making the fix, not by re-reading the tests.
+Two cases written yesterday asserted the broken behavior as correct. Both were found by making the fix, not by re-reading the tests.
 
 - **`(7125, 235)` was pinned as the top of the 6 GHz range.** Channel 235 does not exist; 7125 is the band edge, not a channel centre. Now `(7115, 233)`. The same class of defect as the one being fixed, and it had been written into a test as the expected value.
 - **`test_a_recognised_frequency_never_returns_a_half_answer` used 7125**, which now correctly returns a band with no channel. Changed to 7115, and 5935 added.
@@ -364,7 +448,7 @@ Tests only. No production code changed.
 
 ### Why
 
-The mutation assessment in `[2.0.1-dev17]` left 18 boundary and comparison survivors — mutants that change behaviour and that no test noticed. Nine were in `frequency_to_channel` alone, where **every band edge could move by one MHz undetected**. The existing table sampled the middle of each band, which is exactly where an off-by-one is invisible.
+The mutation assessment in `[2.0.1-dev17]` left 18 boundary and comparison survivors — mutants that change behavior and that no test noticed. Nine were in `frequency_to_channel` alone, where **every band edge could move by one MHz undetected**. The existing table sampled the middle of each band, which is exactly where an off-by-one is invisible.
 
 A misplaced edge is not cosmetic. Widening 2.4 GHz by one channel makes a 5 GHz radio report as 2.4 GHz, and the band filter then hides a network the user asked to see. Narrowing one drops a legitimate AP to "band unknown".
 
@@ -374,7 +458,7 @@ A misplaced edge is not cosmetic. Widening 2.4 GHz by one channel makes a 5 GHz 
 - **`test_channel_arithmetic_is_pinned_at_both_ends_of_each_band`** — 11 cases. One sample per band cannot distinguish a wrong offset from a wrong divisor, because both produce the right answer somewhere. Two points as far apart as the band allows pin the line.
 - **`test_a_recognised_frequency_never_returns_a_half_answer`** — channel and band are decided together; one without the other means the range test and the arithmetic have drifted apart.
 - **`test_normalize_signal_boundaries`** — the zero crossing and the 0-100 clamp. Zero is a percentage, not dBm: a `<= 0` there would route a legitimate "no signal" reading through the dBm conversion and report it as **100%**.
-- **`test_normalize_signal_rounds_rather_than_truncates`** — truncation would bias every reading low. Banker's rounding is the actual behaviour and is now pinned, so a change to `int()` cannot pass quietly.
+- **`test_normalize_signal_rounds_rather_than_truncates`** — truncation would bias every reading low. Banker's rounding is the actual behavior and is now pinned, so a change to `int()` cannot pass quietly.
 - **`test_history_key_falls_back_to_the_bssid`** and two companions — each half of the `not hidden and ssid` conjunction. A hidden network keyed on a spoofable SSID is how two APs merge into one history entry.
 
 ### Added — `tests/test_diagnostics.py`
@@ -382,7 +466,7 @@ A misplaced edge is not cosmetic. Widening 2.4 GHz by one channel makes a 5 GHz 
 `diagnostics.py` states its purpose in its own docstring — _"allocates a stable pseudonym for each, and rewrites them everywhere"_ — and **nothing asserted it for BSSIDs**. The one test named for it built a fresh `_Pseudonymizer`, called `ssid()` twice, and never touched a BSSID.
 
 - **`test_a_bssid_keeps_one_pseudonym_everywhere_it_appears`** — a hidden network carries the same MAC twice, once as its `bssid` field and once inside its `hidden:` history key. Those reach the pseudonymizer by different routes (`pseudo.bssid` vs `pseudo.history_key`) and only the shared `_bssid_tokens` dict makes them agree. Without it the sanitized file still tells the truth about signal and channel but no longer says the two rows are the same radio — which is the reason to keep the file at all.
-- **`test_two_different_bssids_never_share_a_pseudonym`** — injectivity. "Stable" alone is satisfied by returning a constant, which would merge every neighbouring AP into one. Stability and distinctness are separate properties and both are load-bearing.
+- **`test_two_different_bssids_never_share_a_pseudonym`** — injectivity. "Stable" alone is satisfied by returning a constant, which would merge every neighboring AP into one. Stability and distinctness are separate properties and both are load-bearing.
 - **`test_a_bssid_reached_through_a_history_key_shares_the_field_token`** — the unit-level statement of the same property.
 - **`test_an_ssid_and_a_bssid_do_not_collide_on_one_token`** — both counters start at 1, so a crossed dict would make the first SSID and the first BSSID both token 1, and a reader could not tell a network label from a radio address.
 
@@ -397,7 +481,7 @@ A misplaced edge is not cosmetic. Widening 2.4 GHz by one channel makes a 5 GHz 
 | `history_key` | 3 / 3 | Each half of the conjunction, and `and` → `or` |
 | `_safe_int` | 1 / 2 | Float coercion killed; see below |
 
-**The one survivor is an equivalent mutant, not a gap.** Removing the `value == ""` half of `_safe_int`'s guard changes nothing: `float("")` raises `ValueError`, which the `except` below already converts to the same `default`. Fifteen input shapes were checked — `""`, `"  "`, `b""`, `[]`, `{}`, `True`, `"nan"` among them — and **no input distinguishes the two versions**. There is no test to write; one that "killed" it would assert the implementation rather than the behaviour. The guard stays as documentation that empty-string-means-absent is intended.
+**The one survivor is an equivalent mutant, not a gap.** Removing the `value == ""` half of `_safe_int`'s guard changes nothing: `float("")` raises `ValueError`, which the `except` below already converts to the same `default`. Fifteen input shapes were checked — `""`, `"  "`, `b""`, `[]`, `{}`, `True`, `"nan"` among them — and **no input distinguishes the two versions**. There is no test to write; one that "killed" it would assert the implementation rather than the behavior. The guard stays as documentation that empty-string-means-absent is intended.
 
 `mutmut` is not installed in this devcontainer, so the sweep was done by the hand-mutation procedure in `agent_conventions.md` §2. No git command was used at any point.
 
@@ -474,7 +558,7 @@ No production code changed. One test rewritten; the project now reports zero tes
 
 `Validate All` gained a `Tests: Assertion Audit` step (see `dev-workbench/CHANGELOG.md` `[2.2.6-dev3]`). It found one test here.
 
-`test_event_fire_missing_key_in_network_map` called `_fire_new_network_events` with `{"NetA", "NonExistentKey"}` and a deliberately raising listener attached, then ended. It was named for two behaviours and checked neither. Only one of the two possible failures is a crash: a raising listener must not abort delivery to the listeners behind it, and a key with no matching network must be **skipped** rather than firing an event with missing fields. Nothing verified either.
+`test_event_fire_missing_key_in_network_map` called `_fire_new_network_events` with `{"NetA", "NonExistentKey"}` and a deliberately raising listener attached, then ended. It was named for two behaviors and checked neither. Only one of the two possible failures is a crash: a raising listener must not abort delivery to the listeners behind it, and a key with no matching network must be **skipped** rather than firing an event with missing fields. Nothing verified either.
 
 ### Changed
 
@@ -757,7 +841,7 @@ Two full passes were run. Both reports are in `.notes/dev_std/`; the consolidate
 
   **One finding was raised and withdrawn before it was recorded.** `icon-translations` was drafted as a downgrade to PARTIAL because `icons.json` carries no `services` block while six actions are registered. That was wrong: the Gold rule is _"Entities implement entity icon translations"_ and is **entity-scoped**. Service icons are real — they render in the automation and script editors and the Tools Actions picker — but they belong to `dev_standards` §12 check (c), not to any IQS rule. The cell stands at `done` and the item is tracked in the changes document.
 
-  **`test-coverage` carries no quality requirement, verified.** The rule text is _"Above 95% test coverage for all integration modules"_, with `config-flow-test-coverage` requiring 100% of `config_flow.py` at Bronze. Neither says anything about assertions, meaningfulness or test quality. An earlier draft of the report editorialised that the 100% figure was "true and incomplete"; that extended the rule past what it claims and was removed. The four unguarded standards above are `dev_standards` findings and are recorded there.
+  **`test-coverage` carries no quality requirement, verified.** The rule text is _"Above 95% test coverage for all integration modules"_, with `config-flow-test-coverage` requiring 100% of `config_flow.py` at Bronze. Neither says anything about assertions, meaningfulness or test quality. An earlier draft of the report editorialized that the 100% figure was "true and incomplete"; that extended the rule past what it claims and was removed. The four unguarded standards above are `dev_standards` findings and are recorded there.
 
 ### Records
 

@@ -71,7 +71,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
   before = self.coordinator.last_update_success_time
   await self.coordinator.async_force_refresh()
   if self.coordinator.last_update_success_time == before:
-      return                      # coalesced by the debouncer — not a failure
+      return  # coalesced by the debouncer — not a failure
   if not self.coordinator.last_update_success:
       raise HomeAssistantError(...)
   ```

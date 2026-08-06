@@ -22,8 +22,9 @@ entity description, and no static check can see through that.
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from custom_components.wifi_ssid_monitor.const import DOMAIN
 from homeassistant.core import HomeAssistant
+
+from custom_components.wifi_ssid_monitor.const import DOMAIN
 
 # Attributes deliberately left recorded, with the justification Section 14
 # requires. Empty by design — adding an entry here is a visible, reviewable
