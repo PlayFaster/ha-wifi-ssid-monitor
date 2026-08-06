@@ -227,7 +227,7 @@ There are also six actions (services) and one event - details > [Actions & Event
 | :-- | :-- |
 | `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known. See the [Rogue Network Detection Alert](#-rogue-network-detection-alert) and [Smart Device Setup Detection](#-smart-device-setup-detection) examples |
 | `binary_sensor.wifi_ssid_monitor_proximity_alert` | On when an unknown network's signal meets or exceeds the configured threshold. See the [Proximity Alert Notification](#-proximity-alert-notification) example |
-| `binary_sensor.wifi_ssid_monitor_integration_health` | On when the integration detects a problem with its own data - an unreachable Supervisor, a changed payload, or all known networks vanishing at once. Always available, even during an outage; detail is in the `issues` attribute. See the [Integration Health Problem Alert](#-integration-health-problem-alert) example |
+| `binary_sensor.wifi_ssid_monitor_integration_health` | On when the integration detects a problem with its own data - an unreachable Supervisor, a changed payload, or all known networks vanishing at once. Always available, even during an outage; detail is in the `issues`, `degraded_capabilities` and `drift` attributes. See the [Integration Health Problem Alert](#-integration-health-problem-alert) example |
 
 The `proximity_alert` sensor exposes `strongest_unknown_signal` (0–100% of the closest unknown network) and `threshold` (the configured limit) as state attributes.
 
@@ -1518,7 +1518,7 @@ Some failures are **silent** - a scan succeeds but the data is wrong (e.g. a Sup
 - **`on`** when the integration detects a problem with its own data - an unreachable Supervisor, a payload that parsed to nothing, an interface that vanished, a signal-unit change, or every known network disappearing at once.
 - **Repair issues** are raised for the few conditions you can act on: **`interface_missing`** (the monitored interface is no longer reported - reconfigure to pick the right one), **`signal_format_changed`** (the Supervisor changed how it reports signal - review the Proximity Threshold), and **`supervisor_unavailable`** (repeated fetch failures).
 
-It's deliberately cautious: it gives startup grace before judging drift, requires a condition to persist over several cycles before flipping, and auto-recovers on the next clean scan. Details - `issues`, `severity`, `degraded_capabilities`, `signal_unit`, `last_good_update` - live in the sensor's attributes; put it on a dashboard or alert on it to catch breakage early instead of months later - see the [Integration Health Problem Alert](#-integration-health-problem-alert) example.
+It's deliberately cautious: it gives startup grace before judging drift, requires a condition to persist over several cycles before flipping, and auto-recovers on the next clean scan. Details live in the sensor's attributes: `issues`, `severity`, `signal_unit`, `last_good_update`, and two that are deliberately separate - **`degraded_capabilities`** (something stopped working) and **`drift`** (the data changed shape underneath a successful scan). Put it on a dashboard or alert on it to catch breakage early instead of later - see the [Integration Health Problem Alert](#-integration-health-problem-alert) example.
 
 ### 🔄 Data Polling & 3-Strike Resilience
 

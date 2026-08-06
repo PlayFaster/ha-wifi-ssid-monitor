@@ -109,10 +109,10 @@ Maintenance update focused on edge-case bug fixes and test coverage expansion. M
 
 ### Fixed
 
-- **Multi-radio AP signal tracking**: Networks broadcast by multiple radios now report the strongest signal instead of fluctuating between radios.
+- **Multi AP Signal Tracking**: Networks broadcast by multiple radios (different bands or different APs) now report the strongest signal instead of the first seen.
 - **6 GHz channel calculation**: Fixed edge-of-band 6 GHz frequencies reporting negative or non-existent channel numbers.
 - **Missing adapter reporting**: Integration Health sensor flags a missing adapter immediately on the first scan after restart.
-- **Repair notification isolation & cleanup**: Prevented multi-adapter Repair issues from overwriting each other, and ensured Repair issues clear upon integration removal.
+- **Repair notification isolation & cleanup**: Ensure Repair issues clear upon integration removal. Prevent multi-adapter Repair issues from overwriting each other.
 - **Scan Now debouncing**: Pressing Scan Now twice quickly no longer returns cached results from the prior scan.
 - **Slider setting retention**: Rapid configuration changes no longer overwrite pending slider value updates.
 - **Diagnostics and error logging**: Improved Supervisor error handling, shutdown history logging, and health check error transparency.
