@@ -5,11 +5,14 @@ severity, and the checks that fire only on a whole-payload change are shown
 not to fire on a per-AP quirk.
 """
 
+from custom_components.wifi_ssid_monitor import health
 from custom_components.wifi_ssid_monitor.health import (
     SEVERITY_MINOR,
     SEVERITY_SERIOUS,
+    Finding,
     ScanFacts,
     check_band_unresolved,
+    check_empty_scan,
     check_field_absent_everywhere,
     check_field_absent_minority,
     check_interface_missing,
@@ -316,3 +319,149 @@ def test_drift_default_is_false():
     from custom_components.wifi_ssid_monitor.health import Finding
 
     assert Finding(key="x", severity=SEVERITY_MINOR, message="m").is_drift is False
+
+
+# ---------------------------------------------------------------------------
+# Thresholds — the exact point each check changes its mind
+# ---------------------------------------------------------------------------
+#
+# Mutation testing found every comparison in this module movable without a
+# test noticing. The tests above assert the obvious side of each threshold
+# (all missing, none missing), which is where an off-by-one is invisible.
+#
+# _MAJORITY is 0.9, so with ten access points the boundary falls exactly
+# between nine missing and ten.
+
+
+def test_band_unresolved_is_serious_at_exactly_the_majority():
+    """9 of 10 missing is 0.9 — `>=` means this is already the serious case.
+
+    Moving the comparison to `>` downgrades it to the minor finding, so the
+    payload-shape change this check exists to catch would be reported as a
+    percentage note instead of a serious drift finding.
+    """
+    facts = ScanFacts(
+        normalized=[_ap(band=None)] * 9 + [_ap()],
+        total_aps=10,
+    )
+    finding = check_band_unresolved(facts)
+    assert finding is not None
+    assert finding.key == "band_unresolved_all"
+    assert finding.severity == SEVERITY_SERIOUS
+
+
+def test_band_unresolved_is_minor_just_below_the_majority():
+    """8 of 10 is 0.8 — below the threshold, so the minor finding fires."""
+    facts = ScanFacts(
+        normalized=[_ap(band=None)] * 8 + [_ap(), _ap()],
+        total_aps=10,
+    )
+    finding = check_band_unresolved(facts)
+    assert finding is not None
+    assert finding.key == "band_unresolved_some"
+    assert finding.severity == SEVERITY_MINOR
+
+
+def test_field_absent_minority_stops_at_the_majority():
+    """9 of 10 missing belongs to the *everywhere* check, not this one.
+
+    The bound is `< _MAJORITY`. Widening it to `<=` makes both checks fire on
+    the same payload, so a serious finding arrives paired with a minor one
+    contradicting it.
+    """
+    facts = ScanFacts(normalized=[_ap(mac=None)] * 9 + [_ap()], total_aps=10)
+    assert check_field_absent_minority(facts) is None
+
+
+def test_field_absent_minority_fires_just_below_the_majority():
+    """8 of 10 is this check's territory."""
+    facts = ScanFacts(normalized=[_ap(mac=None)] * 8 + [_ap(), _ap()], total_aps=10)
+    finding = check_field_absent_minority(facts)
+    assert finding is not None
+    assert finding.key == "payload_field_partial"
+
+
+def test_field_absent_minority_watches_signal_pct_as_well_as_mac():
+    """Both field names are checked, and both are named in the message.
+
+    The names are a literal tuple. Mutating either one leaves a check that
+    quietly stops looking at that field — the tests pass, and the signal
+    column can go missing on half the network map with nothing said.
+    """
+    facts = ScanFacts(normalized=[_ap(signal_pct=None), _ap()], total_aps=2)
+    finding = check_field_absent_minority(facts)
+    assert finding is not None
+    assert "signal_pct" in finding.message
+
+
+def test_empty_scan_fires_only_when_nothing_at_all_was_found():
+    """Zero access points is empty; one is not.
+
+    The gate is `total_aps > 0`. Moving it to `> 1` reports a location that
+    found a single network as having found nothing, which is a false alarm in
+    exactly the marginal-reception case the check is supposed to help with.
+    """
+    known = {"Home"}
+    assert check_empty_scan(ScanFacts(total_aps=0, established_known=known)) is not None
+    assert check_empty_scan(ScanFacts(total_aps=1, established_known=known)) is None
+
+
+def test_empty_scan_stays_silent_without_established_known_networks():
+    """A genuinely quiet location must not trip this."""
+    assert check_empty_scan(ScanFacts(total_aps=0, established_known=set())) is None
+
+
+# ---------------------------------------------------------------------------
+# run_checks — the dispatch loop's own contract
+# ---------------------------------------------------------------------------
+
+
+def test_a_raising_check_does_not_stop_the_checks_after_it(monkeypatch):
+    """The isolation this function's docstring promises, asserted.
+
+    `run_checks` is called from the middle of a poll and catches per-check
+    exceptions so a bug in one check cannot fail the update. Nothing proved
+    the loop *continues* — swapping `continue` for `break` passed every test,
+    and would silently disable every check after the first broken one.
+    """
+
+    def boom(_facts):
+        raise ValueError("this check is broken")
+
+    def always_fires(_facts):
+        return Finding(key="sentinel", severity=SEVERITY_MINOR, message="fired")
+
+    monkeypatch.setattr(health, "CHECKS", (boom, always_fires))
+
+    findings = run_checks(ScanFacts())
+
+    assert [f.key for f in findings] == ["sentinel"]
+
+
+def test_run_checks_collects_findings_and_discards_the_quiet_checks(monkeypatch):
+    """Only checks returning a Finding contribute, and `None` never lands.
+
+    Inverting the `is not None` test, or appending `result` unconditionally,
+    both put `None` into the findings list — which the health sensor then
+    reads attributes from.
+    """
+
+    def quiet(_facts):
+        return None
+
+    def loud(_facts):
+        return Finding(key="loud", severity=SEVERITY_SERIOUS, message="x")
+
+    monkeypatch.setattr(health, "CHECKS", (quiet, loud, quiet))
+
+    findings = run_checks(ScanFacts())
+
+    assert len(findings) == 1
+    assert findings[0].key == "loud"
+    assert None not in findings
+
+
+def test_run_checks_returns_an_empty_list_when_nothing_fires(monkeypatch):
+    """The healthy case is an empty list, not None."""
+    monkeypatch.setattr(health, "CHECKS", (lambda _f: None,))
+    assert run_checks(ScanFacts()) == []

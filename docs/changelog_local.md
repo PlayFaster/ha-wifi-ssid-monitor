@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev22\] - 2026-08-06 - health.py Thresholds and the Dispatch Loop](#201-dev22---2026-08-06---healthpy-thresholds-and-the-dispatch-loop)
   - [\[2.0.1-dev21\] - 2026-08-06 - 6 GHz Channel Numbering Corrected](#201-dev21---2026-08-06---6-ghz-channel-numbering-corrected)
   - [\[2.0.1-dev20\] - 2026-08-06 - Boundary Tests: 25 Mutants Killed in parse.py and diagnostics.py](#201-dev20---2026-08-06---boundary-tests-25-mutants-killed-in-parsepy-and-diagnosticspy)
   - [\[2.0.1-dev19\] - 2026-08-06 - AGENTS.md: `type: ignore` Claim Corrected](#201-dev19---2026-08-06---agentsmd-type-ignore-claim-corrected)
@@ -14,9 +15,9 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.1-dev15\] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken](#201-dev15---2026-08-05---branch-coverage-to-100-eight-tests-for-paths-never-taken)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - §14 Enforcement Test](#201-dev8---2026-07-27---14-enforcement-test)
   - [\[2.0.1-dev7\] - 2026-07-27 - §19 `drift` Attribute](#201-dev7---2026-07-27---19-drift-attribute)
@@ -87,6 +88,50 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.1-dev22] - 2026-08-06 - health.py Thresholds and the Dispatch Loop
+
+Tests only. No production code changed.
+
+### Why
+
+`health.py` was the last module on the mutation list never triaged. Its 29 recorded survivors were read from the `mutants/` tree rather than re-run, and seven were real: every threshold in the module could move, one field name could be silently dropped, and the dispatch loop's stated contract had nothing asserting it.
+
+### Added — `tests/test_integration_health.py`
+
+**Thresholds.** `_MAJORITY` is 0.9, so with ten access points the boundary falls exactly between nine missing and ten — which is why these use ten. The existing tests asserted the obvious sides (all missing, none missing), where an off-by-one is invisible.
+
+- **`test_band_unresolved_is_serious_at_exactly_the_majority`** and its below-threshold pair. Moving `>=` to `>` downgrades the payload-shape change this check exists to catch into a percentage note.
+- **`test_field_absent_minority_stops_at_the_majority`** and its pair. Widening `<` to `<=` makes this fire alongside `check_field_absent_everywhere` on the same payload — a serious finding arriving paired with a minor one contradicting it.
+- **`test_empty_scan_fires_only_when_nothing_at_all_was_found`.** The gate is `total_aps > 0`; moving it to `> 1` reports a location that found a single network as having found nothing, a false alarm in exactly the marginal-reception case the check should help with.
+
+**A field name that is not message text.** `check_field_absent_minority` iterates the literal tuple `("mac", "signal_pct")`. Nothing asserted `signal_pct` was watched, so mutating that string left a check that quietly stops looking — the signal column could go missing across half the network map with nothing said. **`test_field_absent_minority_watches_signal_pct_as_well_as_mac`** asserts the field name reaches the message.
+
+**The dispatch loop's own contract.** `run_checks` catches per-check exceptions because it runs from the middle of a poll, and a bug in one check must not fail the update. Nothing proved the loop **continues** afterwards: swapping `continue` for `break` passed the entire suite, and would have silently disabled every check after the first broken one.
+
+- `test_a_raising_check_does_not_stop_the_checks_after_it`
+- `test_run_checks_collects_findings_and_discards_the_quiet_checks` — `None` never lands in the list the health sensor reads attributes from
+- `test_run_checks_returns_an_empty_list_when_nothing_fires`
+
+These three `monkeypatch` `CHECKS` with stubs, so the loop is tested against known inputs and adding a check to the catalogue does not break them.
+
+### Verification
+
+Seven mutations applied by hand, each restored with `sha256sum -c` verified `OK`. **All seven killed.**
+
+**One nearly reported as a false survivor.** The first pass returned `SURVIVED` for `continue` → `break`. The mutation had never applied: the `sed` used a `^...$` anchor and these files have CRLF endings, so the `$` did not match and nothing changed. A clean pass on unmutated source is indistinguishable from a surviving mutant. Re-applied by line number, it killed two tests — the new one and the pre-existing `test_run_checks_survives_a_broken_check`, which had covered the exception half of the contract but not the continue-afterwards half.
+
+**Anchored `sed` patterns do not work on these files.** Every other mutation this session used unanchored substring matches and was unaffected; checked.
+
+### Result
+
+315 tests, **100% line and 100% branch coverage** (1,371 statements, 354 branches, 0 partial), 0 of 252 zero-assertion tests. `health.py` is at 93 statements and 34 branches, all covered.
+
+### Still outstanding
+
+The remaining `health.py` survivors are 5 × `message=None`, 1 × `severity=None`, and 11 string-literal case flips. The severity one is arguably worth killing since severity drives the published health state; the rest need log-text or snapshot assertions that are not worth their cost.
+
+`parse.py` and `diagnostics.py` survivor counts in `.reports/mutation_survivors.txt` are stale — that file predates `[2.0.1-dev20]`, `[2.0.1-dev21]` and this entry, which killed 41 mutants between them. A re-run is needed for a current number.
 
 ## [2.0.1-dev21] - 2026-08-06 - 6 GHz Channel Numbering Corrected
 
