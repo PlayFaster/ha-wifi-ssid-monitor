@@ -26,7 +26,7 @@ from custom_components.wifi_ssid_monitor.const import (
     NEW_NETWORK_EVENT_MAX_PER_CYCLE,
 )
 from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
-from custom_components.wifi_ssid_monitor.health import SEVERITY_SERIOUS
+from custom_components.wifi_ssid_monitor.health import SEVERITY_SERIOUS, Finding
 
 # Frequencies for the two bands, so fixtures don't rely on a channel field.
 FREQ_24 = 2437  # channel 6
@@ -324,9 +324,9 @@ async def test_resilience_resets_on_success(hass, mock_config_entry, mock_wifi_a
     assert coordinator._failure_count == 0
     assert coordinator.last_update_success_time is not None
     assert any(
-        call.args[-1] == ISSUE_SUPERVISOR_UNAVAILABLE
+        call.args[-1] == coordinator._issue_id(ISSUE_SUPERVISOR_UNAVAILABLE)
         for call in mock_delete.call_args_list
-    ), "recovery must clear the outage repair issue"
+    ), "recovery must clear the outage repair issue, on its entry-scoped id"
 
 
 @pytest.mark.asyncio
@@ -1382,3 +1382,371 @@ async def test_new_24h_reflects_the_pruned_first_seen_map(
     assert data["new_24h"] == len(data["ssids"]), (
         "only the networks seen this scan count; the pruned entry must not"
     )
+
+
+# ===========================================================================
+# code_review_20260806_2140.md
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_repair_issue_ids_are_scoped_to_the_config_entry(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Two entries must not share one repair slot.
+
+    Covers finding M2 from code_review_20260806_2140.md.
+
+    The issue registry keys on (domain, issue_id). With a bare key, every
+    config entry shares one slot: a healthy adapter's successful poll deletes
+    a failing adapter's repair on every cycle, and the Repairs card flickers
+    once per scan interval with no indication which adapter is affected.
+    Multiple entries are explicit here — one per interface.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.object(coordinator_module.ir, "async_create_issue") as mock_create:
+        coordinator._sync_repairs(
+            [
+                Finding(
+                    key="interface_missing",
+                    severity=SEVERITY_SERIOUS,
+                    message="gone",
+                    repair="interface_missing",
+                )
+            ]
+        )
+
+    issue_id = mock_create.call_args.args[2]
+    assert mock_config_entry.entry_id in issue_id, (
+        "the issue id must carry the entry id, or a sibling entry overwrites it"
+    )
+    assert mock_create.call_args.kwargs["translation_key"] == "interface_missing", (
+        "the translation stays keyed on the issue type, not the scoped id"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_cleared_repair_deletes_the_entry_scoped_id(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The delete must use the same scoped id the create used.
+
+    Covers finding M2 from code_review_20260806_2140.md.
+
+    `ir.async_delete_issue` looks up by id. A create and a delete that
+    disagree leaves the repair raised forever with no UI path to clear it.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    finding = Finding(
+        key="interface_missing",
+        severity=SEVERITY_SERIOUS,
+        message="gone",
+        repair="interface_missing",
+    )
+    with patch.object(coordinator_module.ir, "async_create_issue") as mock_create:
+        coordinator._sync_repairs([finding])
+    created_id = mock_create.call_args.args[2]
+
+    with patch.object(coordinator_module.ir, "async_delete_issue") as mock_delete:
+        coordinator._sync_repairs([])
+
+    assert mock_delete.call_args.args[2] == created_id
+
+
+@pytest.mark.asyncio
+async def test_the_outage_repair_is_also_entry_scoped(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The supervisor-unavailable repair is raised and cleared on the same id.
+
+    Covers finding M2 from code_review_20260806_2140.md.
+
+    This is the one that flickers: it is deleted on *every* successful poll,
+    so with two entries the healthy one clears the failing one's repair each
+    cycle.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    coordinator.data = {"count": 0, "ssids": [], "unknown_ssids": [], "networks": {}}
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("down")
+
+    with patch.object(coordinator_module.ir, "async_create_issue") as mock_create:
+        for _ in range(FETCH_STRIKE_LIMIT):
+            await coordinator._async_update_data()
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+    raised_id = mock_create.call_args.args[2]
+    assert mock_config_entry.entry_id in raised_id
+
+    mock_wifi_api.get_access_points.side_effect = None
+    with patch.object(coordinator_module.ir, "async_delete_issue") as mock_delete:
+        await coordinator._async_update_data()
+
+    assert any(call.args[2] == raised_id for call in mock_delete.call_args_list), (
+        "recovery must clear the same id it raised"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_missing_interface_flags_immediately_on_cold_start(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A cold start with a bad interface name says so on the first poll.
+
+    Covers finding M1 from code_review_20260806_2140.md.
+
+    `_record_fetch_failure_health` documents that a cold start flags at once —
+    "there are no held values, so waiting out the strike budget would leave
+    the user with an unexplained, wholly unavailable integration". The
+    interface-missing case was routed through `_apply_health`, which applies
+    the 3-strike budget anyway, so a fresh install with a renamed adapter left
+    every entity unavailable while the health sensor read "no problem" for
+    two polls.
+
+    The strike budget still applies at runtime — see the test below.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    mock_wifi_api.last_interface_present = False
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("no such interface")
+
+    with pytest.raises(ConfigEntryNotReady):
+        await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["problem"] is True, "cold start must not wait out the strikes"
+    assert snapshot["severity"] == SEVERITY_SERIOUS
+    assert "interface_missing" in snapshot["degraded_capabilities"]
+    assert snapshot["cold_start"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_missing_interface_still_takes_three_strikes_at_runtime(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A running integration keeps the strike budget for a missing interface.
+
+    Covers finding M1 from code_review_20260806_2140.md — the other half.
+
+    The immediate-flag rule is scoped to cold start on purpose. A 400/404 can
+    arrive transiently while the Supervisor itself restarts, and with held
+    values the user is not blind, so corroboration is worth the wait.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    coordinator.data = {"count": 0, "ssids": [], "unknown_ssids": [], "networks": {}}
+    mock_wifi_api.last_interface_present = False
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("transient 404")
+
+    for _ in range(FETCH_STRIKE_LIMIT):
+        await coordinator._async_update_data()
+
+    assert coordinator.health_snapshot["problem"] is False, (
+        "with held values, a blip must not raise an alarm"
+    )
+
+
+@pytest.mark.asyncio
+async def test_two_radios_on_one_ssid_keep_the_strongest_reading(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A dual-band AP or a mesh publishes its strongest signal, not the last.
+
+    Covers finding M4 from code_review_20260806_2140.md.
+
+    Merging by SSID is deliberate — `history_key` says so: "a dual-band AP is
+    one network rather than two". What was not deliberate is that the
+    surviving *measurement* was whichever entry came last in the Supervisor's
+    list, so the published band, channel and signal flipped between an AP's
+    two radios as the ordering shifted, with no change in the environment.
+
+    This is a rogue detector: the question it answers is how strong the
+    strongest thing broadcasting that name is. List order is not an answer.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    # The strong radio first, so "last wins" would pick the weak one.
+    mock_wifi_api.get_access_points.return_value = [
+        {
+            "mac": "AA:BB:CC:00:00:01",
+            "ssid": "MeshNet",
+            "signal": 90,
+            "frequency": FREQ_5,
+        },
+        {
+            "mac": "AA:BB:CC:00:00:02",
+            "ssid": "MeshNet",
+            "signal": 30,
+            "frequency": FREQ_24,
+        },
+    ]
+
+    data = await coordinator._async_update_data()
+
+    net = data["networks"]["MeshNet"]
+    assert net["signal"] == 90
+    assert net["band"] == "5 GHz", "band must come from the winning radio"
+    assert net["bssid"] == "AA:BB:CC:00:00:01"
+    assert data["strongest_unknown_signal"] == 90
+
+
+@pytest.mark.asyncio
+async def test_the_order_of_two_radios_does_not_change_the_result(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The same two radios in either order produce the same published entry.
+
+    Covers finding M4 from code_review_20260806_2140.md.
+
+    This is the property that was broken: output that depends on the
+    Supervisor's list ordering rather than on the radios themselves.
+    """
+    strong = {
+        "mac": "AA:BB:CC:00:00:01",
+        "ssid": "MeshNet",
+        "signal": 90,
+        "frequency": FREQ_5,
+    }
+    weak = {
+        "mac": "AA:BB:CC:00:00:02",
+        "ssid": "MeshNet",
+        "signal": 30,
+        "frequency": FREQ_24,
+    }
+
+    results = []
+    for order in ([strong, weak], [weak, strong]):
+        coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+        mock_wifi_api.get_access_points.return_value = order
+        data = await coordinator._async_update_data()
+        results.append(data["networks"]["MeshNet"])
+
+    assert results[0] == results[1]
+
+
+@pytest.mark.asyncio
+async def test_a_radio_with_no_signal_never_displaces_one_with_a_reading(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """An unreadable signal loses to a real one, whichever arrives first.
+
+    Covers finding M4 from code_review_20260806_2140.md.
+
+    `signal_pct` is None when the Supervisor sends nothing parsable. Treating
+    None as "not stronger" is what stops a broken reading from displacing a
+    good one — but a network where *every* radio reports None must still
+    appear, rather than being dropped for having no comparable value.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    mock_wifi_api.get_access_points.return_value = [
+        {
+            "mac": "AA:BB:CC:00:00:01",
+            "ssid": "HasSignal",
+            "signal": 40,
+            "frequency": FREQ_5,
+        },
+        {
+            "mac": "AA:BB:CC:00:00:02",
+            "ssid": "HasSignal",
+            "signal": None,
+            "frequency": FREQ_5,
+        },
+        {
+            "mac": "AA:BB:CC:00:00:03",
+            "ssid": "NoSignal",
+            "signal": None,
+            "frequency": FREQ_5,
+        },
+    ]
+
+    data = await coordinator._async_update_data()
+
+    assert data["networks"]["HasSignal"]["signal"] == 40
+    assert "NoSignal" in data["networks"], "a network with no reading still exists"
+    assert data["networks"]["NoSignal"]["signal"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_late_poll_cannot_rearm_a_save_after_the_flush(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Once flushed, a delayed save is refused rather than queued.
+
+    Covers finding L7 from code_review_20260806_2140.md.
+
+    Unload flushes, then unloads platforms. A poll already awaiting the API
+    completes afterwards and would otherwise arm a 30-second write on a
+    coordinator nothing will flush again — landing after the new coordinator
+    has taken over the same storage keys.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    coordinator._last_seen = {"Net1": dt_util.now()}
+
+    await coordinator.async_flush_stores()
+
+    with patch.object(coordinator.store, "async_delay_save") as mock_delay:
+        coordinator._schedule_save()
+
+    mock_delay.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_failed_flush_is_logged_per_store(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A write failure on unload names which store failed.
+
+    Covers finding L2 from code_review_20260806_2140.md.
+
+    `return_exceptions=True` with the results discarded made a disk-full or
+    permissions error invisible: the history silently resets after a reload
+    with nothing in the log to explain it. The load side already logs.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    coordinator.store.async_save = AsyncMock(side_effect=OSError("disk full"))
+    coordinator.store_first_seen.async_save = AsyncMock(return_value=None)
+    coordinator.store_visit_counts.async_save = AsyncMock(
+        side_effect=PermissionError("read-only")
+    )
+
+    with patch.object(coordinator_module._LOGGER, "warning") as mock_warn:
+        await coordinator.async_flush_stores()
+
+    logged = " ".join(str(call) for call in mock_warn.call_args_list)
+    assert "last_seen" in logged
+    assert "visit_counts" in logged
+    assert "first_seen" not in logged, "the store that succeeded must not be logged"
+
+
+@pytest.mark.asyncio
+async def test_a_raising_health_pass_does_not_replace_the_fetch_error(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The Supervisor error survives a failure inside the health computation.
+
+    Covers finding L3 from code_review_20260806_2140.md.
+
+    `_record_fetch_failure_health` runs inside the fetch error handler, and
+    `_apply_health` re-runs the checks and touches the issue registry. Raising
+    there replaced the error that actually caused the failure, so the log
+    showed an unrelated traceback instead of naming the Supervisor.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    coordinator.data = {"count": 0, "ssids": [], "unknown_ssids": [], "networks": {}}
+    coordinator._failure_count = FETCH_STRIKE_LIMIT + 1
+    mock_wifi_api.last_interface_present = False
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("supervisor gone")
+
+    with (
+        patch.object(
+            coordinator, "_apply_health", side_effect=RuntimeError("registry exploded")
+        ),
+        pytest.raises(UpdateFailed, match="supervisor gone"),
+    ):
+        await coordinator._async_update_data()

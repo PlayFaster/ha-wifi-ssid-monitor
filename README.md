@@ -46,7 +46,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 &nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
 </summary><br>
 
-> 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable - delete it when convenient; its long-term statistics are kept (delete in Developer Tools > Statistics). Update any dashboard or automation referencing it.
+> 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable - delete it when convenient; its long-term statistics are kept (delete in Tools > Statistics). Update any dashboard or automation referencing it.
 > 2. **Signal is now a 0–100% quality figure** everywhere. Higher means closer. The Proximity Alert now compares on this scale, and its threshold moved to the **Proximity Signal Threshold** number entity (default 80%). A stored dBm threshold is migrated automatically.
 > 3. **The list-management services were renamed and merged.** `add_known_ssid` → `add_ssid`, `remove_known_ssid` → `remove_ssid`, `set_known_ssids` → `set_ssids`, each now taking a required `target: known | denylist` (and `set_known_ssids`'s `known_ssids` field is now `values`). **There are no aliases** - automations calling the old names will fail. Update them, including any copied from the guest-network example below.
 > 4. **Four settings moved out of the Configure dialog** and are now entities on the device page: **Scan Interval**, **Include Hidden Networks**, and the band filter (now three **Show 2.4/5/6 GHz** switches). The old `scan_bands` option is migrated.
@@ -584,7 +584,7 @@ Returns the currently visible networks with their signal and history, filtered a
 
 > [!TIP]
 >
-> **Instant Diagnostic Inspection**: You can run `wifi_ssid_monitor.get_networks` directly from **Developer Tools > Actions** in the Home Assistant UI to inspect live network data immediately without creating an automation.
+> **Instant Diagnostic Inspection**: You can run `wifi_ssid_monitor.get_networks` directly from **Tools > Actions** in the Home Assistant UI to inspect live network data immediately without creating an automation.
 
 | Parameter | Type | Required | Description |
 | :-- | :-: | :-: | :-- |
@@ -1662,7 +1662,7 @@ Entries older than the **Last Seen History TTL** (default 90 days) are pruned au
 The `first_seen` / `last_seen` / `visit_count` fields (on **Strongest Unknown SSID** and the `get_networks` response) may hold entries for networks not seen recently, or grow larger than expected.
 
 - **Automatic TTL pruning**: entries older than the **Last Seen History TTL** (default 90 days) are pruned on the next scan. Adjust it in **Configure**, or set `0` to keep all entries indefinitely.
-- **Manual reset**: call the `wifi_ssid_monitor.clear_last_seen` action from **Developer Tools > Actions** to clear all three history stores immediately (for the targeted entry, or all entries if `config_entry_id` is omitted).
+- **Manual reset**: call the `wifi_ssid_monitor.clear_last_seen` action from **Tools > Actions** to clear all three history stores immediately (for the targeted entry, or all entries if `config_entry_id` is omitted).
 
 ---
 
@@ -1733,7 +1733,7 @@ The **30 days** applies only to that fourth row - the entity-registry customizat
 
 **If you actually wanted a clean slate**, Home Assistant doesn't really offer one - and in practice you rarely need it. Two supported options exist:
 
-- **Developer Tools > Statistics** lists statistics whose entity no longer exists as _"There is no state available for this entity"_, and lets you delete them individually. Supported, immediate, no restart required.
+- **Tools > Statistics** lists statistics whose entity no longer exists as _"There is no state available for this entity"_, and lets you delete them individually. Supported, immediate, no restart required.
 - The **`recorder.purge_entities`** action drops recent history for entities you name. (It does not touch long-term statistics - use the screen above for those.)
 
 Clearing the retained _entity-registry_ customizations is a different matter: it means hand-editing `.storage/core.entity_registry` with Home Assistant stopped. **Don't.** That single file holds the settings for every entity from every integration you run, and the risk of unintended damage far outweighs re-doing a few renames. Nothing about this integration needs it.

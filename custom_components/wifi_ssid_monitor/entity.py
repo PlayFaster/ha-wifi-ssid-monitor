@@ -41,7 +41,7 @@ class WifiAboutEntity:
     """Mixin exposing a static, human-facing ``about`` note as an attribute.
 
     Set the text via ``_attr_about`` (class-level) or an ``about`` field on the
-    entity description. The note shows in Developer Tools and the More Info
+    entity description. The note shows in Tools and the More Info
     dialog but is listed in ``_unrecorded_attributes``, so the recorder never
     writes it to history — it costs nothing however often the state changes.
 

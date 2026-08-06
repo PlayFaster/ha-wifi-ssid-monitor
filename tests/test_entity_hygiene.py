@@ -22,9 +22,8 @@ entity description, and no static check can see through that.
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.core import HomeAssistant
-
 from custom_components.wifi_ssid_monitor.const import DOMAIN
+from homeassistant.core import HomeAssistant
 
 # Attributes deliberately left recorded, with the justification Section 14
 # requires. Empty by design — adding an entry here is a visible, reviewable
@@ -147,7 +146,7 @@ def test_health_detail_is_unrecorded() -> None:
 #
 #  (c) Actions — every registered action carries an icon, and every icon names
 #      a real action. Action icons appear in the automation and script editors
-#      and in Developer Tools -> Actions; they never appear on the device page
+#      and in Tools -> Actions; they never appear on the device page
 #      or on an entity, so an integration missing them looks entirely normal
 #      until someone opens the action picker. That invisibility is why this
 #      went unnoticed across the project family until 2026-08-03.

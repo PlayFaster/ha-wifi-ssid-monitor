@@ -205,3 +205,83 @@ async def test_will_remove_cancels_task(hass, mock_config_entry, mock_coordinato
         await number._pending
 
     assert number._pending.done()
+
+
+@pytest.mark.asyncio
+async def test_removal_flushes_a_pending_value_instead_of_dropping_it(
+    hass, mock_config_entry, mock_coordinator
+):
+    """A value set inside the debounce window survives a reload.
+
+    Covers finding L6 from code_review_20260806_2140.md.
+
+    `async_will_remove_from_hass` cancelled the pending task without writing.
+    A slider moved and then followed within two seconds by anything that
+    reloads the entry — an options change is enough — snapped back with no
+    explanation, after the optimistic write had already told the user it was
+    accepted.
+    """
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.runtime_data = mock_coordinator
+
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
+    number.hass = hass
+    number.async_write_ha_state = MagicMock()
+
+    # Set the value but never let the debounce elapse.
+    await number.async_set_native_value(15)
+    await number.async_will_remove_from_hass()
+    await hass.async_block_till_done()
+
+    assert mock_config_entry.options[CONF_SCAN_INTERVAL] == 900
+
+
+@pytest.mark.asyncio
+async def test_removal_with_nothing_pending_writes_nothing(
+    hass, mock_config_entry, mock_coordinator
+):
+    """The flush only fires when there is an uncompleted write to save.
+
+    Covers finding L6 from code_review_20260806_2140.md — the other side.
+    """
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.runtime_data = mock_coordinator
+    before = dict(mock_config_entry.options)
+
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
+    number.hass = hass
+
+    await number.async_will_remove_from_hass()
+    await hass.async_block_till_done()
+
+    assert dict(mock_config_entry.options) == before
+
+
+@pytest.mark.asyncio
+async def test_removal_with_a_pending_task_but_no_optimistic_value(
+    hass, mock_config_entry, mock_coordinator
+):
+    """The flush guards against writing when there is no value to write.
+
+    Covers finding L6 from code_review_20260806_2140.md — the guard itself.
+
+    `_optimistic` is cleared by `_async_debounced_apply` on both its success
+    and its failure path, so a pending task with no optimistic value is a
+    narrow window rather than an impossible one. Without the guard it would
+    be `int(None)`.
+    """
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.runtime_data = mock_coordinator
+    before = dict(mock_config_entry.options)
+
+    number = _number(mock_coordinator, mock_config_entry, "scan_interval")
+    number.hass = hass
+    number.async_write_ha_state = MagicMock()
+
+    await number.async_set_native_value(15)
+    number._optimistic = None
+
+    await number.async_will_remove_from_hass()
+    await hass.async_block_till_done()
+
+    assert dict(mock_config_entry.options) == before

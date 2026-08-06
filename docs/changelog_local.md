@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.1-dev25\] - 2026-08-06 - Code Review: 12 Findings Fixed](#201-dev25---2026-08-06---code-review-12-findings-fixed)
   - [\[2.0.1-dev24\] - 2026-08-06 - Test Depth Review: 20 Tests, Startup Grace Corrected](#201-dev24---2026-08-06---test-depth-review-20-tests-startup-grace-corrected)
   - [\[2.0.1-dev23\] - 2026-08-06 - First Full Mutation Run: 92 Survivors Triaged, 8 Killed](#201-dev23---2026-08-06---first-full-mutation-run-92-survivors-triaged-8-killed)
   - [\[2.0.1-dev22\] - 2026-08-06 - health.py Thresholds and the Dispatch Loop](#201-dev22---2026-08-06---healthpy-thresholds-and-the-dispatch-loop)
@@ -17,9 +18,9 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.1-dev15\] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken](#201-dev15---2026-08-05---branch-coverage-to-100-eight-tests-for-paths-never-taken)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - §14 Enforcement Test](#201-dev8---2026-07-27---14-enforcement-test)
   - [\[2.0.1-dev7\] - 2026-07-27 - §19 `drift` Attribute](#201-dev7---2026-07-27---19-drift-attribute)
@@ -90,6 +91,75 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.1-dev25] - 2026-08-06 - Code Review: 12 Findings Fixed
+
+Full `code_review` pass, run by an independent sub-agent because the same-day changes to `coordinator.py` and `parse.py` were made by the agent that would otherwise have reviewed them. **0 Critical, 0 High, 4 Medium, 8 Low.** Every Medium was verified against the source before being acted on. Report: `.notes/code_review/code_review_20260806_2140.md`.
+
+Eleven implemented; L8 declined.
+
+### Fixed — user-visible
+
+- **A missing interface now flags on the first poll of a cold start** (`coordinator.py`). `_record_fetch_failure_health` documents that a cold start flags immediately — _"there are no held values, so waiting out the strike budget would leave the user with an unexplained, wholly unavailable integration"_ — and then routed the `interface_missing` case through `_apply_health`, which applied the 3-strike budget anyway. A fresh install with a renamed adapter left every entity unavailable while the Integration Health sensor read **no problem** for two polls, roughly 20 minutes.
+
+  Fixed narrowly: immediate on cold start, strike budget retained at runtime. A 400/404 can arrive transiently while the Supervisor restarts, and with held values the user is not blind, so corroboration is still worth the wait there.
+
+- **Repair issues are now scoped to the config entry** (`coordinator.py`). The issue registry keys on `(domain, issue_id)`, so a bare key gave every entry one slot. With two interfaces configured and one failing, the healthy one's successful poll deleted the failing one's repair **every cycle** — the Repairs card appearing and disappearing once per scan interval, never saying which adapter was affected. Translations stay keyed on the bare type, so no strings changed.
+
+- **Deleting the integration now clears its repair issues** (`__init__.py`). Nothing in teardown touched the issue registry. Repairs are `is_fixable=False`, so one raised at the moment of deletion stayed in the panel permanently with no way to dismiss it. A new `all_issue_ids()` helper in `const.py` mirrors `all_storage_keys` so the raise and delete sides cannot drift.
+
+  **Not** cleared on unload, deliberately: unload runs on every reload, so a repair deleted there would vanish and only return after the strike budget — half an hour of a real problem looking solved, every time an option changes.
+
+- **Two radios sharing an SSID now publish the strongest reading, not the last** (`coordinator.py`). A dual-band AP, or every node of a mesh, produced several entries with one label and whichever came last in the Supervisor's list won outright. The published `band`, `channel` and `signal` flipped between an AP's two radios as the ordering shifted, with no change in the environment.
+
+  Merging by SSID is deliberate — `history_key` says so. The tie-break was not. This is a rogue detector: the question it answers is how strong the strongest thing broadcasting that name is, and list order is not an answer to it. A `None` signal never displaces a real one, and a network whose radios all report `None` is still published.
+
+- **Scan Now no longer reports the previous scan's outcome** (`button.py`). `async_request_refresh` is debounced with a 10-second cooldown, so a press inside that window returns without fetching — and the handler then read `last_update_success`, which still described the run before. A failed scan followed by a quick retry reported failure again **without having retried**. A press that did not run is now silent.
+
+- **A value set on a slider and immediately followed by a reload is no longer lost** (`number.py`). `async_will_remove_from_hass` cancelled the pending debounced write without flushing it, so the value snapped back with no explanation — after the optimistic write had already told the user it was accepted.
+
+### Fixed — diagnostics and robustness
+
+- **A non-dict JSON body no longer escapes as a raw `AttributeError`** (`api.py:87`). `res_data.get("data")` sat outside the `try`, so an array or scalar with HTTP 200 bypassed the `WifiScanError` wrapping every other failure goes through. The log read `'list' object has no attribute 'get'` instead of naming a bad API response — and this is exactly the payload-drift class the health module exists for.
+
+- **Flush failures on unload are now logged, per store** (`coordinator.py`). `return_exceptions=True` with the results discarded made a disk-full or permissions error invisible: the history silently reset after a reload with nothing to explain it. The load side already logged; the write side now matches.
+
+- **The health pass inside the fetch error handler is guarded** (`coordinator.py`). `_apply_health` re-runs the checks and touches the issue registry, and the whole method runs inside `except Exception as err:`. Anything raised there replaced the Supervisor error that actually caused the failure. The `_process_scan` call site already guarded it.
+
+- **A poll in flight can no longer re-arm a delayed save after the final flush** (`coordinator.py`). Unload flushes, then unloads platforms; a poll already awaiting the API completed afterwards and armed a 30-second write on a coordinator nothing would flush again, landing after the new coordinator had taken over the same storage keys.
+
+- **One timeout constant** (`const.py`). `API_TIMEOUT_SECONDS = 30` and `COORDINATOR_TIMEOUT_SECONDS = 35`, replacing three independent literals across two modules. The outer timeout equalling the inner meant it could never fire first.
+
+### Declined
+
+- **L8** — `const.py` reads `manifest.json` at import time. HA imports custom components via the import executor and the module is cached, so this almost certainly never touches the event loop. The reviewer stated its own uncertainty and I share it. Changing it means sourcing the version elsewhere for no observed benefit. Recorded in the report so that if HA ever logs a blocking-call warning naming this integration, the line is already identified.
+
+### Added — 19 tests
+
+Failing test first for every behaviour change. 344 → **363**.
+
+**Eight of them exist because coverage caught what review did not.** After the first pass every test passed and coverage had dropped from 100% to 99% — 7 statements and 5 partial branches, every one in the defensive code just written: guard clauses, the error-logging loop, the new `except` block. Code added _because_ it is hard to trigger, and therefore never exercised unless the number forces it.
+
+Two of those eight earned their place beyond the percentage: the button now has **three** paths (coalesced, ran-and-failed, ran-and-succeeded) and only two were covered; and the flush-error test asserts the store that **succeeded** is not logged, not merely that the failing ones are.
+
+### Verified correct — recorded so the next review can skip them
+
+The reviewer was asked to scrutinise four state-lifecycle areas and cleared all four with reasons, which is more useful than silence:
+
+- **`_force_refresh_once`** — read and cleared in the first two statements of `_async_update_data`, before any `try`, `await` or early return, so no path out can leave it set. Not the `dev_standards` §13 regression.
+- **`_event_baseline_done`** — `_process_scan` and `_fire_new_network_events` are fully synchronous, so a `clear_last_seen` landing during the API await produces the intended outcome in either order. No backlog replay, no permanent suppression.
+- **`async_delay_save` / `async_flush_stores`** — correct in structure; `Store.async_save` cancels the pending delay listener, so a clear cannot be undone by a stale coalesced write.
+- **`_drift_strikes` / `_active_repairs`** — strikes accumulate only where they should and reset on recovery. The defect was the issue **ID**, not the bookkeeping.
+
+It also cleared both of the same-day changes: the `_scans_completed` move achieves its stated intent with no other consumer affected, and `frequency_to_channel`'s new `(None, band)` shape is handled correctly by its one caller.
+
+### Result
+
+**363 tests, 100% line and 100% branch coverage** (1,412 statements, 372 branches, 0 partial), 0 of 295 zero-assertion. ruff and mypy clean.
+
+### Cross-project
+
+Five of these findings are plausibly family-wide and are recorded as **CHECK** rows in `x_proj_checks_20260802.md` **§3.8 Repair-issue lifecycle** and **§3.9 Optimistic controls** — no sibling source was read. The teardown one is the most likely to travel, because it does not depend on multi-entry support.
 
 ## [2.0.1-dev24] - 2026-08-06 - Test Depth Review: 20 Tests, Startup Grace Corrected
 
@@ -507,7 +577,7 @@ Implements the whole of `.notes/issues/changes_20260803/wifi_changes_20260803.md
 
 - **§21 — a removal test that can fail** (`tests/test_init.py`). `test_async_remove_entry` set an entry up, removed it and asserted nothing; it passed, counted toward coverage, and could not fail. Replaced with `test_async_remove_entry_deletes_every_live_store`, which spies on `Store.async_remove` and asserts the coordinator's three **live** `store.key` values against the **observed removal calls** — not against the shared helper, since `store.key == helper(entry_id)` proves only that the write side uses the helper. Plus `test_storage_keys_are_entry_scoped`. Mutation-verified by making removal build its own keys and delete 1 of 3.
 
-- **Action icons** (`icons.json`). Six actions — `add_ssid`, `clear_last_seen`, `get_networks`, `remove_ssid`, `scan_now`, `set_ssids` — in the nested `{"service": "mdi:..."}` form required by `dev_standards` 1.21.0. These render in the automation and script editors and in Developer Tools → Actions; until now all six showed the generic default. Closed here rather than in Priority 2 because the new action test failed on the real gap, and shipping a knowingly-red test is not an option.
+- **Action icons** (`icons.json`). Six actions — `add_ssid`, `clear_last_seen`, `get_networks`, `remove_ssid`, `scan_now`, `set_ssids` — in the nested `{"service": "mdi:..."}` form required by `dev_standards` 1.21.0. These render in the automation and script editors and in Tools → Actions; until now all six showed the generic default. Closed here rather than in Priority 2 because the new action test failed on the real gap, and shipping a knowingly-red test is not an option.
 
 ### Changed
 
@@ -646,7 +716,7 @@ The `dev_standards` Project Compliance matrices were written during the `[2.0.1-
 
 - **`.shared/dev_std/dev_standards.md` → 1.21.0: §12 extended from entity icons to action icons.** A gap in the standard, not in this project. The `**Test:**` tag had carried check (c) for services since 1.13.0 while the section's **Standard** line and `Icons (standard)` bullet described entities only — so the tag mandated a test for a requirement the section never stated, and every project read §12's body and correctly concluded action icons were not required. Found here: `icons.json` carries **no `services` block** while six actions are registered, and the finding had nowhere to attach.
 
-  The Standard line now names action coverage; a new **Action icons (standard)** bullet gives the required nested `{"service": "mdi:…"}` form, records the flat string form as legacy-but-working, and states **where these icons appear** — the automation and script editors and Developer Tools → Actions, and nowhere on the device page or an entity, which is why an integration missing them looks entirely normal. Check (c) renamed Services → Actions and made bidirectional. Tag header corrected from "Two checks" to three. Also recorded that **no IQS rule reaches action icons**, so this half of §12 is PlayFaster-only.
+  The Standard line now names action coverage; a new **Action icons (standard)** bullet gives the required nested `{"service": "mdi:…"}` form, records the flat string form as legacy-but-working, and states **where these icons appear** — the automation and script editors and Tools → Actions, and nowhere on the device page or an entity, which is why an integration missing them looks entirely normal. Check (c) renamed Services → Actions and made bidirectional. Tag header corrected from "Two checks" to three. Also recorded that **no IQS rule reaches action icons**, so this half of §12 is PlayFaster-only.
 
   All four projects' `icons.json` were enumerated: **ZTE** 4 actions nested (the reference), **UniFi** 7 actions flat/legacy, **WiFi** and **Huawei** no block at all. Cross-project status and UniFi's format conversion tracked in `x_proj_checks_20260802.md` **§3.7** (that document bumped to v1.1.0). §12's `DONE` cells for ZTE and UniFi are now assessed against superseded wording and were **deliberately not changed** — they belong to those projects' own review passes.
 
@@ -685,7 +755,7 @@ Two full passes were run. Both reports are in `.notes/dev_std/`; the consolidate
 
 - **`iqs_next_steps` at `SCAN=Full` — `.notes/dev_std/next_steps_20260803_1451.md`.** All 48 `done` cells re-validated against source rather than accepted. **All 48 hold; no gap at any tier.** The three 1e verification checks all ran with real coverage and were clean: cross-table verdict diff 54 compared with no mismatches, code-to-artefact reconciliation clean on all five platforms, YAML-vs-matrix 54 compared with zero conflicts.
 
-  **One finding was raised and withdrawn before it was recorded.** `icon-translations` was drafted as a downgrade to PARTIAL because `icons.json` carries no `services` block while six actions are registered. That was wrong: the Gold rule is _"Entities implement entity icon translations"_ and is **entity-scoped**. Service icons are real — they render in the automation and script editors and the Developer Tools Actions picker — but they belong to `dev_standards` §12 check (c), not to any IQS rule. The cell stands at `done` and the item is tracked in the changes document.
+  **One finding was raised and withdrawn before it was recorded.** `icon-translations` was drafted as a downgrade to PARTIAL because `icons.json` carries no `services` block while six actions are registered. That was wrong: the Gold rule is _"Entities implement entity icon translations"_ and is **entity-scoped**. Service icons are real — they render in the automation and script editors and the Tools Actions picker — but they belong to `dev_standards` §12 check (c), not to any IQS rule. The cell stands at `done` and the item is tracked in the changes document.
 
   **`test-coverage` carries no quality requirement, verified.** The rule text is _"Above 95% test coverage for all integration modules"_, with `config-flow-test-coverage` requiring 100% of `config_flow.py` at Bronze. Neither says anything about assertions, meaningfulness or test quality. An earlier draft of the report editorialised that the 100% figure was "true and incomplete"; that extended the rule past what it claims and was removed. The four unguarded standards above are `dev_standards` findings and are recorded there.
 
@@ -902,7 +972,7 @@ A major update, with significant capability improvements and fixes BUT also some
 
 > **Upgrading from 1.6.x to 2.0.0 or above - breaking changes.** This release corrects long-standing signal-unit and band-filter bugs, which required renaming several things. There are also some moves. This was not done lightly, but the previous set-up was incorrect.
 >
-> 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable - delete it when convenient; its long-term statistics are kept (delete in Developer Tools > Statistics). Update any dashboard or automation referencing it.
+> 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable - delete it when convenient; its long-term statistics are kept (delete in Tools > Statistics). Update any dashboard or automation referencing it.
 > 2. **Signal is now a 0–100% quality figure** everywhere. Higher means closer. The Proximity Alert now compares on this scale, and its threshold moved to the **Proximity Signal Threshold** number entity (default 80%). A stored dBm threshold is migrated automatically.
 > 3. **The list-management services were renamed and merged.** `add_known_ssid` → `add_ssid`, `remove_known_ssid` → `remove_ssid`, `set_known_ssids` → `set_ssids`, each now taking a required `target: known | denylist` (and `set_known_ssids`'s `known_ssids` field is now `values`). **There are no aliases** - automations calling the old names will fail. Update them, including any copied from the guest-network example below.
 > 4. **Four settings moved out of the Configure dialog** and are now entities on the device page: **Scan Interval**, **Include Hidden Networks**, and the band filter (now three **Show 2.4/5/6 GHz** switches). The old `scan_bands` option is migrated.

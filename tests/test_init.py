@@ -1431,3 +1431,29 @@ async def test_get_networks_reports_the_oldest_scan_across_entries(
     assert result["last_updated"] == older.isoformat()
     assert result["last_updated"] != now.isoformat()
     assert result["total_matched"] == 2
+
+
+@pytest.mark.asyncio
+async def test_removing_the_entry_clears_its_repair_issues(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Deleting the integration must not leave repairs behind.
+
+    Covers finding M3 from code_review_20260806_2140.md.
+
+    The repairs this integration raises are `is_fixable=False`, so once the
+    integration is gone there is no UI path to clear them — they sit in the
+    Repairs panel permanently. Nothing in teardown touched the issue registry.
+    """
+    from custom_components.wifi_ssid_monitor import async_remove_entry
+    from custom_components.wifi_ssid_monitor.const import all_issue_ids
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.ir.async_delete_issue"
+    ) as mock_delete:
+        await async_remove_entry(hass, mock_config_entry)
+
+    deleted = {call.args[2] for call in mock_delete.call_args_list}
+    assert deleted == set(all_issue_ids(mock_config_entry.entry_id))

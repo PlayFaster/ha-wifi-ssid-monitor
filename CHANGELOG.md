@@ -8,11 +8,15 @@ All notable changes to this project will be documented in this file.
 
 ### Summary
 
-- Action response freshness metadata (`last_updated`, `stale`) added to `get_networks`.
-- `drift` classification attribute added to the Integration Health sensor.
-- Action icons added for all 6 domain service calls in the Home Assistant UI and automation editor.
-- Interface diagnostic sensor gained an `about` explanatory attribute.
-- README example automations hardened with transient state guards against false triggers during Home Assistant restarts.
+**Most of the work in this release is not visible to you.** It went into testing — the suite grew to 363 tests covering every line and every branch of the integration, and that work found the handful of real faults listed under Fixed below. Nothing changes about how you use it, and there is nothing to update in your dashboards or automations.
+
+What you will notice, if you were affected:
+
+- **A network broadcast by two radios reports its strongest signal**, rather than flipping between them.
+- **6 GHz channels are reported correctly.** Some networks reported negative or non-existent channel numbers.
+- **The Integration Health sensor reports a missing WiFi adapter straight away** instead of staying silent for the first two scans.
+- **Scan Now no longer reports the result of the previous scan** when pressed twice quickly.
+- **Repairs work properly when you have more than one adapter configured**, and no longer linger after the integration is deleted.
 
 ### Added
 
@@ -21,10 +25,32 @@ All notable changes to this project will be documented in this file.
 - **Action icons in HA UI**: Added MDI icons to all six service actions (`add_ssid`, `clear_last_seen`, `get_networks`, `remove_ssid`, `scan_now`, `set_ssids`) for clearer display in HA automation/script editors.
 - **Explanatory `about` note on Interface sensor**: `sensor.wifi_ssid_monitor_interface` now carries an unrecorded `about` attribute detailing adapter scope.
 
+### Fixed
+
+- **6 GHz channel numbers were wrong at the edges of the band.** Channel 2 sits at 5935 MHz — below channel 1 — and is a documented exception in the WiFi standard rather than something the usual arithmetic produces; it was being reported as **channel −3**. Frequencies at the very top of the band reported channel numbers that do not exist. A 6 GHz network whose channel cannot be determined now reports its band with no channel, rather than an invented one.
+
+- **A missing WiFi adapter was not reported for the first two scans after a restart.** If the adapter had been renamed — an OS update changing `wlan0` to `wlp2s0` is the usual way in — every entity was unavailable while the Integration Health sensor read **no problem**, for around 20 minutes. It now says so on the first scan. During normal running the existing three-strike delay still applies, so a brief hiccup does not raise an alarm.
+
+- **With two adapters configured, their Repair notifications overwrote each other.** All entries shared one notification slot, so a healthy adapter cleared a failing adapter's Repair on every scan — the card appearing and disappearing repeatedly, and never saying which adapter it referred to.
+
+- **Repair notifications stayed forever after deleting the integration.** They cannot be dismissed by hand, and the integration that would clear them was gone. They are now removed when the integration is deleted.
+
+- **A network broadcast by more than one radio flipped between them.** A dual-band access point, or a mesh with several nodes on one name, reported whichever radio the system happened to list last — so the band, channel and signal shown could change with nothing changing in your home. It now reports the strongest signal of the set, which is the useful answer for spotting an unknown network nearby.
+
+- **Scan Now could report the previous scan's result.** Pressing it twice within ten seconds coalesces into one scan; the second press was reporting the earlier scan's outcome — most confusingly, showing a failure again after a retry that had not yet run. A press that does not trigger a scan is now silent.
+
+- **A slider value could be lost if you changed something else immediately after.** The scan interval and threshold controls save shortly after you stop moving them; a settings change in that moment discarded the value, and it snapped back with no explanation.
+
+- **Diagnostics and logging**: an unexpected response from the Supervisor is now reported as a bad API response rather than an internal error; failures to save history during shutdown are now logged rather than silently ignored; and a fault inside the health check no longer hides the error that actually caused a scan to fail.
+
 ### Changed
 
-- **Repair issue text reworded**: `signal_format_changed` repair description updated to present observed data changes neutrally.
 - **Automation example resilience**: README example automations updated with transient state filters (`not_from` / `has_value`) to prevent false triggers during Home Assistant restarts or router reboots.
+- **Repair issue text reworded**: `signal_format_changed` repair description updated to present observed data changes neutrally.
+
+### Under the hood
+
+Not user-facing, recorded for completeness. The test suite went from 241 to 363 tests at 100% line and branch coverage, with mutation testing added to check the tests themselves actually detect faults. That process is what surfaced every fault in the Fixed section above — none was reported from the field.
 
 ---
 
@@ -54,7 +80,7 @@ A major update, with significant capability improvements and fixes BUT also some
 
 > **Upgrading from 1.6.x to 2.0.0 or above - breaking changes.** This release corrects long-standing signal-unit and band-filter bugs, which required renaming several things. There are also some moves. This was not done lightly, but the previous set-up was incorrect.
 >
-> 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable - delete it when convenient; its long-term statistics are kept (delete in Developer Tools > Statistics). Update any dashboard or automation referencing it.
+> 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable - delete it when convenient; its long-term statistics are kept (delete in Tools > Statistics). Update any dashboard or automation referencing it.
 > 2. **Signal is now a 0–100% quality figure** everywhere. Higher means closer. The Proximity Alert now compares on this scale, and its threshold moved to the **Proximity Signal Threshold** number entity (default 80%). A stored dBm threshold is migrated automatically.
 > 3. **The list-management services were renamed and merged.** `add_known_ssid` → `add_ssid`, `remove_known_ssid` → `remove_ssid`, `set_known_ssids` → `set_ssids`, each now taking a required `target: known | denylist` (and `set_known_ssids`'s `known_ssids` field is now `values`). **There are no aliases** - automations calling the old names will fail. Update them, including any copied from the guest-network example below.
 > 4. **Four settings moved out of the Configure dialog** and are now entities on the device page: **Scan Interval**, **Include Hidden Networks**, and the band filter (now three **Show 2.4/5/6 GHz** switches). The old `scan_bands` option is migrated.

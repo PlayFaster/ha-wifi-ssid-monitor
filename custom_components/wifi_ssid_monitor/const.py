@@ -71,6 +71,12 @@ LIVE_OPTION_KEYS: frozenset[str] = frozenset(
 )
 
 # Resilience.
+# One value for the API call budget. The coordinator's outer timeout is set
+# above it so the layering means something — an inner timeout equal to the
+# outer one can never fire first.
+API_TIMEOUT_SECONDS = 30
+COORDINATOR_TIMEOUT_SECONDS = 35
+
 FETCH_STRIKE_LIMIT = 3
 HEALTH_DRIFT_STRIKE_LIMIT = 3
 HEALTH_STARTUP_GRACE_SCANS = 2
@@ -131,6 +137,29 @@ def first_seen_storage_key(entry_id: str) -> str:
 def visit_counts_storage_key(entry_id: str) -> str:
     """Build the ``.storage`` key for an entry's visit-count history."""
     return f"{DOMAIN}.{entry_id}.visit_counts"
+
+
+def issue_id(key: str, entry_id: str) -> str:
+    """Scope a repair issue to one config entry.
+
+    The issue registry keys on ``(domain, issue_id)``, so a bare key gives
+    every entry the same slot: with two interfaces configured, the healthy
+    one's successful poll deletes the failing one's repair.
+    """
+    return f"{key}_{entry_id}"
+
+
+def all_issue_ids(entry_id: str) -> tuple[str, ...]:
+    """Return every repair issue this integration can raise for an entry.
+
+    Used by ``async_remove_entry`` so the delete side cannot drift from the
+    raise side, the same way ``all_storage_keys`` works below.
+    """
+    return (
+        issue_id(ISSUE_SUPERVISOR_UNAVAILABLE, entry_id),
+        issue_id(ISSUE_INTERFACE_MISSING, entry_id),
+        issue_id(ISSUE_SIGNAL_FORMAT_CHANGED, entry_id),
+    )
 
 
 def all_storage_keys(entry_id: str) -> tuple[str, ...]:
