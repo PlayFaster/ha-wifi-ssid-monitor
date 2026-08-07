@@ -7,6 +7,7 @@ All changes to this project will be documented in this file. This is the detaile
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
   - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
   - [\[2.0.1\] - 2026-08-06 - Release - Multi SSID Plus More Fixes; Major Test Improvements](#201---2026-08-06---release---multi-ssid-plus-more-fixes-major-test-improvements)
+  - [\[2.0.1-dev25\] - 2026-08-07 - Add `release.yaml` to add zipfile to releases on github](#201-dev25---2026-08-07---add-releaseyaml-to-add-zipfile-to-releases-on-github)
   - [\[2.0.1-dev25\] - 2026-08-06 - Code Review: 12 Findings Fixed](#201-dev25---2026-08-06---code-review-12-findings-fixed)
   - [\[2.0.1-dev24\] - 2026-08-06 - Test Depth Review: 20 Tests, Startup Grace Corrected](#201-dev24---2026-08-06---test-depth-review-20-tests-startup-grace-corrected)
   - [\[2.0.1-dev23\] - 2026-08-06 - First Full Mutation Run: 92 Survivors Triaged, 8 Killed](#201-dev23---2026-08-06---first-full-mutation-run-92-survivors-triaged-8-killed)
@@ -98,7 +99,7 @@ All changes to this project will be documented in this file. This is the detaile
 
 ### Summary
 
-Maintenance update focused on edge-case bug fixes and test coverage expansion. Most underlying work is internal (expanding the test suite to 363 tests with 100% coverage). No changes to user workflows, dashboards, or automations are required.
+Maintenance update mostly focused on internal test coverage expansion, with some resulting bug fixes. No changes to user workflows, dashboards, or automations are required.
 
 ### Added
 
@@ -111,10 +112,10 @@ Maintenance update focused on edge-case bug fixes and test coverage expansion. M
 
 - **Multi AP Signal Tracking**: Networks broadcast by multiple radios (different bands or different APs) now report the strongest signal instead of the first seen.
 - **6 GHz channel calculation**: Fixed edge-of-band 6 GHz frequencies reporting negative or non-existent channel numbers.
-- **Missing adapter reporting**: Integration Health sensor flags a missing adapter immediately on the first scan after restart.
-- **Repair notification isolation & cleanup**: Ensure Repair issues clear upon integration removal. Prevent multi-adapter Repair issues from overwriting each other.
 - **Scan Now debouncing**: Pressing Scan Now twice quickly no longer returns cached results from the prior scan.
 - **Slider setting retention**: Rapid configuration changes no longer overwrite pending slider value updates.
+- **Missing adapter reporting**: Integration Health sensor flags a missing adapter immediately on the first scan after restart.
+- **Repair notification isolation & cleanup**: Ensure Repair issues clear upon integration removal. Prevent multi-adapter Repair issues from overwriting each other.
 - **Diagnostics and error logging**: Improved Supervisor error handling, shutdown history logging, and health check error transparency.
 
 ### Changed
@@ -175,6 +176,17 @@ What you will notice, if you were affected:
 Not user-facing, recorded for completeness. The test suite went from 241 to 363 tests at 100% line and branch coverage, with mutation testing added to check the tests themselves actually detect faults. That process is what surfaced every fault in the Fixed section above — none was reported from the field.
 
 ---
+
+## [2.0.1-dev25] - 2026-08-07 - Add `release.yaml` to add zipfile to releases on github
+
+### Bumps
+
+- **Shared CI**: Bump `.github` Shared CI Validation via SHA from v2.0.9 to v2.0.10
+
+### Changes
+
+- **`release.yaml`:** Added to auto-generate a download zipfile and add to each github release. This is the mechanism for tracking downloads.
+- **`hacs.json`:** Added `filename:` and `zip_release:true` fields to `hacs.json` to enable use of download zip file, for download tracking purposes.
 
 ## [2.0.1-dev25] - 2026-08-06 - Code Review: 12 Findings Fixed
 

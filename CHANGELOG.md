@@ -10,21 +10,14 @@ All notable changes to this project will be documented in this file.
 
 Maintenance update mostly focused on internal test coverage expansion, with some resulting bug fixes. No changes to user workflows, dashboards, or automations are required.
 
-### Added
-
-- **`drift` attribute on Integration Health**: Exposes structural platform changes separately from operational outages on `binary_sensor.wifi_ssid_monitor_integration_health`.
-- **Data freshness metadata**: Returns `last_updated` timestamp and `stale` flag in `get_networks` action responses.
-- **Action icons**: Added MDI icons to service actions for HA UI automation and script editors.
-- **`about` note on Interface sensor**: Added unrecorded `about` attribute to `sensor.wifi_ssid_monitor_interface`.
-
 ### Fixed
 
 - **Multi AP Signal Tracking**: Networks broadcast by multiple radios (different bands or different APs) now report the strongest signal instead of the first seen.
 - **6 GHz channel calculation**: Fixed edge-of-band 6 GHz frequencies reporting negative or non-existent channel numbers.
-- **Missing adapter reporting**: Integration Health sensor flags a missing adapter immediately on the first scan after restart.
-- **Repair notification isolation & cleanup**: Ensure Repair issues clear upon integration removal. Prevent multi-adapter Repair issues from overwriting each other.
 - **Scan Now debouncing**: Pressing Scan Now twice quickly no longer returns cached results from the prior scan.
 - **Slider setting retention**: Rapid configuration changes no longer overwrite pending slider value updates.
+- **Missing adapter reporting**: Integration Health sensor flags a missing adapter immediately on the first scan after restart.
+- **Repair notification isolation & cleanup**: Ensure Repair issues clear upon integration removal. Prevent multi-adapter Repair issues from overwriting each other.
 - **Diagnostics and error logging**: Improved Supervisor error handling, shutdown history logging, and health check error transparency.
 
 ### Changed
@@ -281,7 +274,7 @@ Entry structure — headers, titles, category headings and the split between thi
 ---
 
 - [Changelog: WiFi SSID Monitor](#changelog-wifi-ssid-monitor)
-  - [\[2.0.1\] - 2026-08-06](#201---2026-08-06)
+  - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
   - [\[2.0.0\] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames](#200---2026-07-25---signal-as-a-percentage-health-sensor-breaking-renames)
   - [\[1.6.1\] - 2026-07-04 - Release - Reconfigure Shows All Settings; Polling Toggle](#161---2026-07-04---release---reconfigure-shows-all-settings-polling-toggle)
   - [\[1.6.0\] - 2026-06-12 - Proximity Alert, Persistent History and Denylist](#160---2026-06-12---proximity-alert-persistent-history-and-denylist)
