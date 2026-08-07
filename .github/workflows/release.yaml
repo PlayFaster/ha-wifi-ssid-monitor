@@ -1,0 +1,22 @@
+name: Release
+
+"on":
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    permissions:
+      contents: write # Required to upload the HACS zip as a release asset
+    # Branch @main — REPLACE SHA with the .github commit that adds release.yaml v2.1.0
+    uses: PlayFaster/.github/.github/workflows/release.yaml@f472804fda2f28f797c13b52e80e64b5127dfe96
+    with:
+      component_name: wifi_ssid_monitor
+      tag: ${{ github.event.release.tag_name }}
