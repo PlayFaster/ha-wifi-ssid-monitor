@@ -7,6 +7,8 @@ from typing import Any
 import aiohttp
 from aiohttp import ClientTimeout
 
+from .const import API_TIMEOUT_SECONDS
+
 _LOGGER = logging.getLogger(__name__)
 
 _SUPERVISOR_BASE_URL = "http://supervisor"
@@ -54,7 +56,7 @@ class WifiScanAPI:
         res_data = {}
         try:
             async with self.session.get(
-                url, headers=headers, timeout=ClientTimeout(total=30)
+                url, headers=headers, timeout=ClientTimeout(total=API_TIMEOUT_SECONDS)
             ) as response:
                 status = response.status
                 if status == 200:
@@ -84,7 +86,12 @@ class WifiScanAPI:
         if status != 200:
             raise WifiScanError(f"API returned status {status}")
 
-        data_block = res_data.get("data") or {}
+        # A JSON array or scalar with HTTP 200 would make `.get` raise an
+        # AttributeError here, outside the try above, bypassing the
+        # WifiScanError wrapping every other failure mode goes through. Treat
+        # it as the payload-drift it is: no AP list, which the health check
+        # turns into a finding.
+        data_block = res_data.get("data") or {} if isinstance(res_data, dict) else {}
         raw_aps = data_block.get("accesspoints")
         if not isinstance(raw_aps, list):
             self.last_response_had_ap_key = False
@@ -119,7 +126,7 @@ class WifiScanAPI:
         res_data = {}
         try:
             async with self.session.get(
-                url, headers=headers, timeout=ClientTimeout(total=30)
+                url, headers=headers, timeout=ClientTimeout(total=API_TIMEOUT_SECONDS)
             ) as response:
                 status = response.status
                 if status == 200:

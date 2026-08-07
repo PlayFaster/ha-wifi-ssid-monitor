@@ -274,3 +274,147 @@ async def test_get_access_points_no_accesspoints_key(mock_aiohttp_client):
 
         assert aps == []
         assert api.last_response_had_ap_key is False
+
+
+@pytest.mark.asyncio
+async def test_get_access_points_empty_list_is_not_a_missing_key(mock_aiohttp_client):
+    """An empty scan and a missing 'accesspoints' key are different states.
+
+    Both return ``[]``, so only ``last_response_had_ap_key`` separates "the
+    radio saw nothing" from "the Supervisor did not answer the question" — and
+    the health checks read that flag to decide whether to report drift.
+    """
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+
+        mock_aiohttp_client.get.return_value = MockResponse(
+            json_data={"result": "ok", "data": {"accesspoints": []}}
+        )
+
+        aps = await api.get_access_points()
+
+        assert aps == []
+        assert api.last_response_had_ap_key is True
+
+
+@pytest.mark.asyncio
+async def test_get_access_points_server_error_does_not_blame_the_interface(
+    mock_aiohttp_client,
+):
+    """A 500 must not be read as the interface having gone away.
+
+    Only 400 and 404 mean "no such interface". Clearing the flag on any
+    non-200 would raise a missing-hardware repair issue every time the
+    Supervisor had a bad minute.
+    """
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+
+        mock_aiohttp_client.get.return_value = MockResponse(
+            status=500, text_data="Internal Server Error"
+        )
+
+        with pytest.raises(WifiScanError, match="API returned status 500"):
+            await api.get_access_points()
+
+        assert api.last_interface_present is True
+
+
+# ---------------------------------------------------------------------------
+# testing_deeper_lev1_review — recommendations_20260806.md
+# ---------------------------------------------------------------------------
+
+
+def _request_info():
+    """Build a usable RequestInfo for ContentTypeError.
+
+    `str(ContentTypeError)` reads `request_info.real_url`, so passing None
+    raises inside the logger and the error is misattributed to the catch-all
+    handler rather than the clause under test.
+    """
+    info = MagicMock()
+    info.real_url = "http://supervisor/network/interface/wlan0/accesspoints"
+    return info
+
+
+@pytest.mark.asyncio
+async def test_get_access_points_content_type_error(mock_aiohttp_client):
+    """`ContentTypeError` is the one that actually happens in production.
+
+    Covers finding ERR.2 from recommendations_20260806.md.
+
+    Both `json()` call sites catch `(aiohttp.ContentTypeError, ValueError)`
+    and only `ValueError` was exercised. `ContentTypeError` is what the
+    Supervisor raises when it answers with an HTML error page instead of
+    JSON, and a test using `ValueError` does not prove it is caught.
+    """
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(
+            side_effect=aiohttp.ContentTypeError(
+                request_info=_request_info(), history=()
+            )
+        )
+
+        mock_cm = MagicMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_aiohttp_client.get.return_value = mock_cm
+
+        with pytest.raises(WifiScanError, match="Invalid API response"):
+            await api.get_access_points()
+
+
+@pytest.mark.asyncio
+async def test_get_interfaces_content_type_error(mock_aiohttp_client):
+    """The same clause in `get_interfaces`, exercised independently.
+
+    Covers finding ERR.2 from recommendations_20260806.md.
+    """
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(
+            side_effect=aiohttp.ContentTypeError(
+                request_info=_request_info(), history=()
+            )
+        )
+
+        mock_cm = MagicMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_aiohttp_client.get.return_value = mock_cm
+
+        with pytest.raises(WifiScanError, match="Invalid API response"):
+            await api.get_interfaces()
+
+
+@pytest.mark.asyncio
+async def test_an_unforeseen_error_is_wrapped_and_keeps_its_cause(
+    mock_aiohttp_client,
+):
+    """The catch-all wraps, and the original exception is not lost.
+
+    Covers finding ERR.3 from recommendations_20260806.md.
+
+    The bare `except Exception` exists so an unforeseen library error reaches
+    the coordinator as a `WifiScanError` it knows how to hold data through,
+    rather than propagating raw and being counted as a different class of
+    failure. Asserting `__cause__` is what proves the traceback survives —
+    without `from e` the original error is invisible in the log.
+    """
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        original = RuntimeError("socket exploded")
+        mock_aiohttp_client.get.side_effect = original
+
+        with pytest.raises(WifiScanError, match="Unexpected error") as excinfo:
+            await api.get_access_points()
+
+        assert "socket exploded" in str(excinfo.value)
+        assert excinfo.value.__cause__ is original

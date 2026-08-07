@@ -2,7 +2,7 @@
 
 A diagnostics download must be safe to attach to a public issue without hand
 editing. Key-name redaction is not enough here: the payload is keyed by SSID,
-and neighbouring SSIDs are third-party data — personal information about other
+and neighboring SSIDs are third-party data — personal information about other
 people, correlatable to the user's location. ``async_redact_data`` rewrites
 values, never keys, so it cannot reach any of it.
 
@@ -32,7 +32,7 @@ from .const import (
 from .coordinator import WifiScanCoordinator
 
 # The known and denylist SSIDs are the user's own network names — redacted from
-# the config block. The neighbour data is handled structurally below.
+# the config block. The neighbor data is handled structurally below.
 REDACT_CONFIG = {CONF_KNOWN_SSIDS, CONF_DENYLIST_SSIDS}
 
 _MAC_RE = re.compile(r"^(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")

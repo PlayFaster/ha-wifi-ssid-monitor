@@ -14,8 +14,7 @@ from custom_components.wifi_ssid_monitor.switch import SWITCH_TYPES, WifiOptionS
 def _switch(coordinator, entry, key):
     """Build a WifiOptionSwitch for the given description key."""
     description = next(d for d in SWITCH_TYPES if d.key == key)
-    sw = WifiOptionSwitch(coordinator, entry, description)
-    return sw
+    return WifiOptionSwitch(coordinator, entry, description)
 
 
 def test_switch_is_on_reads_option(mock_config_entry, mock_coordinator):

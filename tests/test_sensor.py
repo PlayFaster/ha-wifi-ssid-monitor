@@ -282,3 +282,120 @@ async def test_strongest_unknown_detail_truncated(
     assert state.attributes["networks_truncated"] is True
 
     await coordinator.async_shutdown()
+
+
+# ---------------------------------------------------------------------------
+# Section 6: guard-band COVERAGE, and the state class ban.
+#
+# `test_guard_bands` above proves the mechanism works on one sensor. It says
+# nothing about how many sensors reach it — and a correct check over a
+# description declaring no bounds is a no-op indistinguishable in source from
+# one doing real work. `zte_router_5g` shipped a correct mechanism with ten
+# unbounded numeric sensors, six of them byte counters.
+#
+# This sweep is deliberately STATIC, unlike the §12 and §14 sweeps. A guard
+# band is never published as a state or an attribute — it is a property of the
+# description whose only observable effect is a value that never appears — so
+# nothing a live instance can be asked will reveal one.
+# ---------------------------------------------------------------------------
+
+# Sensors that legitimately need no bounds, each with its reason. An absent
+# band and a deliberate exemption look identical in the source, so an
+# exemption has to be written down to exist. Empty is the correct state today:
+# every sensor carrying a unit or a state class declares bounds.
+UNGUARDED_ALLOWLIST: dict[str, str] = {}
+
+# Sensors permitted to use SensorStateClass.TOTAL. Empty, and meant to stay
+# that way: under plain TOTAL, HA recognizes a reset only from a `last_reset`
+# attribute, so a resetting counter walks long-term statistics backwards on
+# every rollover. TOTAL_INCREASING is almost always the intended class.
+# Adding an entry here is a reviewable act; typing TOTAL into a new
+# description is not.
+ALLOWED_TOTAL_STATE_CLASS: frozenset[str] = frozenset()
+
+
+def _needs_a_guard_band(description) -> bool:
+    """Return whether the sensor can reach statistics and so needs bounds."""
+    return (
+        description.native_unit_of_measurement is not None
+        or description.state_class is not None
+    )
+
+
+def test_every_numeric_sensor_has_a_guard_band():
+    """Every sensor that can reach statistics declares bounds, or is exempt."""
+    swept = [d for d in SENSOR_TYPES if _needs_a_guard_band(d)]
+
+    # A sweep that inspects nothing passes vacuously. If this trips, the
+    # detector has drifted from how descriptions are declared — that is a
+    # failure of this test, not a clean run.
+    assert len(swept) >= 4, (
+        f"only {len(swept)} sensors matched the numeric detector; SENSOR_TYPES "
+        f"has {len(SENSOR_TYPES)} entries. The detector has gone stale."
+    )
+
+    unguarded = [
+        d.key
+        for d in swept
+        if d.key not in UNGUARDED_ALLOWLIST
+        and d.min_limit is None
+        and d.max_limit is None
+    ]
+    assert not unguarded, (
+        f"sensors carrying a unit or state_class with no guard band: "
+        f"{sorted(unguarded)}. Add bounds, or add the key to "
+        f"UNGUARDED_ALLOWLIST with a reason."
+    )
+
+
+def test_unguarded_allowlist_has_no_dead_entries():
+    """An exemption never outlives the sensor, or the bounds it was granted for."""
+    keys = {d.key for d in SENSOR_TYPES}
+
+    unknown = sorted(set(UNGUARDED_ALLOWLIST) - keys)
+    assert not unknown, (
+        f"allow-list entries for sensors that no longer exist: {unknown}"
+    )
+
+    by_key = {d.key: d for d in SENSOR_TYPES}
+    now_bounded = sorted(
+        k
+        for k in UNGUARDED_ALLOWLIST
+        if by_key[k].min_limit is not None or by_key[k].max_limit is not None
+    )
+    assert not now_bounded, (
+        f"exempt sensors that now declare bounds — remove the exemption: {now_bounded}"
+    )
+
+    no_longer_numeric = sorted(
+        k for k in UNGUARDED_ALLOWLIST if not _needs_a_guard_band(by_key[k])
+    )
+    assert not no_longer_numeric, (
+        f"exempt sensors that no longer carry a unit or state class, so the "
+        f"exemption is moot: {no_longer_numeric}"
+    )
+
+
+def test_no_sensor_uses_the_total_state_class():
+    """`TOTAL` is banned; `TOTAL_INCREASING` is almost always what was meant.
+
+    Zero sensors use it today, so this costs nothing to hold. It exists
+    because `zte_router_5g` shipped six monthly byte counters as `TOTAL` and
+    every billing-day rollover recorded as a large negative delta, walking the
+    long-term statistics sum backwards.
+    """
+    from homeassistant.components.sensor import SensorStateClass
+
+    offenders = sorted(
+        d.key
+        for d in SENSOR_TYPES
+        if d.state_class == SensorStateClass.TOTAL
+        and d.key not in ALLOWED_TOTAL_STATE_CLASS
+    )
+    assert not offenders, (
+        f"sensors using SensorStateClass.TOTAL: {offenders}. Use "
+        f"TOTAL_INCREASING unless the sensor publishes `last_reset`."
+    )
+
+    dead = sorted(ALLOWED_TOTAL_STATE_CLASS - {d.key for d in SENSOR_TYPES})
+    assert not dead, f"allow-list entries for sensors that no longer exist: {dead}"

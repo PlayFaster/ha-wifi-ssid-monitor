@@ -31,6 +31,7 @@ from .const import (
     CONF_SHOW_6GHZ,
     CONF_SHOW_24GHZ,
     CONF_STOP_POLLING,
+    COORDINATOR_TIMEOUT_SECONDS,
     DEFAULT_INCLUDE_HIDDEN,
     DEFAULT_LAST_SEEN_TTL_DAYS,
     DEFAULT_SCAN_INTERVAL,
@@ -116,9 +117,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             "problem": False,
             "severity": None,
             "issues": [],
-            "checks_failed": [],
+            "degraded_capabilities": [],
+            "drift": [],
             "signal_unit": None,
-            "last_good_scan": None,
+            "last_good_update": None,
         }
         self._drift_strikes: dict[str, int] = {}
         self._baseline_signal_unit: str | None = None
@@ -128,6 +130,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         # New-network events are baselined on the first poll so a restart never
         # replays the existing backlog into a user's automations.
         self._event_baseline_done = False
+
+        # Set by async_flush_stores so a late poll cannot re-arm a
+        # delayed write after the final flush.
+        self._shutting_down = False
 
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
@@ -174,7 +180,14 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             self._visit_counts = dict(visit_counts_data)
 
     def _schedule_save(self) -> None:
-        """Queue a coalesced write of all three history stores."""
+        """Queue a coalesced write of all three history stores.
+
+        A no-op once the flush has run: a poll already awaiting the API when
+        unload starts completes afterwards and would otherwise arm a 30-second
+        write on a coordinator nothing will flush again.
+        """
+        if self._shutting_down:
+            return
         self.store.async_delay_save(
             lambda: {k: v.isoformat() for k, v in self._last_seen.items()},
             _SAVE_DELAY_SECONDS,
@@ -193,7 +206,8 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         Required on unload: a reload fires no HOMEASSISTANT_STOP, so a pending
         coalesced save would otherwise be lost on every options change.
         """
-        await asyncio.gather(
+        self._shutting_down = True
+        results = await asyncio.gather(
             self.store.async_save(
                 {k: v.isoformat() for k, v in self._last_seen.items()}
             ),
@@ -203,6 +217,16 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             self.store_visit_counts.async_save(dict(self._visit_counts)),
             return_exceptions=True,
         )
+        # The load side logs its failures; the write side must match, or a
+        # disk-full or permissions error silently loses the history and
+        # nothing in the log explains why it reset.
+        for name, result in zip(
+            ("last_seen", "first_seen", "visit_counts"), results, strict=True
+        ):
+            if isinstance(result, BaseException):
+                _LOGGER.warning(
+                    "Failed to flush the %s store on unload: %s", name, result
+                )
 
     async def async_clear_history(self) -> None:
         """Clear all persisted SSID history and save empty state to storage."""
@@ -222,9 +246,17 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         """Fetch now, even if polling is paused.
 
         Scheduled polls still respect the pause; explicit user actions do not.
+
+        Uses ``async_request_refresh`` rather than ``async_refresh``. The two
+        look interchangeable and are not: HA builds the coordinator's debouncer
+        with ``immediate=True``, so the first call fetches straight away and the
+        10-second cooldown only coalesces the ones behind it. A single press
+        behaves identically either way; ten rapid presses become one fetch here
+        and ten with ``async_refresh``. That coalescing is the reason an action
+        a script can call in a loop is safe to route through this.
         """
         self._force_refresh_once = True
-        await self.async_refresh()
+        await self.async_request_refresh()
 
     @property
     def polling_paused(self) -> bool:
@@ -312,8 +344,44 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         except Exception:  # noqa: BLE001
             findings = []
 
-        if any(f.key == "interface_missing" for f in findings):
-            self._apply_health(facts)
+        missing = [f for f in findings if f.key == "interface_missing"]
+        if missing:
+            if not cold_start:
+                # At runtime a 400/404 can be transient — the Supervisor
+                # restarting mid-poll produces one — and there are held values
+                # to show meanwhile, so corroboration is worth the wait.
+                #
+                # Guarded because this whole method runs inside the fetch
+                # error handler: _apply_health re-runs the checks and touches
+                # the issue registry, and anything raised here would replace
+                # the Supervisor error that actually caused the failure. The
+                # _process_scan call site guards it for the same reason.
+                try:
+                    self._apply_health(facts)
+                except Exception:
+                    _LOGGER.debug(
+                        "Health computation failed on the failure path; "
+                        "leaving the previous snapshot",
+                        exc_info=True,
+                    )
+                return
+
+            # Cold start publishes without corroboration, for the reason in
+            # this method's docstring: there is nothing held, so three polls of
+            # "no problem" against a wholly unavailable integration is the
+            # worst answer available. Routing this through _apply_health applied
+            # the strike budget anyway and produced exactly that.
+            finding = missing[0]
+            self.health_snapshot = {
+                **self.health_snapshot,
+                "problem": True,
+                "severity": finding.severity,
+                "issues": [finding.message],
+                "degraded_capabilities": [finding.key],
+                "drift": [],
+                "cold_start": True,
+            }
+            self._sync_repairs(missing)
             return
 
         self.health_snapshot = {
@@ -321,7 +389,9 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             "problem": True,
             "severity": SEVERITY_SERIOUS,
             "issues": [f"Cannot reach the Supervisor API: {err}"],
-            "checks_failed": ["supervisor_unreachable"],
+            "degraded_capabilities": ["supervisor_unreachable"],
+            # No payload arrived, so no drift verdict is possible this cycle.
+            "drift": [],
             "cold_start": cold_start,
         }
 
@@ -362,10 +432,15 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             "problem": bool(confirmed),
             "severity": severity,
             "issues": [f.message for f in confirmed],
-            "checks_failed": [f.key for f in confirmed],
+            # Section 19 publishes these separately: a failed capability is not
+            # the same thing as the payload changing shape underneath a
+            # successful fetch, and an automation reacting to one should not
+            # fire on the other. Every confirmed finding lands in exactly one.
+            "degraded_capabilities": [f.key for f in confirmed if not f.is_drift],
+            "drift": [f.message for f in confirmed if f.is_drift],
             "signal_unit": facts.signal_unit,
             "baseline_signal_unit": self._baseline_signal_unit,
-            "last_good_scan": (
+            "last_good_update": (
                 self.last_update_success_time.isoformat()
                 if self.last_update_success_time
                 else None
@@ -373,6 +448,19 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             "networks_scanned": facts.total_aps,
         }
         self._sync_repairs(confirmed)
+
+    def _issue_id(self, key: str) -> str:
+        """Scope a repair issue to this config entry.
+
+        The issue registry keys on ``(domain, issue_id)``, so a bare key gives
+        every entry the same slot. This integration supports one entry per
+        interface, and with two configured the healthy one deletes the failing
+        one's repair on every successful poll.
+
+        The **translation** stays keyed on the bare type — the scoped id is an
+        identity, not a message.
+        """
+        return f"{key}_{self.entry.entry_id}"
 
     def _sync_repairs(self, findings: list[Finding]) -> None:
         """Raise and clear the repair issues, keeping them to the actionable few."""
@@ -384,16 +472,19 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
-                key,
+                self._issue_id(key),
                 is_fixable=False,
                 severity=ir.IssueSeverity.WARNING,
                 translation_key=key,
-                translation_placeholders={"detail": finding.message},
+                translation_placeholders={
+                    "detail": finding.message,
+                    "entry": self.entry.title,
+                },
             )
             self._active_repairs.add(key)
 
         for key in list(self._active_repairs - set(wanted)):
-            ir.async_delete_issue(self.hass, DOMAIN, key)
+            ir.async_delete_issue(self.hass, DOMAIN, self._issue_id(key))
             self._active_repairs.discard(key)
 
     # ------------------------------------------------------------------ fetch
@@ -409,7 +500,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             return cached
 
         try:
-            async with asyncio.timeout(30):
+            async with asyncio.timeout(COORDINATOR_TIMEOUT_SECONDS):
                 access_points = await self.api.get_access_points()
         except Exception as err:
             self._failure_count += 1
@@ -430,10 +521,11 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
-                ISSUE_SUPERVISOR_UNAVAILABLE,
+                self._issue_id(ISSUE_SUPERVISOR_UNAVAILABLE),
                 is_fixable=False,
                 severity=ir.IssueSeverity.WARNING,
                 translation_key=ISSUE_SUPERVISOR_UNAVAILABLE,
+                translation_placeholders={"entry": self.entry.title},
             )
             if not self.data:
                 raise ConfigEntryNotReady(
@@ -445,7 +537,9 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         self._failure_count = 0
         now = dt_util.now()
         self.last_update_success_time = now
-        ir.async_delete_issue(self.hass, DOMAIN, ISSUE_SUPERVISOR_UNAVAILABLE)
+        ir.async_delete_issue(
+            self.hass, DOMAIN, self._issue_id(ISSUE_SUPERVISOR_UNAVAILABLE)
+        )
 
         return self._process_scan(access_points, now)
 
@@ -472,8 +566,21 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         known_patterns = _split_patterns(known_str)
         denylist_patterns = _split_patterns(options.get(CONF_DENYLIST_SSIDS, ""))
 
+        # Several radios can share one label — a dual-band AP, or every node of
+        # a mesh. Merging them is deliberate (see history_key), but the reading
+        # that survives must be the strongest, not whichever the Supervisor
+        # listed last. This is a rogue detector: the question it answers is how
+        # strong the strongest thing broadcasting that name is, and list order
+        # is not an answer to it. A None signal never displaces a real one, but
+        # a network whose radios all report None is still published.
         network_map: dict[str, dict[str, Any]] = {}
         for net in visible:
+            existing = network_map.get(net["label"])
+            if existing is not None:
+                incoming = net["signal_pct"]
+                current = existing["signal"]
+                if incoming is None or (current is not None and incoming <= current):
+                    continue
             network_map[net["label"]] = {
                 "bssid": net["mac"],
                 "signal": net["signal_pct"],
@@ -517,7 +624,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 strongest_signal = signal
                 strongest_label = label
 
-        self._scans_completed += 1
+        # The counter is incremented AFTER the health pass, not before, so
+        # `_apply_health` sees the number of scans completed *before* this one.
+        # Incrementing first made HEALTH_STARTUP_GRACE_SCANS grant one fewer
+        # scan of grace than its name says — a 2 meant one scan.
         try:
             self._apply_health(
                 ScanFacts(
@@ -533,10 +643,11 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                     scans_completed=self._scans_completed,
                 )
             )
-        except Exception:  # noqa: BLE001 - diagnosis must never break the scan
+        except Exception:
             _LOGGER.debug(
                 "Health computation failed; treating as healthy", exc_info=True
             )
+        self._scans_completed += 1
 
         if signal_unit and self._baseline_signal_unit is None:
             self._baseline_signal_unit = signal_unit

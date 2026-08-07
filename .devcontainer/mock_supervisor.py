@@ -1,5 +1,9 @@
 """Mock Supervisor Network API for development."""
-# ruff: noqa: S104
+# ruff: noqa: S104, INP001
+# INP001: a standalone dev-container script, run directly by docker-compose and
+# never imported, so it is deliberately not a package. Suppressed here rather
+# than in pyproject.toml — that file is synced from dev-workbench and a local
+# per-file-ignores entry would be erased on the next sync.
 
 import json
 import logging

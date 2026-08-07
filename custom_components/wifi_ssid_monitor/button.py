@@ -35,7 +35,7 @@ class WifiScanButton(WifiScanEntity, ButtonEntity):
 
     _attr_about = (
         "Runs a scan immediately, including while Pause Polling is on — an "
-        "explicit request is always honoured."
+        "explicit request is always honored."
     )
 
     def __init__(
@@ -65,7 +65,15 @@ class WifiScanButton(WifiScanEntity, ButtonEntity):
         short-circuits a plain request to cached data, which would silently
         swallow the press at exactly the moment the user wanted a fetch.
         """
+        # The refresh is debounced with a 10-second cooldown. Inside it the
+        # call returns without fetching, so `last_update_success` still
+        # describes the run before — and a failed scan followed by a quick
+        # retry would report failure again without having retried. Only judge
+        # a run that actually happened.
+        before = self.coordinator.last_update_success_time
         await self.coordinator.async_force_refresh()
+        if self.coordinator.last_update_success_time == before:
+            return
         if not self.coordinator.last_update_success:
             raise HomeAssistantError(
                 "WiFi scan failed — check Home Assistant Repairs for details",

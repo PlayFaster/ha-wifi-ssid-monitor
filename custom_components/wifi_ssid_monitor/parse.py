@@ -106,9 +106,26 @@ def frequency_to_channel(mhz: Any) -> tuple[int | None, str | None]:
     if 5150 <= freq <= 5895:
         return (freq - 5000) // 5, BAND_5
 
-    # 6 GHz (Wi-Fi 6E / 7).
+    # 6 GHz (Wi-Fi 6E / 7). Two things here come from the standard rather than
+    # from the arithmetic, and both are easy to get wrong.
+    #
+    # Channel 2 sits at 5935 MHz — *below* channel 1 at 5955 — and does not
+    # follow the formula, which would give -3. IEEE 802.11ax D6.1 27.3.22.2
+    # defines it separately; Linux cfg80211 special-cases the same value in
+    # ieee80211_freq_khz_to_channel().
+    if freq == 5935:
+        return 2, BAND_6
+
+    # The band opens at 5925 but the lowest channel centre is 5955, and the
+    # highest is 7115 (channel 233) though the band runs to 7125. So a
+    # frequency can be inside the band with no channel of its own, at either
+    # end. Report the band and leave the channel unknown: per rule 1 above an
+    # undeterminable field is None, and normalize_access_point then falls back
+    # to any explicit channel the Supervisor sent. A computed number denies it
+    # that fallback and puts a channel no radio can be on into the UI.
     if 5925 <= freq <= 7125:
-        return (freq - 5950) // 5, BAND_6
+        channel = (freq - 5950) // 5
+        return (channel if 1 <= channel <= 233 else None), BAND_6
 
     return None, None
 

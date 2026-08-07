@@ -10,6 +10,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
@@ -34,6 +35,7 @@ from .const import (
     LIVE_OPTION_KEYS,
     STORAGE_VERSION,
     VERSION,
+    all_issue_ids,
     all_storage_keys,
 )
 from .coordinator import WifiScanCoordinator
@@ -147,11 +149,22 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove all stored data when the config entry is deleted.
+    """Remove all stored data and repair issues when the entry is deleted.
 
-    Keys come from the shared helpers so the delete side cannot drift from the
-    write side in the coordinator.
+    Keys and issue ids come from the shared helpers so the delete side cannot
+    drift from the write side in the coordinator.
+
+    Repairs are cleared here rather than in ``async_unload_entry`` on purpose.
+    Unload also runs on every reload, and a repair deleted there would vanish
+    from the Repairs panel and only return after the strike budget — roughly
+    half an hour of a real problem looking solved, every time an option
+    changes. Deletion is the case that leaves permanent litter: these issues
+    are ``is_fixable=False``, so once the integration is gone there is no UI
+    path to clear them.
     """
+    for issue in all_issue_ids(entry.entry_id):
+        ir.async_delete_issue(hass, DOMAIN, issue)
+
     await asyncio.gather(
         *(
             Store(hass, version=STORAGE_VERSION, key=key).async_remove()

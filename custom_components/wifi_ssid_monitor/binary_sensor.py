@@ -94,8 +94,10 @@ class WifiProximityBinarySensor(WifiScanEntity, BinarySensorEntity):
         "Threshold. Signal is a 0-100% quality figure — higher means closer."
     )
 
-    _unrecorded_attributes = WifiScanEntity._unrecorded_attributes | frozenset(
-        {"strongest_unknown_signal", "threshold"}
+    # "about" is repeated from the mixin — HA does not merge this attribute
+    # across the class hierarchy. See the note in `sensor.py`.
+    _unrecorded_attributes = frozenset(
+        {"about", "strongest_unknown_signal", "threshold"}
     )
 
     def __init__(
@@ -156,8 +158,20 @@ class WifiHealthBinarySensor(WifiScanEntity, BinarySensorEntity):
         "vanishing at once. Details are in the issues attribute."
     )
 
+    # Every attribute this entity publishes must appear here — Section 19 puts
+    # the health detail in *unrecorded* attributes, and a list that lags the
+    # property silently writes diagnostic churn into the recorder database.
     _unrecorded_attributes = frozenset(
-        {"about", "issues", "checks_failed", "signal_unit", "last_good_scan"}
+        {
+            "about",
+            "issues",
+            "severity",
+            "degraded_capabilities",
+            "drift",
+            "signal_unit",
+            "last_good_update",
+            "networks_scanned",
+        }
     )
 
     def __init__(
@@ -196,9 +210,12 @@ class WifiHealthBinarySensor(WifiScanEntity, BinarySensorEntity):
             {
                 "issues": list(snapshot.get("issues") or []),
                 "severity": snapshot.get("severity"),
-                "checks_failed": list(snapshot.get("checks_failed") or []),
+                "degraded_capabilities": list(
+                    snapshot.get("degraded_capabilities") or []
+                ),
+                "drift": list(snapshot.get("drift") or []),
                 "signal_unit": snapshot.get("signal_unit"),
-                "last_good_scan": snapshot.get("last_good_scan"),
+                "last_good_update": snapshot.get("last_good_update"),
                 "networks_scanned": snapshot.get("networks_scanned"),
             }
         )

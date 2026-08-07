@@ -146,9 +146,22 @@ class WifiOptionNumber(WifiScanEntity, NumberEntity):
         self._pending = self.hass.async_create_task(self._async_debounced_apply(value))
 
     async def async_will_remove_from_hass(self) -> None:
-        """Cancel any pending debounced update on removal."""
-        if self._pending:
+        """Flush any pending debounced update, then cancel it.
+
+        Cancelling alone loses the value: a slider moved and then followed
+        within the debounce window by anything that reloads the entry — an
+        options change is enough — snaps back with no explanation. The user
+        saw it accepted, because the optimistic write already told them so.
+        """
+        if self._pending and not self._pending.done():
             self._pending.cancel()
+            if self._optimistic is not None:
+                description = self.entity_description
+                stored = int(self._optimistic) * description.scale
+                self.hass.config_entries.async_update_entry(
+                    self._entry,
+                    options={**self._entry.options, description.option_key: stored},
+                )
 
     async def _async_debounced_apply(self, value: float) -> None:
         """Persist the option after the debounce window."""

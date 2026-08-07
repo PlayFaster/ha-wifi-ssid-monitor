@@ -57,6 +57,14 @@ class Finding:
     message: str
     repair: str | None = None
 
+    # Section 19 splits the health verdict two ways: a *capability* that has
+    # failed, versus *contract/semantic drift* — a response that parses to
+    # something meaningfully different from the established shape. They land in
+    # different published attributes, so each check declares which it is.
+    # Defaults to False so a newly added check is reported as a capability
+    # unless it deliberately opts in; under-claiming drift is the safe error.
+    is_drift: bool = False
+
 
 CheckFn = Callable[[ScanFacts], Finding | None]
 
@@ -95,6 +103,7 @@ def check_signal_unit_flip(facts: ScanFacts) -> Finding | None:
         return None
     return Finding(
         key="signal_format_changed",
+        is_drift=True,
         severity=SEVERITY_SERIOUS,
         message=(
             f"Signal values changed from {facts.baseline_signal_unit} to "
@@ -110,6 +119,7 @@ def check_response_shape(facts: ScanFacts) -> Finding | None:
         return None
     return Finding(
         key="payload_no_ap_list",
+        is_drift=True,
         severity=SEVERITY_SERIOUS,
         message=(
             "The Supervisor response contained no 'accesspoints' list. The API "
@@ -131,6 +141,7 @@ def check_field_absent_everywhere(facts: ScanFacts) -> Finding | None:
         return None
     return Finding(
         key="payload_field_missing",
+        is_drift=True,
         severity=SEVERITY_SERIOUS,
         message=(
             f"Expected field(s) {', '.join(absent)} absent from all scanned "
@@ -147,6 +158,7 @@ def check_band_unresolved(facts: ScanFacts) -> Finding | None:
     if fraction >= _MAJORITY:
         return Finding(
             key="band_unresolved_all",
+            is_drift=True,
             severity=SEVERITY_SERIOUS,
             message=(
                 "No scanned network resolved to a band. The frequency field may "
@@ -156,6 +168,7 @@ def check_band_unresolved(facts: ScanFacts) -> Finding | None:
     if fraction > 0:
         return Finding(
             key="band_unresolved_some",
+            is_drift=True,
             severity=SEVERITY_MINOR,
             message=(
                 f"{int(fraction * 100)}% of networks reported a frequency "
@@ -178,6 +191,7 @@ def check_field_absent_minority(facts: ScanFacts) -> Finding | None:
         return None
     return Finding(
         key="payload_field_partial",
+        is_drift=True,
         severity=SEVERITY_MINOR,
         message=f"Field(s) {', '.join(partial)} missing on some networks.",
     )
@@ -243,7 +257,7 @@ def run_checks(facts: ScanFacts) -> list[Finding]:
     for check in CHECKS:
         try:
             result = check(facts)
-        except Exception:  # noqa: BLE001 - a broken check must never break a scan
+        except Exception:
             _LOGGER.debug(
                 "Health check %s raised; skipping", check.__name__, exc_info=True
             )

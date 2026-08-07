@@ -291,6 +291,93 @@ async def test_async_setup_entry_migrate_legacy_scan_bands_all(
 
 
 @pytest.mark.asyncio
+async def test_legacy_scan_bands_does_not_overwrite_an_explicit_band_switch(
+    hass: HomeAssistant,
+):
+    """A half-migrated entry keeps the switch the user set.
+
+    Both the legacy enum and the new switches can be present at once — an
+    install that migrated, was downgraded, and migrated again. The enum is the
+    older statement of intent and must not win.
+    """
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_INTERFACE,
+        CONF_SCAN_INTERVAL,
+        CONF_SHOW_24GHZ,
+        DEFAULT_SCAN_INTERVAL,
+        DOMAIN,
+        LEGACY_CONF_SCAN_BANDS,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan0_mig_bands_partial",
+        title="WiFi SSID Monitor",
+        data={},
+        options={
+            CONF_INTERFACE: "wlan0",
+            LEGACY_CONF_SCAN_BANDS: "all",
+            CONF_SHOW_24GHZ: False,
+            CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+        },
+        entry_id="test_entry_bands_partial",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    # "all" would have set this True. The explicit switch survives.
+    assert entry.options[CONF_SHOW_24GHZ] is False
+    assert LEGACY_CONF_SCAN_BANDS not in entry.options
+
+
+@pytest.mark.asyncio
+async def test_data_migration_keeps_an_interval_already_in_options(
+    hass: HomeAssistant,
+):
+    """Migrating data to options must not reset a chosen scan interval.
+
+    The default is only a fallback for entries that predate the setting. An
+    entry carrying both legacy ``data`` and a chosen interval would otherwise
+    be silently returned to 10 minutes on upgrade.
+    """
+    from custom_components.wifi_ssid_monitor.const import (
+        CONF_INTERFACE,
+        CONF_SCAN_INTERVAL,
+        DEFAULT_SCAN_INTERVAL,
+        DOMAIN,
+    )
+
+    chosen = DEFAULT_SCAN_INTERVAL + 300
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan0_mig_interval",
+        title="WiFi SSID Monitor",
+        data={CONF_INTERFACE: "wlan0"},
+        options={CONF_SCAN_INTERVAL: chosen},
+        entry_id="test_entry_mig_interval",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.data == {}
+    assert entry.options[CONF_SCAN_INTERVAL] == chosen
+    assert entry.options[CONF_INTERFACE] == "wlan0"
+
+
+@pytest.mark.asyncio
 async def test_get_networks_service(hass: HomeAssistant, mock_config_entry):
     """Test the get_networks service returns networks data."""
     from custom_components.wifi_ssid_monitor.const import DOMAIN
@@ -691,6 +778,13 @@ async def test_async_reload_entry_options(hass: HomeAssistant, mock_config_entry
         patch(
             "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_refresh"
         ) as mock_refresh,
+        # Setup's background task calls async_refresh; every explicit user
+        # action goes through async_force_refresh -> async_request_refresh,
+        # so the two paths are asserted separately.
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator."
+            "WifiScanCoordinator.async_request_refresh"
+        ) as mock_requested,
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -712,14 +806,14 @@ async def test_async_reload_entry_options(hass: HomeAssistant, mock_config_entry
         await hass.async_block_till_done()
 
         assert coordinator.update_interval.total_seconds() == 120
-        mock_refresh.assert_not_called()
+        mock_requested.assert_not_called()
 
         # Update known SSIDs
         new_options = {**mock_config_entry.options, CONF_KNOWN_SSIDS: "NewNet"}
         hass.config_entries.async_update_entry(mock_config_entry, options=new_options)
         await hass.async_block_till_done()
 
-        mock_refresh.assert_called_once()
+        mock_requested.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -874,8 +968,23 @@ async def test_remove_known_ssid_service_invalid_entry_id(
 
 
 @pytest.mark.asyncio
-async def test_async_remove_entry(hass: HomeAssistant, mock_config_entry):
-    """Test async_remove_entry removes stored data."""
+async def test_async_remove_entry_deletes_every_live_store(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Section 21: every store the coordinator writes is actually removed.
+
+    Asserted against the **observed removal calls**, not against the shared
+    helper. `assert store.key == helper(entry_id)` proves only that the write
+    side uses the helper — if removal built its key independently the test
+    still passes, and that silent-no-op is exactly the drift this standard
+    exists to catch.
+
+    The previous version of this test set an entry up, removed it, and
+    asserted nothing at all. It passed, counted toward coverage, and could
+    not fail.
+    """
+    from homeassistant.helpers.storage import Store
+
     mock_config_entry.add_to_hass(hass)
 
     with patch(
@@ -885,9 +994,43 @@ async def test_async_remove_entry(hass: HomeAssistant, mock_config_entry):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    # Remove the entry, which triggers async_remove_entry
-    await hass.config_entries.async_remove(mock_config_entry.entry_id)
-    await hass.async_block_till_done()
+    # The live keys, taken from the coordinator that writes them.
+    coordinator = mock_config_entry.runtime_data
+    live_keys = {
+        coordinator.store.key,
+        coordinator.store_first_seen.key,
+        coordinator.store_visit_counts.key,
+    }
+    assert len(live_keys) == 3, "the coordinator's three stores must have distinct keys"
+
+    removed: list[str] = []
+    original = Store.async_remove
+
+    async def _spy(self, *args, **kwargs):
+        removed.append(self.key)
+        return await original(self, *args, **kwargs)
+
+    with patch.object(Store, "async_remove", _spy):
+        await hass.config_entries.async_remove(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    missed = sorted(live_keys - set(removed))
+    assert not missed, (
+        f"stores written by the coordinator but not deleted on removal: {missed}. "
+        f"These orphan in config/.storage, unreachable because a re-added entry "
+        f"mints a new entry_id and never reads them."
+    )
+
+
+@pytest.mark.asyncio
+async def test_storage_keys_are_entry_scoped(hass: HomeAssistant, mock_config_entry):
+    """Two entries never share a store, so removing one cannot orphan the other."""
+    from custom_components.wifi_ssid_monitor.const import all_storage_keys
+
+    a = set(all_storage_keys("entry_a"))
+    b = set(all_storage_keys("entry_b"))
+    assert len(a) == 3
+    assert not a & b, "storage keys must be scoped per entry"
 
 
 @pytest.mark.asyncio
@@ -905,6 +1048,13 @@ async def test_scan_now_service(hass: HomeAssistant, mock_config_entry):
         patch(
             "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_refresh"
         ) as mock_refresh,
+        # Setup's background task calls async_refresh; every explicit user
+        # action goes through async_force_refresh -> async_request_refresh,
+        # so the two paths are asserted separately.
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator."
+            "WifiScanCoordinator.async_request_refresh"
+        ) as mock_requested,
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -913,7 +1063,7 @@ async def test_scan_now_service(hass: HomeAssistant, mock_config_entry):
         await hass.services.async_call(DOMAIN, "scan_now", {}, blocking=True)
         await hass.async_block_till_done()
 
-        mock_refresh.assert_called_once()
+        mock_requested.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -931,6 +1081,13 @@ async def test_scan_now_service_with_entry_id(hass: HomeAssistant, mock_config_e
         patch(
             "custom_components.wifi_ssid_monitor.coordinator.WifiScanCoordinator.async_refresh"
         ) as mock_refresh,
+        # Setup's background task calls async_refresh; every explicit user
+        # action goes through async_force_refresh -> async_request_refresh,
+        # so the two paths are asserted separately.
+        patch(
+            "custom_components.wifi_ssid_monitor.coordinator."
+            "WifiScanCoordinator.async_request_refresh"
+        ) as mock_requested,
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -944,7 +1101,7 @@ async def test_scan_now_service_with_entry_id(hass: HomeAssistant, mock_config_e
         )
         await hass.async_block_till_done()
 
-        mock_refresh.assert_called_once()
+        mock_requested.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -1146,3 +1303,157 @@ async def test_set_known_ssids_service_invalid_entry_id(
             {"values": "Test", "config_entry_id": "nonexistent_id"},
             blocking=True,
         )
+
+
+@pytest.mark.asyncio
+async def test_get_networks_reports_freshness(hass: HomeAssistant, mock_config_entry):
+    """The response says which scan it came from, and whether that scan failed.
+
+    `get_networks` reuses the last scan rather than fetching, so a call during
+    an outage returns the last good result. Returning that silently, as though
+    it were current, is the failure worth avoiding — hence `last_updated` and
+    `stale`.
+    """
+    from custom_components.wifi_ssid_monitor.api import WifiScanError
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[
+            {
+                "mac": "AA:BB:CC:00:00:01",
+                "ssid": "Net1",
+                "signal": 60,
+                "frequency": 5240,
+            }
+        ],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    async def _call():
+        return await hass.services.async_call(
+            DOMAIN,
+            "get_networks",
+            {"scope": "all", "band": "all"},
+            blocking=True,
+            return_response=True,
+        )
+
+    healthy = await _call()
+    assert healthy["stale"] is False
+    assert healthy["last_updated"] is not None
+    assert healthy["total_matched"] == 1
+
+    # Drive the coordinator past its strike budget so the last fetch failed.
+    coordinator = mock_config_entry.runtime_data
+    with patch.object(
+        coordinator.api, "get_access_points", side_effect=WifiScanError("boom")
+    ):
+        for _ in range(5):
+            await coordinator.async_refresh()
+
+    assert coordinator.last_update_success is False
+
+    degraded = await _call()
+    assert degraded["stale"] is True, "a failed last scan must be reported as stale"
+    # The held data is still returned — stale, not empty. That is the point of
+    # the 3-strike hold; the caller is told, not starved.
+    assert degraded["total_matched"] == 1
+    assert degraded["last_updated"] == healthy["last_updated"]
+
+
+@pytest.mark.asyncio
+async def test_get_networks_reports_the_oldest_scan_across_entries(
+    hass: HomeAssistant, mock_config_entry
+):
+    """With two entries merged, `last_updated` is the oldest of the scans.
+
+    One field describes a response assembled from several coordinators, so it
+    has to carry the weakest guarantee among them. Reporting the newest would
+    describe the whole result as fresher than part of it actually is, which is
+    the failure `last_updated` exists to prevent.
+    """
+    from datetime import timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.wifi_ssid_monitor.const import CONF_INTERFACE, DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+    second = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="wifi_ssid_monitor_wlan1",
+        title="WiFi SSID Monitor wlan1",
+        data={},
+        options={**mock_config_entry.options, CONF_INTERFACE: "wlan1"},
+        entry_id="test_entry_second_interface",
+    )
+    second.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[
+            {
+                "mac": "AA:BB:CC:00:00:01",
+                "ssid": "Net1",
+                "signal": 60,
+                "frequency": 5240,
+            }
+        ],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Adding the second entry loads it as a side effect of the first setup.
+    assert second.runtime_data is not None
+
+    now = dt_util.utcnow()
+    older = now - timedelta(hours=2)
+    # First entry scanned longest ago; second is current. Iteration order puts
+    # the older one first, so the newer must be rejected rather than accepted.
+    mock_config_entry.runtime_data.last_update_success_time = older
+    second.runtime_data.last_update_success_time = now
+
+    result = await hass.services.async_call(
+        DOMAIN,
+        "get_networks",
+        {"scope": "all", "band": "all"},
+        blocking=True,
+        return_response=True,
+    )
+
+    # The field is serialized for the service response, not returned as a
+    # datetime. Comparing against `now` as well guards the direction: an
+    # implementation taking the newest would pass a bare "is not None" check.
+    assert result["last_updated"] == older.isoformat()
+    assert result["last_updated"] != now.isoformat()
+    assert result["total_matched"] == 2
+
+
+@pytest.mark.asyncio
+async def test_removing_the_entry_clears_its_repair_issues(
+    hass: HomeAssistant, mock_config_entry
+):
+    """Deleting the integration must not leave repairs behind.
+
+    Covers finding M3 from code_review_20260806_2140.md.
+
+    The repairs this integration raises are `is_fixable=False`, so once the
+    integration is gone there is no UI path to clear them — they sit in the
+    Repairs panel permanently. Nothing in teardown touched the issue registry.
+    """
+    from custom_components.wifi_ssid_monitor import async_remove_entry
+    from custom_components.wifi_ssid_monitor.const import all_issue_ids
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.ir.async_delete_issue"
+    ) as mock_delete:
+        await async_remove_entry(hass, mock_config_entry)
+
+    deleted = {call.args[2] for call in mock_delete.call_args_list}
+    assert deleted == set(all_issue_ids(mock_config_entry.entry_id))

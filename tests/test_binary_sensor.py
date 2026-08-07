@@ -200,9 +200,9 @@ def test_health_reflects_snapshot(mock_config_entry, mock_coordinator):
         "problem": True,
         "severity": "serious",
         "issues": ["Cannot reach the Supervisor API"],
-        "checks_failed": ["supervisor_unreachable"],
+        "degraded_capabilities": ["supervisor_unreachable"],
         "signal_unit": "percent",
-        "last_good_scan": None,
+        "last_good_update": None,
     }
     sensor = WifiHealthBinarySensor(
         mock_coordinator, mock_config_entry, HEALTH_DESCRIPTION

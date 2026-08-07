@@ -1,5 +1,7 @@
 {
+  "filename": "wifi_ssid_monitor.zip",
   "hide_default_branch": true,
   "name": "WiFi SSID Monitor",
-  "render_readme": true
+  "render_readme": true,
+  "zip_release": true
 }

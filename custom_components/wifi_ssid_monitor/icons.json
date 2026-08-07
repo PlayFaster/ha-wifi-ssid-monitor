@@ -76,5 +76,25 @@
         "default": "mdi:radar"
       }
     }
+  },
+  "services": {
+    "add_ssid": {
+      "service": "mdi:playlist-plus"
+    },
+    "clear_last_seen": {
+      "service": "mdi:delete-sweep"
+    },
+    "get_networks": {
+      "service": "mdi:format-list-bulleted"
+    },
+    "remove_ssid": {
+      "service": "mdi:playlist-minus"
+    },
+    "scan_now": {
+      "service": "mdi:wifi-refresh"
+    },
+    "set_ssids": {
+      "service": "mdi:playlist-edit"
+    }
   }
 }
