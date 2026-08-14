@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#202-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
   - [\[2.0.2-dev1\] - 2026-08-07 - Bump Ruff to 0.16.1](#202-dev1---2026-08-07---bump-ruff-to-0161)
   - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
   - [\[2.0.1\] - 2026-08-06 - Release - Multi SSID Plus More Fixes; Major Test Improvements](#201---2026-08-06---release---multi-ssid-plus-more-fixes-major-test-improvements)
@@ -95,6 +96,20 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.2-dev2] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md
+
+### Bumps
+
+- **Validate Bump**: Update `zizmor` from 1.28.0 to 1.29.0
+- **Validate Bump**: Update `mypy` from 2.1.0 to 2.3.0
+- **Validate Bump**: Update `check-jsonschema` from 0.37.4 to 0.38.0
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.354 to 0.13.355
+
+### Changed
+
+- **`AGENTS.md`**: Added note about different linting for `.notes` and `.shared` and existence of `docs/ROADMAP.md`.
+- **`CHANGELOG.md`**: Rewrote some entries for clarity and tone.
 
 ## [2.0.2-dev1] - 2026-08-07 - Bump Ruff to 0.16.1
 

@@ -13,11 +13,11 @@ Maintenance update mostly focused on internal test coverage expansion, with some
 ### Fixed
 
 - **Multi AP Signal Tracking**: Networks broadcast by multiple radios (different bands or different APs) now report the strongest signal instead of the first seen.
-- **6 GHz channel calculation**: Fixed edge-of-band 6 GHz frequencies reporting negative or non-existent channel numbers.
-- **Scan Now debouncing**: Pressing Scan Now twice quickly no longer returns cached results from the prior scan.
-- **Slider setting retention**: Rapid configuration changes no longer overwrite pending slider value updates.
-- **Missing adapter reporting**: Integration Health sensor flags a missing adapter immediately on the first scan after restart.
-- **Repair notification isolation & cleanup**: Ensure Repair issues clear upon integration removal. Prevent multi-adapter Repair issues from overwriting each other.
+- **6 GHz channel calculation**: Corrected edge-of-band frequency mapping to ensure valid channel numbers are always derived.
+- **Scan Now debouncing**: Improved debouncing logic to ensure rapid consecutive scans return fresh results.
+- **Slider setting retention**: Ensured rapid consecutive slider adjustments preserve pending configuration updates.
+- **Missing adapter detection**: Stricter checks ensure a missing WiFi adapter is flagged immediately on the first post-restart scan.
+- **Repair lifecycle improvements**: Ensured Repair issues are cleared on integration removal and isolated per-adapter to prevent collisions.
 - **Diagnostics and error logging**: Improved Supervisor error handling, shutdown history logging, and health check error transparency.
 
 ### Changed
@@ -85,11 +85,11 @@ A major update, with significant capability improvements and fixes BUT also some
 
 ### Fixed
 
-- **The band filter no longer hides every network** - band is derived from `frequency`, and an unresolved band passes rather than being dropped.
-- **The Proximity Alert no longer fires permanently** - it previously compared a 0–100 value against a negative dBm threshold, so it was on whenever any unknown network was visible.
-- **Interface auto-detection works on Raspberry Pi** - the Supervisor reports `wireless` there rather than `wifi`.
-- **Diagnostics redacts neighboring SSIDs** - a structural sanitizer pseudonymizes SSIDs and BSSIDs, including where they are used as dictionary keys, while preserving signal, channel, band and counts.
-- **Action calls targeting an unloaded entry** return a clear, translated error instead of an internal failure.
+- **Band filtering resilience**: Derived bands from `frequency` and updated fallback rules to ensure unresolved bands do not cause networks to be hidden.
+- **Proximity Alert threshold alignment**: Aligned signal comparison scales (0–100% quality vs dBm) to prevent false Proximity Alert triggers.
+- **Raspberry Pi interface auto-detection**: Extended auto-detection to support interfaces reported as `wireless` by the Supervisor.
+- **Diagnostics redaction**: Pseudonymized neighboring SSIDs and BSSIDs in diagnostics dumps to protect privacy while preserving signal, channel, band, and counts.
+- **Error handling on unloaded entries**: Action calls targeting unloaded integrations now return a clear, translated error.
 
 ### Removed
 
@@ -110,7 +110,7 @@ A major update, with significant capability improvements and fixes BUT also some
 
 ### Fixed
 
-- **Reconfigure Screen Now Shows All Settings**: The ⋮ Reconfigure screen previously offered only Name, Known SSIDs, and Interface, while the gear → Configure screen exposed everything. Reconfigure now shows the full settings set - Scan Interval, Include Hidden Networks, Proximity Alert Threshold, Band Filter, Always-Unknown (denylist), and Last Seen History - so both paths behave identically.
+- **Reconfigure screen options**: Aligned the reconfigure screen options to expose all settings, matching the main configuration flow.
 
 ---
 
@@ -148,8 +148,8 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Fixed
 
-- **Scan Button Error Reporting**: The scan button now correctly propagates scan failure to automations (previously always reported success).
-- **`add_known_ssid` Silent No-Op**: Supplying an invalid `config_entry_id` now raises a UI-visible error instead of silently doing nothing.
+- **Scan button error propagation**: Scan failures are now correctly propagated to automations rather than always reporting success.
+- **`add_ssid` validation**: Supplying an invalid `config_entry_id` now raises a clear, UI-visible error instead of failing silently.
 
 ---
 
@@ -165,7 +165,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Fixed
 
-- **Scan Interval Minimum**: Aligned the minimum scan interval to 60 seconds across both the Options dialog and the number entity slider. Previously the options dialog accepted 30 seconds, which would silently round to 1 minute in the slider UI.
+- **Scan interval minimum**: Aligned the minimum scan interval to 60 seconds across both the configuration dialog and number slider to prevent silent rounding mismatch issues.
 
 ### Changed
 
@@ -196,7 +196,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Fixed
 
-- **Unavailable after Scan Change**: Fixed an issue where the sensors could become unavailable after a scan interval change (until the next scan).
+- **Scan interval change resilience**: Ensured sensor states are preserved immediately after a scan interval adjustment rather than going unavailable until the next poll.
 - **Code Quality**: Multiple improvements to address potential errors and problems identified in a code review.
 - **Hidden Networks**: Improved detection and logging of hidden WiFi networks (APs without a broadcasted SSID).
 
