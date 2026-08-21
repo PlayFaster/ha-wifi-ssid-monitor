@@ -5,7 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
-  - [\[2.0.2-dev3\] - 2026-08-21 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#202-dev3---2026-08-21---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
+  - [\[2.0.2-dev3\] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep](#202-dev3---2026-08-21---ci-bumps-github-ruff-phacc-sensor-manifest-process-hacsjson-ha-min-ver-mutation-testing-prep)
   - [\[2.0.2-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#202-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
   - [\[2.0.2-dev1\] - 2026-08-07 - Bump Ruff to 0.16.1](#202-dev1---2026-08-07---bump-ruff-to-0161)
   - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
@@ -98,7 +98,7 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
-## [2.0.2-dev3] - 2026-08-21 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md
+## [2.0.2-dev3] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep
 
 ### Bumps
 
