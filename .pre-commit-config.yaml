@@ -1,17 +1,9 @@
-# ============================================================================
-#  SYNCED FILE — DO NOT EDIT IN A PROJECT.
-#
-#  This file is copied into every project by workbench/sync_shared_files.sh.
-#  A local edit is silently overwritten on the next sync, taking any reasoning
-#  with it. Edit the source instead:
-#      dev-workbench/workbench/lint/.pre-commit-config.yaml
-#  and re-sync. A project-specific exception belongs in the file it applies to
-#  (a `# ruff: noqa: RULE` line), not here.
-# ============================================================================
+# SYNCED FILE — DO NOT EDIT IN A PROJECT.
+# Edit dev-workbench/workbench/lint/.pre-commit-config.yaml and re-sync.
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.1
+    rev: v0.16.3
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -54,14 +46,6 @@ repos:
           - prettier@3.6.2
           - prettier-plugin-sort-json@4.2.0
         args: [--config, .validate/.prettierrc.json]
-
-  - repo: https://github.com/cdce8p/python-typing-update
-    rev: v0.8.1
-    hooks:
-      - id: python-typing-update
-        stages: [manual]
-        args: [--py311-plus, --force, --keep-updates]
-        files: ^custom_components/.+\.py$
 
   - repo: local
     hooks:

@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev3\] - 2026-08-21 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#202-dev3---2026-08-21---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
   - [\[2.0.2-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#202-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
   - [\[2.0.2-dev1\] - 2026-08-07 - Bump Ruff to 0.16.1](#202-dev1---2026-08-07---bump-ruff-to-0161)
   - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
@@ -23,9 +24,9 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.1-dev15\] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken](#201-dev15---2026-08-05---branch-coverage-to-100-eight-tests-for-paths-never-taken)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - §14 Enforcement Test](#201-dev8---2026-07-27---14-enforcement-test)
   - [\[2.0.1-dev7\] - 2026-07-27 - §19 `drift` Attribute](#201-dev7---2026-07-27---19-drift-attribute)
@@ -96,6 +97,31 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.2-dev3] - 2026-08-21 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md
+
+### Bumps
+
+- **Shared CI**: Bump `.github` Shared CI Validation via SHA from v2.0.10 to v2.0.14
+- **Validate Bump**: Update `ruff` from 0.16.1 to 0.16.3
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.355 to 0.13.356
+
+### Changed
+
+- **HA Minimum Version**: Added `"homeassistant": "2024.8.0"` to `hacs.json` to bring it in line with `README.md`.
+- **Sensor Audit Docs**: `all_sensors.md`, `value_min_max.md`, and `about_attribute_list.md`, all updated as part of new Sensor Manifest script. Also added tasks to `tasks.json`.
+
+### Changed Tooling
+
+- **Mutation Testing**: Set-up for `mutmut`mutation testing. Not yet run.
+- **PyTest 100%**: Added `fail_under = 100`to `pytest`to ensure full coverage is maintained / enforced.
+- **Tool Comments**: Reduced the level of commentary in shared sync tool set-up files.
+- **Remove UV Warnings**: Added `requires-python = ">=3.13"` to `pyproject.toml`to remove `uv` warnings.
+- **AGENTS.md**: Updated for mutation testing and sensor manifest.
+
+### Removed
+
+- **`python-typing-update`**: Dropped as HA has moved to enforcing these rules via `ruff`.
 
 ## [2.0.2-dev2] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md
 

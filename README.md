@@ -1561,7 +1561,7 @@ Entries older than the **Last Seen History TTL** (default 90 days) are pruned au
 
 > [!TIP]
 >
-> The entries below cover the problems that come up most often. If you are working through one and not getting to a resolution, remember that "turning it off and on again" is a cliché for a reason.
+> The entries below cover the problems that come up most often. If you are working through one and not getting to a resolution, remember that "turning it off and on again" is a cliche for a reason.
 >
 > **Restart Home Assistant, and maybe Reboot the HA system, before declaring failure or seeking help.** Neither is guaranteed to fix your issue, and both are surprisingly effective.
 

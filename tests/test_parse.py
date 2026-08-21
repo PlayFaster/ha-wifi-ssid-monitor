@@ -346,7 +346,7 @@ def test_normalize_signal_rounds_rather_than_truncates(raw, expected):
     """A fractional percentage rounds; truncation would bias every reading low.
 
     ``round`` is banker's rounding, so 0.5 goes to 0 and 99.5 to 100. That is
-    the behaviour, and pinning it stops a change to ``int()`` passing quietly.
+    the behavior, and pinning it stops a change to ``int()`` passing quietly.
     """
     assert normalize_signal(raw)[0] == expected
 

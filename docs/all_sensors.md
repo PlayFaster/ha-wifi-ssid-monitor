@@ -2,7 +2,7 @@
 
 A complete list of the entities and actions this integration creates. It is a maintenance reference: the definitive source for what exists, what it is keyed on, and where its value comes from.
 
-**Reconciled against the source 2026-08-03.** Nothing generates this file, so it is checked by hand against `sensor.py`, `binary_sensor.py`, `number.py`, `switch.py`, `button.py` and `services.py`.
+This file is automatically extracted and reconciled directly from entity description code via `.workbench/check_sensor_manifest.py`.
 
 ## Device model — one flat device
 
@@ -12,60 +12,32 @@ Earlier revisions of this document described a **System** and a **Monitor** sub-
 
 The **Key** column below is the `key` field on the entity description. That is not the entity id: Home Assistant derives the entity id from the entity name via `translation_key`, so `key="count"` becomes `sensor.wifi_ssid_monitor_total_ssid_count`. Earlier revisions listed entity-id suffixes in this column, which matched nothing in the source.
 
-## Summary
+For entity `about` attribute notes, see [`about_attribute_list.md`](about_attribute_list.md).
 
-| Type               |  Count |
-| :----------------- | -----: |
-| Sensor             |      7 |
-| Binary Sensor      |      3 |
-| Switch             |      5 |
-| Number             |      2 |
-| Button             |      1 |
-| **Total entities** | **18** |
-| Actions            |      6 |
+<!-- GENERATED:start -->
 
----
+| Name | Key | Type | Unit | Category | Notes |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| Integration Health | `integration_health` | Binary Sensor | - | Diagnostic | - |
+| New Network Alert | `new_network` | Binary Sensor | - | - | - |
+| Proximity Alert | `proximity_alert` | Binary Sensor | - | - | - |
+| Scan Now | `scan_now` | Button | - | - | - |
+| Proximity Signal Threshold | `proximity_signal_threshold` | Number | % | Config | - |
+| Scan Interval | `scan_interval` | Number | min | Config | - |
+| Total SSID Count | `count` | Sensor | - | - | LTS: `measurement` |
+| Interface | `interface` | Sensor | - | Diagnostic | - |
+| Last Updated | `last_updated` | Sensor | - | Diagnostic | - |
+| New Networks (24h) | `new_24h` | Sensor | - | - | LTS: `measurement` |
+| Strongest Unknown Signal | `strongest_unknown_signal` | Sensor | % | - | LTS: `measurement` |
+| Strongest Unknown SSID | `strongest_unknown_ssid` | Sensor | - | - | - |
+| Unknown SSID Count | `unknown_count` | Sensor | - | - | LTS: `measurement` |
+| Include Hidden Networks | `include_hidden` | Switch | - | Config | - |
+| Show 2.4 GHz | `show_24ghz` | Switch | - | Config | - |
+| Show 5 GHz | `show_5ghz` | Switch | - | Config | - |
+| Show 6 GHz | `show_6ghz` | Switch | - | Config | - |
+| Pause Polling | `stop_polling` | Switch | - | Config | - |
 
-## Sensors
-
-| Name | Key | Unit | Category | About | Notes |
-| :-- | :-- | :-- | :-- | :-: | :-- |
-| Total SSID Count | `count` | - | - | ✔ | Every network in range after the band and hidden filters. `MEASUREMENT`, bounds 0–256. |
-| Unknown SSID Count | `unknown_count` | - | - | ✔ | The subset not matching the Known SSIDs list, plus anything on the denylist. `MEASUREMENT`, bounds 0–256. |
-| New Networks (24h) | `new_24h` | - | - | ✔ | Networks first seen by this integration in the last 24 hours. `MEASUREMENT`, bounds 0–4096. |
-| Strongest Unknown SSID | `strongest_unknown_ssid` | - | - | ✔ | Name of the strongest unknown network; carries the per-network detail attributes. `None Detected` when nothing is in range. |
-| Strongest Unknown Signal | `strongest_unknown_signal` | % | - | ✔ | Signal quality 0–100% of the closest unknown network. `MEASUREMENT`, bounds 0–100. |
-| Interface | `interface` | - | Diagnostic | ✔ | The adapter being scanned, e.g. `wlan0`. |
-| Last Updated | `last_updated` | Timestamp | Diagnostic | — | Time of the last successful scan. `TIMESTAMP` device class. |
-
-## Binary Sensors
-
-| Name | Key | Device class | Category | About | Notes |
-| :-- | :-- | :-- | :-- | :-: | :-- |
-| New Network Alert | `new_network` | - | - | ✔ | **ON** while any unknown network is in range. For a one-shot trigger per newly-seen network use the `wifi_ssid_monitor_new_network` bus event instead. |
-| Proximity Alert | `proximity_alert` | Problem | - | ✔ | **ON** when the strongest unknown signal meets or exceeds the Proximity Threshold. |
-| Integration Health | `integration_health` | Problem | Diagnostic | ✔ | **ON** when the integration detects a problem with its own data. `available` is `True` unconditionally, including when every other entity is unavailable. |
-
-## Controls
-
-| Name | Key | Type | Unit | Category | About | Notes |
-| :-- | :-- | :-- | :-- | :-- | :-: | :-- |
-| Scan Interval | `scan_interval` | Number | min | Config | ✔ | 1–180 minutes. Debounced 2 s before applying. The only place the interval is set. |
-| Proximity Threshold | `proximity_signal_threshold` | Number | % | Config | ✔ | 0–100%. Slider. |
-| Pause Polling | `stop_polling` | Switch | - | Config | ✔ | Pauses scheduled scans. Explicit actions still fetch. Separate from HA's own "Enable polling for changes" system option. |
-| Include Hidden Networks | `include_hidden` | Switch | - | Config | ✔ | Include networks that do not broadcast a name, listed as `Hidden-<last 4 of BSSID>`. |
-| Show 2.4 GHz | `show_24ghz` | Switch | - | Config | ✔ | Include 2.4 GHz networks in all counts and lists. |
-| Show 5 GHz | `show_5ghz` | Switch | - | Config | ✔ | Include 5 GHz networks in all counts and lists. |
-| Show 6 GHz | `show_6ghz` | Switch | - | Config | ✔ | Include 6 GHz (WiFi 6E/7) networks in all counts and lists. |
-| Scan Now | `scan_now` | Button | - | - | ✔ | Runs a scan immediately, including while Pause Polling is on. |
-
-## `about` notes
-
-Every entity carries an unrecorded `about` attribute explaining what its value means, **except one**, recorded here so the omission reads as deliberate rather than unfinished:
-
-| Entity | Why omitted |
-| :-- | :-- |
-| Last Updated | A timestamp named "Last Updated" explains itself. `dev_standards` §14 warns that a note on every entity trains users to ignore notes. |
+<!-- GENERATED:end -->
 
 ---
 

@@ -24,7 +24,7 @@ Standard for all integration projects — see [shared conventions §2](.shared/d
 
 The integration follows the standard HA `DataUpdateCoordinator` pattern, on a **single** device.
 
-> **Entity and service inventory lives in [`docs/all_sensors.md`](docs/all_sensors.md)** — it is authoritative and kept current against live HA by `sensor_review.md`. This block describes the code layout only; it deliberately carries no entity counts or service descriptions.
+> **Entity and service inventory lives in [`docs/all_sensors.md`](docs/all_sensors.md)** — it is authoritative and synchronized from code descriptions via `python .workbench/check_sensor_manifest.py --sync-docs` (and validated against live HA via `--verify-ha`). This block describes the code layout only; it deliberately carries no entity counts or service descriptions.
 
 ```text
 __init__.py         Entry point: sets up coordinator, calls async_initialize(), forwards to
@@ -89,8 +89,10 @@ Shared conventions (ruff/mypy strictness, `PARALLEL_UPDATES`, `translation_key`,
 - **There is not a single `type: ignore` in this project** — zero in `custom_components/`, zero in `tests/`. Strict mypy passes without suppressions, so adding one is a signal that something is wrong with the annotation rather than with the stubs. Justify it in the commit if you add one.
 - The `.comp/` directory contains unrelated scratch/reference files; ignore it.
 - `quality_scale.yaml` tracks compliance with HA Integration Quality Scale (currently Platinum level).
+- **Mutation testing is scoped by `.validate/mutmut_modules.txt`** — currently `parse.py`, `diagnostics.py`, `health.py`. Those three were chosen because their tests exercise real code; `config_flow.py` and `__init__.py` were tried and rejected because their tests mock the thing being mutated, so every mutation of a call into that mock survives and none of them is a findable defect. Run it with the **Tests: Mutation Check** task, or on one function via `devcon_coverage` STEP 3c. Not part of `Validate All` — survivors need judging, not counting. Background: [`.shared/info/test_better_docs/mutation_testing_setup.md`](.shared/info/test_better_docs/mutation_testing_setup.md).
+- **`SLF001` and `RET504` are exempted for `tests/**`, only**. This comes from the **synced** file `pyproject.toml`, do not edit that file, see [shared conventions → Synced Files](.shared/dev_std/agent_conventions.md). Tests must reach private state (asserting on`\_unrecorded_attributes`, driving `coordinator.\_async_update_data()`), so forbidding it would forbid the tests the standards require. Production code is not exempt: a genuine need there gets a `# ruff: noqa` at the site.
 
-### Tests that will stop you, and why they exist
+## Tests that will stop you, and why they exist
 
 Several standards here are enforced by sweeps over a **set**, not by spot checks, so they fail when the set grows rather than only when a known member breaks. Each was verified by deliberately breaking the thing it guards. If one of these fails, it has found something — do not reach for the allow-list first.
 
@@ -105,10 +107,6 @@ Several standards here are enforced by sweeps over a **set**, not by spot checks
 | A condition only ever exercised one way | `Pytest: Check Test Coverage` reports a partial branch (`123->126` in the `Missing` column) | **Write the test.** All twelve found here were missing tests; none was dead code. Delete the guard only where the type system or the immediate caller already prevents the case — never in code consuming held or stored state, where the "impossible" shape arrives exactly when something upstream has already failed. |
 | A test that runs code without checking it | `Tests: Assertion Audit` | Assert the **observable outcome**. Where "this must not raise" is the real contract, assert what that implies — nothing cancelled, no task created, exactly one event on the bus — so the test fails on a behavior change and not only on a crash. Adding a trivial assertion to clear the count is a defect, not a fix. Last resort: `tests/zero_assertion_allowlist.txt`, with a reason. |
 
-- **Mutation testing is scoped by `.validate/mutmut_modules.txt`** — currently `parse.py`, `diagnostics.py`, `health.py`. Those three were chosen because their tests exercise real code; `config_flow.py` and `__init__.py` were tried and rejected because their tests mock the thing being mutated, so every mutation of a call into that mock survives and none of them is a findable defect. Run it with the **Tests: Mutation Check** task, or on one function via `devcon_coverage` STEP 3c. Not part of `Validate All` — survivors need judging, not counting. Background: [`.shared/info/test_better_docs/mutation_testing_setup.md`](.shared/info/test_better_docs/mutation_testing_setup.md).
-
-- **`SLF001` and `RET504` are exempted for `tests/**`only.** This comes from the **synced**`pyproject.toml`— do not edit that file, see [shared conventions → Synced Files](.shared/dev_std/agent_conventions.md). Tests must reach private state (asserting on`\_unrecorded_attributes`, driving `coordinator.\_async_update_data()`), so forbidding it would forbid the tests the standards require. Production code is not exempt: a genuine need there gets a `# ruff: noqa` at the site.
-
 ## Remaining Work (Future — Separate Session)
 
 **Forward work lives in [docs/ROADMAP.md](docs/ROADMAP.md)** — refer there for planned items, revisit parameters, and declined design decisions. Keep it there rather than here, so there is one place to look.
@@ -121,4 +119,6 @@ Shared devcontainer, MCP, and post-modification details are in [shared conventio
 
 - The devcontainer runs a **mock Supervisor sidecar** that simulates the WiFi scan API — see `.devcontainer/mock_supervisor.py`. The `SUPERVISOR_TOKEN` env var is set to `mock_dev_token` in the compose file.
 
-`AGENTS.md` revision history: `.notes/agents_md_version_log.md`.
+## Known Open Issues
+
+None currently recorded here. Forward work lives in [docs/ROADMAP.md](docs/ROADMAP.md); chores live in `.shared/issues/x_project/x_proj_chores.md`.
