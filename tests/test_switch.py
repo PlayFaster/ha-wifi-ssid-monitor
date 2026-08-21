@@ -97,3 +97,59 @@ def test_device_info(mock_config_entry, mock_coordinator):
     info = sw.device_info
     assert info["identifiers"] == {(DOMAIN, mock_config_entry.entry_id)}
     assert info["manufacturer"] == "PlayFaster"
+
+
+# ---------------------------------------------------------------------------
+# Publish-moment capture — x_project C-019
+# ---------------------------------------------------------------------------
+#
+# Spec: `.shared/issues/x_project/stubbed_publish_tests.md` §2.
+#
+# The tests above stub `async_write_ha_state` with a bare `MagicMock()` and
+# assert the option afterwards. Both halves pass even if the publish carried
+# the **pre-write** value — which is exactly how three `huawei_router_5g`
+# switches shipped for a fortnight springing back on every toggle.
+#
+# These tests join the two halves: they capture what `is_on` reads **at the
+# moment of the publish**, so a `_set_state` that published before
+# `async_update_entry` had landed would fail here and nowhere else.
+#
+# `wifi_ssid_monitor` is not affected — every switch is option-backed and
+# reads `entry.options` rather than a coordinator payload, so there is no
+# stale-payload window to begin with. The tests are added anyway, per C-019
+# part 2: a project that is not affected still has nothing proving it, and
+# the next regression would otherwise arrive uncovered.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("description", SWITCH_TYPES, ids=lambda d: d.key)
+@pytest.mark.parametrize("target", [True, False])
+async def test_switch_publishes_the_post_write_state(
+    hass, mock_config_entry, mock_coordinator, description, target
+):
+    """Every switch publishes the value it just wrote, not the one it replaced.
+
+    The option is seeded to the opposite of `target` first: starting from the
+    value under test would pass against a publish that sent the old one.
+    """
+    object.__setattr__(
+        mock_config_entry,
+        "options",
+        {**mock_config_entry.options, description.option_key: not target},
+    )
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.runtime_data = mock_coordinator
+    mock_coordinator.async_force_refresh = AsyncMock()
+
+    sw = WifiOptionSwitch(mock_coordinator, mock_config_entry, description)
+    sw.hass = hass
+
+    published: list[bool] = []
+    sw.async_write_ha_state = MagicMock(side_effect=lambda: published.append(sw.is_on))
+
+    if target:
+        await sw.async_turn_on()
+    else:
+        await sw.async_turn_off()
+
+    assert published == [target]

@@ -285,3 +285,61 @@ async def test_removal_with_a_pending_task_but_no_optimistic_value(
     await hass.async_block_till_done()
 
     assert dict(mock_config_entry.options) == before
+
+
+# ---------------------------------------------------------------------------
+# Publish-moment capture — x_project C-019
+# ---------------------------------------------------------------------------
+#
+# Spec: `.shared/issues/x_project/stubbed_publish_tests.md` §2. The switch
+# platform carries the same pair; see the note there for the defect shape.
+#
+# A number here publishes **twice** per change and the two publishes read
+# `native_value` from different places — the optimistic field first, the
+# stored option after the debounce lands. Both are checked: an optimistic
+# write that published the old value would make the slider snap back under
+# the user's finger, and a post-debounce publish that ran before
+# `async_update_entry` would undo it two seconds later instead.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("key", "displayed"),
+    [("scan_interval", 15), ("proximity_signal_threshold", 65)],
+)
+async def test_number_publishes_the_post_write_value(
+    hass, mock_config_entry, mock_coordinator, key, displayed
+):
+    """Both publishes carry the new value, not the one being replaced."""
+    from custom_components.wifi_ssid_monitor import async_reload_entry
+
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.runtime_data = mock_coordinator
+    mock_config_entry.async_on_unload(
+        mock_config_entry.add_update_listener(async_reload_entry)
+    )
+    mock_coordinator.async_force_refresh = AsyncMock()
+
+    number = _number(mock_coordinator, mock_config_entry, key)
+    number.hass = hass
+    assert number.native_value != displayed
+
+    published: list[float] = []
+    number.async_write_ha_state = MagicMock(
+        side_effect=lambda: published.append(number.native_value)
+    )
+
+    with patch("asyncio.sleep", AsyncMock()):
+        await number.async_set_native_value(displayed)
+        # First publish, straight from `_optimistic`. Checked as a prefix
+        # rather than as the whole list: the debounce sleep is patched out, so
+        # the second publish may already have landed at this await point.
+        assert published[:1] == [displayed]
+        await number._pending
+        await hass.async_block_till_done()
+
+    # Second publish, with `_optimistic` cleared, so `native_value` is now
+    # reading the stored option back through the scale conversion. Both must
+    # be the new value; either carrying the old one is the C-019 defect.
+    assert published == [displayed, displayed]
+    assert number._optimistic is None

@@ -275,3 +275,179 @@ async def test_every_registered_action_has_an_icon(
         f"action icons declared in the legacy flat form: {flat}. Use "
         f'{{"service": "mdi:..."}} so a `sections` icon can be added later.'
     )
+
+
+# ---------------------------------------------------------------------------
+# Suppressed static-analysis directives — every one is a reviewed decision
+# ---------------------------------------------------------------------------
+#
+# `masked_errors_check` Class D, and x_project chore C-004. Ported from
+# `ha-huawei-router-5g-monitor`, where an audit on 2026-08-14 found five
+# suppressions of which **three were wrong and two were hiding live defects**:
+# two calls behind a `type: ignore` were to library methods that did not
+# exist, so the controls had never worked.
+#
+# A prompt run is a point-in-time audit. This is the mechanism that keeps it
+# true afterwards: the set cannot grow without someone editing the table below
+# and writing a reason.
+#
+# **Why ruff and mypy do not already cover this.** `RUF100` and mypy's
+# `warn_unused_ignores` report a suppression that is *unnecessary* — one where
+# no error would have fired. They are silent on the dangerous case: a
+# suppression that IS doing work, because the error is real. Huawei was clean
+# under both while two calls to non-existent methods sat behind `type: ignore`.
+#
+# Keyed on (file, code) rather than line number, so ordinary edits do not
+# churn it.
+ALLOWED_SUPPRESSIONS: dict[tuple[str, str], str] = {
+    ("coordinator.py", "noqa: BLE001"): (
+        "Guards `run_checks` on the fetch-failure path. This whole method runs "
+        "inside the coordinator's error handler, so anything raised out of the "
+        "health computation would replace the Supervisor error that actually "
+        "caused the failure — the user would be shown the wrong cause. The "
+        "checks are pure functions over a ScanFacts snapshot and have no "
+        "expected exception to name, which is what makes the except broad. "
+        "Verified 2026-08-21: findings default to [] and the Supervisor error "
+        "propagates unchanged."
+    ),
+    ("test_entity_hygiene.py", "noqa: E402"): (
+        "`json` and `pathlib` are imported mid-module, below the long comment "
+        "block explaining why the icon sweep reads the shipped icons.json "
+        "rather than a copy. Moving them to the top would separate the imports "
+        "from the `_ICONS` load they exist for, which is the only thing in "
+        "this file that uses them. Placement only — no rule about the code "
+        "itself is being suppressed."
+    ),
+}
+
+
+def _shipped_root():
+    """Return the project root of the **shipped** tree, not a working copy.
+
+    `mutmut` runs the suite from a `mutants/` directory holding a rewritten
+    copy of `custom_components/` and `tests/` — and **nothing else**. The
+    suppression sweep is about the shipped tree rather than about behavior,
+    and reading the mutant copy breaks it: every mutated copy of a function
+    carries its comments again, turning two reviewed suppressions into
+    several hundred unreviewed ones.
+
+    Resolving from the first ancestor that actually carries a `docs/`
+    directory steps out of the mutant tree and reads what ships. It never
+    falls back to a copy and never skips: a genuinely missing tree still
+    raises.
+    """
+    import pathlib
+
+    import custom_components.wifi_ssid_monitor as component
+
+    start = pathlib.Path(component.__path__[0]).parent.parent
+    for base in (start, *start.parents):
+        if (base / "docs").is_dir():
+            return base
+    raise FileNotFoundError(f"no docs/ directory found above {start}")
+
+
+def _real_comments() -> list[tuple[str, int, str]]:
+    """Return every genuine comment in the component and tests.
+
+    Uses `tokenize` rather than a regex over raw text: docstrings and comments
+    in these projects quote directives while explaining why a past one was
+    wrong, and a text search cannot tell those apart from a live suppression.
+    On Huawei the raw count was 14 against 2 real ones.
+    """
+    import tokenize
+
+    root = _shipped_root()
+    roots = [root / "custom_components" / "wifi_ssid_monitor", root / "tests"]
+
+    found: list[tuple[str, int, str]] = []
+    for base in roots:
+        for path in sorted(base.rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            with path.open("rb") as handle:
+                found.extend(
+                    (path.name, token.start[0], token.string)
+                    for token in tokenize.tokenize(handle.readline)
+                    if token.type == tokenize.COMMENT
+                )
+    return found
+
+
+def _live_suppressions() -> dict[tuple[str, str], list[int]]:
+    """Map (file, directive) to the lines carrying it."""
+    import re
+
+    # The optional `ruff: ` prefix is the **file-level** form and must be
+    # caught: that directive at the top of a module suppresses its rule for
+    # every line in the file, which is broader than any per-line directive.
+    #
+    # The literal form is deliberately not written out in this comment: ruff
+    # scans comments for it and would read the example as a real directive.
+    #
+    # The prefix is kept in the captured code rather than normalized away, so
+    # a file-level suppression can never be reviewed as if it were one line.
+    pattern = re.compile(
+        r"#\s*((?:ruff:\s*)?(?:type:\s*ignore(?:\[[^\]]*\])?"
+        r"|noqa(?::\s*[A-Z0-9, ]+)?|pragma:\s*no cover))"
+    )
+
+    live: dict[tuple[str, str], list[int]] = {}
+    for filename, line, comment in _real_comments():
+        for raw in pattern.findall(comment):
+            code = " ".join(raw.split())
+            live.setdefault((filename, code), []).append(line)
+    return live
+
+
+def test_every_suppression_is_on_the_reviewed_allow_list() -> None:
+    """No `type: ignore`, `noqa` or `pragma: no cover` without a written reason.
+
+    **If this fails, the new suppression needs a reason, not an entry.** Ask
+    what the tool would have said and whether that thing is actually true —
+    an `attr-defined` ignore on a library call is a *claim about that library*.
+    """
+    unlisted = sorted(
+        f"{filename}:{','.join(str(n) for n in lines)}  {code}"
+        for (filename, code), lines in _live_suppressions().items()
+        if (filename, code) not in ALLOWED_SUPPRESSIONS
+    )
+
+    assert not unlisted, (
+        "suppressions with no reviewed justification:\n"
+        + "\n".join(unlisted)
+        + "\n\nAdd to ALLOWED_SUPPRESSIONS with a reason, or fix the underlying "
+        "problem. Removing the suppression alone is not a fix."
+    )
+
+
+def test_allowed_suppressions_has_no_dead_entries() -> None:
+    """An allow-list entry must not outlive the suppression it covers.
+
+    A dead entry silently pre-approves the next occurrence of the same
+    directive in the same file, which is how a reviewed exception becomes an
+    unreviewed habit.
+    """
+    live = set(_live_suppressions())
+    stale = sorted(f"{f}  {c}" for (f, c) in ALLOWED_SUPPRESSIONS if (f, c) not in live)
+
+    assert not stale, (
+        "ALLOWED_SUPPRESSIONS entries that no longer match anything:\n"
+        + "\n".join(stale)
+    )
+
+
+def test_every_allowed_suppression_states_a_reason() -> None:
+    """The reason is the entire value of the allow-list.
+
+    An entry with an empty or token justification is indistinguishable from
+    one added to make a check pass, which is the thing being guarded against.
+    """
+    thin = sorted(
+        f"{f}  {c}"
+        for (f, c), reason in ALLOWED_SUPPRESSIONS.items()
+        if len(reason.strip()) < 40
+    )
+    assert not thin, "allow-list entries with no real justification:\n" + "\n".join(
+        thin
+    )

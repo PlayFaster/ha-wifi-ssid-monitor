@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev4\] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit](#202-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
   - [\[2.0.2-dev3\] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep](#202-dev3---2026-08-21---ci-bumps-github-ruff-phacc-sensor-manifest-process-hacsjson-ha-min-ver-mutation-testing-prep)
   - [\[2.0.2-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#202-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
   - [\[2.0.2-dev1\] - 2026-08-07 - Bump Ruff to 0.16.1](#202-dev1---2026-08-07---bump-ruff-to-0161)
@@ -97,6 +98,28 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.2-dev4] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit
+
+Unattended pass over every open `wifi_ssid_monitor` item in `.shared/issues/x_project/`. No functional change: tests, one `about` note, and documentation only.
+
+### Added
+
+- **Suppression allow-list sweep** (chore C-004): `ALLOWED_SUPPRESSIONS` and three tests in `tests/test_entity_hygiene.py`, ported from `huawei_router_5g`. Finds comments with `tokenize` rather than a regex, is keyed on `(file, directive)` so line churn does not touch it, and sweeps `custom_components/` and `tests/` alike. Three entries, all `noqa`; this project has zero `type: ignore` and zero `pragma: no cover`. `_shipped_root()` came with it so a `mutmut` run reads the shipped tree rather than several hundred mutated copies of the same comment. Each of the three tests was verified to fail before being trusted.
+- **Publish-moment capture tests** (chore C-019): 12 tests across `tests/test_switch.py` and `tests/test_number.py`, asserting what an entity reads at the instant `async_write_ha_state` fires rather than afterwards. The integration is **not** affected by the defect these guard — every control is option-backed — but nothing proved it. Verified by inverting the publish/write order in both platforms: all 10 switch tests failed while the three pre-existing ones passed, which is the gap in one line of output. Spec: `.shared/issues/x_project/stubbed_publish_tests.md`.
+- **Masked-errors audit report** (chore C-003): `.notes/issues/masked_errors/masked_errors_20260821_1520.md`. `masked_errors_check` v1.4.0, all four classes, **0 findings**. Class B is `N/A` — there is no session to expire — and Class D has no library to make a false claim about, `manifest.json` carrying no requirements.
+
+### Changed
+
+- **`stop_polling` about note**: adopted the family's canonical `system_pause_polling` wording, which adds the §13 state-holding contract the note did not state — entities hold their last values rather than going unavailable. The sentence distinguishing this switch from Home Assistant's own "Enable polling for changes" system option is kept: the two controls sit next to each other on this integration's page. "service" also became "action", matching the rest of the project. `docs/about_attribute_list.md` and `docs/all_sensors.md` regenerated from it.
+- **AGENTS.md**: two rows added to _Tests that will stop you, and why they exist_, for the suppression sweep and the publish-moment tests.
+
+### Notes
+
+- Test count 363 → **378**. Line and branch coverage remain 100% with 0 partial branches, and the assertion audit reports 0 of 300 test functions asserting nothing.
+- `fail_under = 100` (chore C-007) was verified in both directions rather than read off the file: the full suite exits `0`, a single-file run exits `1` at 19.17%.
+- **Two logging findings are recorded and not fixed**, because they are source changes: `api.py:110` logs a verbatim access-point payload including a real SSID and BSSID, and `coordinator.py:777` logs a network key. Both are `debug`. `README.md:1730` warns about the first and was verified accurate — it must change _with_ the fix, not before it. Scoped in chore C-020.
+- The §19 `severity` enum (chore C-014) is likewise assessed and scoped, not applied: `severity` is `None` when healthy, which §19 forbids. Mapping table in the chore.
 
 ## [2.0.2-dev3] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep
 

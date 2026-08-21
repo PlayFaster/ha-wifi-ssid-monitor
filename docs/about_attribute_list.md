@@ -16,7 +16,7 @@
 | Show 2.4 GHz | Switch | `show_24ghz` | Include 2.4 GHz networks in all counts and lists. Turning every band switch off shows no networks at all, not all of them. |
 | Show 5 GHz | Switch | `show_5ghz` | Include 5 GHz networks in all counts and lists. Turning every band switch off shows no networks at all, not all of them. |
 | Show 6 GHz | Switch | `show_6ghz` | Include 6 GHz (WiFi 6E/7) networks in all counts and lists. Turning every band switch off shows no networks at all, not all of them. |
-| Pause Polling | Switch | `stop_polling` | Pauses scheduled scans. Explicit actions — Scan Now, a control change, the scan_now service — still fetch. This is separate from Home Assistant's own 'Enable polling for changes' system option, which stops the schedule being armed at all. |
+| Pause Polling | Switch | `stop_polling` | Temporarily suspends background polling without disabling the integration. Entities hold their last values rather than going unavailable, and explicit actions — Scan Now, a control change, the scan_now action — still fetch. Separate from Home Assistant's own 'Enable polling for changes' system option, which stops the schedule being armed at all. |
 
 ## Entities without an `about` note (5)
 
