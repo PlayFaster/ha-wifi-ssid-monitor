@@ -451,3 +451,103 @@ def test_every_allowed_suppression_states_a_reason() -> None:
     assert not thin, "allow-list entries with no real justification:\n" + "\n".join(
         thin
     )
+
+
+# ---------------------------------------------------------------------------
+# Repair issues — every one must have text a user can read
+# ---------------------------------------------------------------------------
+#
+# dev_standards §19: "each repair `translation_key` needs a matching `issues.*`
+# entry in `strings.json` **and** the compiled `translations/*.json`, or the
+# Repairs card shows the raw key."
+#
+# Nothing caught that until 2026-08-21. A repair added without its text passes
+# every other test in this suite — the key is asserted, never the string behind
+# it — and the defect is visible only to a user who has already hit the fault
+# the repair exists to explain. That is the worst possible moment to show them
+# `supervisor_unavailable_01KND...` instead of a sentence.
+#
+# Driven off `all_issue_ids()`, which is the same list `async_remove_entry`
+# uses, so the text side cannot drift from the raise side or the delete side.
+
+_ISSUE_SENTINEL = "sentinel_entry"
+
+
+def _issue_keys() -> set[str]:
+    """Return the bare repair keys, unscoped from their entry id."""
+    from custom_components.wifi_ssid_monitor.const import all_issue_ids
+
+    suffix = f"_{_ISSUE_SENTINEL}"
+    ids = all_issue_ids(_ISSUE_SENTINEL)
+    assert ids, "all_issue_ids() is empty — this sweep would pass vacuously"
+    for scoped in ids:
+        assert scoped.endswith(suffix), (
+            f"{scoped!r} is not entry-scoped; issue_id() has changed shape and "
+            f"this helper no longer knows how to unscope it"
+        )
+    return {scoped[: -len(suffix)] for scoped in ids}
+
+
+def _translation_files() -> list:
+    """Return `strings.json` plus every compiled translation."""
+    component = _shipped_root() / "custom_components" / "wifi_ssid_monitor"
+    return [
+        component / "strings.json",
+        *sorted((component / "translations").glob("*.json")),
+    ]
+
+
+def test_every_repair_issue_has_title_and_description() -> None:
+    """A raised repair must render a sentence, not its translation key.
+
+    Sweeps every translation file, not just `strings.json`: the compiled
+    `translations/en.json` is the one Home Assistant actually reads, and the
+    two drifting apart is invisible until the card is on screen.
+    """
+    import json
+
+    keys = _issue_keys()
+    missing: list[str] = []
+
+    for path in _translation_files():
+        issues = json.loads(path.read_text(encoding="utf-8")).get("issues", {})
+        for key in sorted(keys):
+            entry = issues.get(key)
+            if not isinstance(entry, dict):
+                missing.append(f"{path.name}: issues.{key} absent")
+                continue
+            missing.extend(
+                f"{path.name}: issues.{key}.{field} empty or absent"
+                for field in ("title", "description")
+                if not str(entry.get(field, "")).strip()
+            )
+
+    assert not missing, (
+        "repair issues with no readable text:\n"
+        + "\n".join(missing)
+        + "\n\nAdd the entry to strings.json AND every translations/*.json, or "
+        "the Repairs card shows the raw key at exactly the moment the user "
+        "most needs a sentence."
+    )
+
+
+def test_no_orphan_issue_translations() -> None:
+    """An `issues.*` entry that matches no real repair is dead text.
+
+    It reads as coverage on inspection and can never appear, which is how a
+    renamed repair leaves its old text behind and its new key with none.
+    """
+    import json
+
+    keys = _issue_keys()
+    orphans: list[str] = []
+    for path in _translation_files():
+        issues = json.loads(path.read_text(encoding="utf-8")).get("issues", {})
+        orphans.extend(
+            f"{path.name}: issues.{key}" for key in sorted(set(issues) - keys)
+        )
+
+    assert not orphans, (
+        "translation entries matching no repair this integration can raise:\n"
+        + "\n".join(orphans)
+    )

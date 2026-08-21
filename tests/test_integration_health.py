@@ -577,3 +577,51 @@ def test_every_check_reports_a_value_the_standard_allows():
             f"{finding.key} is classified is_drift={finding.is_drift} but "
             f"reports {finding.severity!r}; expected {expected!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Repairs a check can raise must be registered for removal
+# ---------------------------------------------------------------------------
+#
+# The text side of this contract — that each repair renders a sentence rather
+# than its raw key — is swept in `test_entity_hygiene.py`. This is the other
+# half, and it lives here because it is a property of `CHECKS`.
+
+
+def _registered_issue_keys() -> set[str]:
+    """Return the bare repair keys `async_remove_entry` will delete."""
+    from custom_components.wifi_ssid_monitor.const import all_issue_ids
+
+    sentinel = "sentinel_entry"
+    suffix = f"_{sentinel}"
+    ids = all_issue_ids(sentinel)
+    assert ids, "all_issue_ids() is empty — this sweep would pass vacuously"
+    return {scoped[: -len(suffix)] for scoped in ids}
+
+
+def test_every_check_repair_is_registered_for_removal() -> None:
+    """A check may not declare a repair `all_issue_ids()` does not know about.
+
+    This is the sharp one. `async_remove_entry` deletes exactly the ids
+    `all_issue_ids()` returns, so a repair raised from a check but missing from
+    that list is **never cleaned up**: uninstalling the integration leaves a
+    permanent Repairs card with no UI path to clear it.
+
+    Reuses `_FIRING_FACTS` so a check added without a fixture fails in
+    `test_every_check_has_a_firing_fixture` rather than shrinking this sweep.
+    """
+    from custom_components.wifi_ssid_monitor.health import CHECKS
+
+    declared = set()
+    for check in CHECKS:
+        finding = check(_FIRING_FACTS[check.__name__])
+        assert finding is not None
+        if finding.repair:
+            declared.add(finding.repair)
+
+    unregistered = sorted(declared - _registered_issue_keys())
+    assert not unregistered, (
+        f"checks declare repair(s) {unregistered} that all_issue_ids() does not "
+        f"list. async_remove_entry would leave them raised for ever — add them "
+        f"to all_issue_ids() in const.py."
+    )

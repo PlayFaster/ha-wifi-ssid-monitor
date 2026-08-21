@@ -1,12 +1,38 @@
 {
+  "//": "Do not edit .vscode/tasks.json. It is overwritten by sync_shared_files.sh. Edit dev-workbench/workbench/tasks.json instead.",
   "tasks": [
+    {
+      "command": "echo \"Do not edit .vscode/tasks.json. It is overwritten by sync_shared_files.sh. Edit dev-workbench/workbench/tasks.json instead.\"",
+      "label": "!! SYNCED FILE - do not edit this copy",
+      "detail": "Every task in this file comes from dev-workbench/workbench/tasks.json. Do not edit .vscode/tasks.json. It is overwritten by sync_shared_files.sh. Edit dev-workbench/workbench/tasks.json instead.",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "echo": false
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "if [ ! -f .workbench/tasks.json ]; then echo \"[Skipped: workbench source not mounted]\"; elif cmp -s .vscode/tasks.json .workbench/tasks.json; then printf \"\u001b[1;32m✔  Task Sync: PASSED\u001b[0m\n\"; else printf \"\u001b[1;33m✖  Task Sync: DRIFTED - .vscode/tasks.json differs from dev-workbench/workbench/tasks.json. Either this copy was edited (the edit will be lost) or the source has moved on (run Env: Sync Shared Files).\u001b[0m\n\"; fi; exit 0",
+      "label": "Env: Check Task Sync Drift",
+      "detail": "Compares .vscode/tasks.json against the workbench source. Silent when they match. Never fails the build - a project may legitimately be waiting on a sync.",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "echo": false
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
     {
       "command": "mkdir -p .reports && git ls-files -z --cached --others --exclude-standard '*.yml' '*.yaml' | xargs -0 -r yamllint -c .validate/.yamllint | tee .reports/yaml_lint.txt; echo \"\"; if [ ! -s \".reports/yaml_lint.txt\" ]; then echo -e \"\\033[1;32m✔  YAML Lint: PASSED\\033[0m\"; else echo -e \"\\033[1;31m✖  YAML Lint: FAILED\\033[0m\"; fi",
       "label": "YAML: Lint Project",
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -16,7 +42,8 @@
       "label": "JSON: Verify All Files",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -26,7 +53,8 @@
       "label": "HA: Verify Manifest",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -37,7 +65,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -47,7 +76,8 @@
       "label": "IQS: Static Check",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -58,7 +88,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -69,7 +100,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -80,7 +112,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -90,7 +123,8 @@
       "label": "HACS: Verify Manifest",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -100,7 +134,8 @@
       "label": "HA: Check Config",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -110,7 +145,8 @@
       "label": "Ruff: Check (Lint Only)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -120,7 +156,8 @@
       "label": "Ruff: Format Check (View Only)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -131,7 +168,8 @@
       "presentation": {
         "close": false,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -142,7 +180,8 @@
       "presentation": {
         "close": false,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -152,7 +191,8 @@
       "label": "Markdown: Check Links",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -162,7 +202,8 @@
       "label": "Markdown: Lint (View Only)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -172,7 +213,8 @@
       "label": "Markdown: Lint (Auto-Fix)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -182,7 +224,8 @@
       "label": "Codespell: Check (View Only)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -192,7 +235,8 @@
       "label": "Codespell: Fix (Auto-Repair)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -202,7 +246,8 @@
       "label": "Prettier: Check (View Only)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -212,7 +257,8 @@
       "label": "Prettier: Format (Auto-Fix)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -222,7 +268,8 @@
       "label": "Prettier: Fix Notes",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -232,7 +279,8 @@
       "label": "Prettier: Fix Shared",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -242,7 +290,8 @@
       "label": "Mypy: Check (Standard)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -252,7 +301,8 @@
       "label": "Mypy: Strict Check",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -262,7 +312,8 @@
       "label": "Zizmor: GitHub Actions Audit",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -272,7 +323,8 @@
       "label": "Zizmor: Fix (Safe Auto-Fix)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -282,7 +334,8 @@
       "label": "HA: Verify Version (AwesomeVersion)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -297,7 +350,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -307,7 +361,8 @@
       "label": "Pytest: Check Test Coverage",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -319,7 +374,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -329,7 +385,8 @@
       "label": "Tests: Assertion Audit",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -340,7 +397,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -350,7 +408,8 @@
       "label": "Pre-commit: Fix + Check Staged",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -360,7 +419,8 @@
       "label": "Show: Results Summary",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -370,7 +430,8 @@
       "label": "Env: Autoupdate Pre-commit Hooks",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -381,7 +442,46 @@
       "presentation": {
         "close": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "[ -f .devcontainer/fault_drill.py ] && python3 .devcontainer/fault_drill.py || echo \"[Skipped: no .devcontainer/fault_drill.py in this project]\"",
+      "label": "Mock: Fault Drill",
+      "detail": "Automated. Arms each mock Supervisor fault, drives real scans through the integration's own scan_now action, and asserts Integration Health and Repairs over the HA APIs. Paced by HA's 10-second refresh debounce, so a full run takes a few minutes. Clears the fault however it exits. Not part of Validate All.",
+      "presentation": {
+        "clear": true,
+        "panel": "dedicated",
+        "reveal": "always",
+        "focus": true,
+        "echo": false
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "[ -f .devcontainer/fault_drill.py ] || { echo \"[Skipped: no .devcontainer/fault_drill.py in this project]\"; exit 0; }; S=.notes/fault_drill_last.txt; W=\"custom_components/*/health.py custom_components/*/coordinator.py custom_components/*/const.py custom_components/*/strings.json custom_components/*/translations .devcontainer/mock_supervisor.py\"; C=$(git log -1 --format=%ct -- $W 2>/dev/null); D=$(git status --porcelain -- $W 2>/dev/null); M=\"\"; if [ ! -f \"$S\" ]; then M=\"never run\"; else L=$(cut -d\" \" -f1 \"$S\"); H=$(cut -d\" \" -f2 \"$S\"); if [ -n \"$C\" ] && [ \"$C\" -gt \"$L\" ]; then M=\"stale - last run $H, and a watched file has changed since\"; elif [ -n \"$D\" ]; then M=\"uncommitted changes to a watched file since the last drill ($H)\"; fi; fi; if [ -n \"$M\" ]; then printf \"\u001b[1;33m✖  Fault Drill: %s. Run the 'Mock: Fault Drill' task.\u001b[0m\n\" \"$M\"; else printf \"\u001b[1;32m✔  Fault Drill: PASSED\u001b[0m\n\"; fi; exit 0",
+      "label": "Mock: Fault Drill Staleness",
+      "detail": "Prints NOTHING when the drill is current, and nothing at all in a project without a fault drill - so when it does speak, it means something. Warns only if the drill has never run, or a file that could invalidate it has changed since. Never fails the build.",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "echo": false
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
+      "command": "echo \"Do not edit .vscode/tasks.json. It is overwritten by sync_shared_files.sh. Edit dev-workbench/workbench/tasks.json instead.\"",
+      "label": "!! SYNCED - Validate All is defined in dev-workbench",
+      "detail": "Adding or removing a step here is lost on the next sync. Do not edit .vscode/tasks.json. It is overwritten by sync_shared_files.sh. Edit dev-workbench/workbench/tasks.json instead.",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -389,12 +489,14 @@
     {
       "dependsOn": [
         "Initialize Reports",
+        "Env: Check Task Sync Drift",
         "HA: Verify Manifest",
         "HACS: Verify Manifest",
         "Zizmor: GitHub Actions Audit",
         "Sensor: Check Manifest",
         "IQS: Static Check",
         "Tests: Assertion Audit",
+        "Mock: Fault Drill Staleness",
         "YAML: Lint Project",
         "JSON: Verify All Files",
         "Ruff: Check (Lint Only)",
@@ -419,8 +521,22 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
-      }
+        "reveal": "always",
+        "echo": false
+      },
+      "detail": "Full check suite. Do not edit .vscode/tasks.json. It is overwritten by sync_shared_files.sh. Edit dev-workbench/workbench/tasks.json instead."
+    },
+    {
+      "command": "echo \"Do not edit .vscode/tasks.json. It is overwritten by sync_shared_files.sh. Edit dev-workbench/workbench/tasks.json instead.\"",
+      "label": "!! SYNCED - Fix All is defined in dev-workbench",
+      "detail": "Adding a formatter here is lost on the next sync. Do not edit .vscode/tasks.json. It is overwritten by sync_shared_files.sh. Edit dev-workbench/workbench/tasks.json instead.",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "echo": false
+      },
+      "problemMatcher": [],
+      "type": "shell"
     },
     {
       "dependsOn": [
@@ -437,16 +553,19 @@
       "presentation": {
         "close": false,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "detail": "Auto-repair pass. Do not edit .vscode/tasks.json. It is overwritten by sync_shared_files.sh. Edit dev-workbench/workbench/tasks.json instead."
     },
     {
       "command": "mkdir -p .reports && sh .workbench/sync_shared_files.sh | tee .reports/sync_shared_files.txt",
       "label": "Env: Sync Shared Files",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -456,7 +575,8 @@
       "label": "Env: Audit Version Drift",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -466,7 +586,8 @@
       "label": "Env: Audit Version Drift (no cache)",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -476,7 +597,8 @@
       "label": "Env: Apply Version Matrix Targets",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -486,7 +608,8 @@
       "label": "Env: Absorb Pre-commit Bumps",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -496,7 +619,8 @@
       "label": "Env: Check HA Core Stub Staleness",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -506,7 +630,8 @@
       "label": "Env: Show HA Core Stub Pull Commands",
       "presentation": {
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -522,7 +647,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       }
     },
     {
@@ -536,7 +662,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       }
     },
     {
@@ -550,7 +677,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       }
     },
     {
@@ -560,7 +688,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -572,7 +701,8 @@
       "presentation": {
         "clear": true,
         "panel": "dedicated",
-        "reveal": "always"
+        "reveal": "always",
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"
@@ -585,7 +715,8 @@
         "clear": true,
         "panel": "dedicated",
         "reveal": "always",
-        "focus": true
+        "focus": true,
+        "echo": false
       },
       "problemMatcher": [],
       "type": "shell"

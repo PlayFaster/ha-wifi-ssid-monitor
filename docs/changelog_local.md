@@ -5,6 +5,8 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev7\] - 2026-08-22 - Three health defects found by the fault drill](#202-dev7---2026-08-22---three-health-defects-found-by-the-fault-drill)
+  - [\[2.0.2-dev6\] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill](#202-dev6---2026-08-21---mock-supervisor-rebuilt-against-real-hardware-repair-text-sweep-fault-drill)
   - [\[2.0.2-dev5\] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes](#202-dev5---2026-08-21---section-19-severity-enum-section-20-logging-fixes)
   - [\[2.0.2-dev4\] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit](#202-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
   - [\[2.0.2-dev3\] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep](#202-dev3---2026-08-21---ci-bumps-github-ruff-phacc-sensor-manifest-process-hacsjson-ha-min-ver-mutation-testing-prep)
@@ -99,6 +101,52 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.2-dev7] - 2026-08-22 - Three health defects found by the fault drill
+
+All three were invisible to 390 tests at 100% line **and** branch coverage, and all three share one shape: **the tests examined the parts, and the defect lived in the sequence.** Every existing test called a health check directly with a hand-built `ScanFacts`; nothing drove consecutive polls through the coordinator. Each fix has a failing test written first.
+
+### Fixed
+
+- **`signal_format_changed` could never be raised.** The signal-unit baseline was reassigned to the new unit at the end of the first differing scan, so the check fired once, banked one strike of the three it needs, and then stopped firing — at which point `_apply_health` deleted the strike count because the key was no longer in the fired set. One of three repair issues was unraisable in every release. The baseline is now **held**: the finding persists until the entry reloads, which is the honest duration, since a unit flip leaves the user's proximity threshold meaningless until they act. The `info` line is logged once, not once per poll.
+- **A missing interface reported `severity: ok` during a live outage.** The 400 path took the `interface_missing` branch, handed off to `_apply_health` and **returned**, publishing that routine's "nothing confirmed yet" verdict. A missing interface — permanent and user-fixable — needed `FETCH_STRIKE_LIMIT` **plus** `HEALTH_DRIFT_STRIKE_LIMIT` consecutive failures before saying anything, while an unreachable Supervisor, usually transient, said `error` immediately. The failure path no longer returns: the outage verdict is published either way, naming the interface when that is the cause. The drift budget still governs the repair, which is all it was for.
+- **A repair raised before a reload could never be cleared.** `_active_repairs` is per-coordinator state and the delete loop walked only that set, so a reload or a Home Assistant restart gave the new coordinator an empty set and no memory of what its predecessor raised. The issue registry outlives the instance and these repairs are `is_fixable=False`, so the card sat in the Repairs panel permanently, with no UI path out, long after the condition had resolved. Deletion now sweeps `ALL_REPAIR_KEYS` statelessly — `async_delete_issue` is a no-op for an issue that is not there. `const.ALL_REPAIR_KEYS` is now the single source `all_issue_ids()` derives from.
+
+### Changed — dev container
+
+- **`fault_drill.py` corrected twice by its own output.** It waited on `degraded_capabilities` to decide the repair had confirmed — but after the second fix that attribute names the cause as soon as the fetch budget is spent, while the repair still waits out the drift budget. The drill read the repairs list two polls early and reported a defect that was not there; it now polls the repairs list itself. The signal-flip scenario also moved **last**, because it is the only one whose finding is held until reload, so anything after it inherited its repairs as leftovers.
+
+### Notes
+
+- Test count 392 → **393**, 100% line and branch, assertion audit 0 of 315.
+- `dev_standards` §19 gained two rules from the first two defects — see Standard Version 1.31.0.
+- Research and options for reaching this class of defect in the other three projects: `.shared/issues/x_project/fault_injection_options.md`.
+
+## [2.0.2-dev6] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill
+
+No shipped code changed. Development environment, tests and documentation.
+
+### Changed — dev container
+
+- **The mock Supervisor now matches what the real one sends.** Three diagnostics downloads from two x86_64 HAOS boxes and a Raspberry Pi 4 (2026-08-21) showed it had drifted: `mode` was `"infra"` where every real access point says `"infrastructure"`, and only `wlan0` was ever offered where `wlp2s0` is in the wild. `Neighbors_WiFi_5G` was also defined at 2412 MHz — a 2.4 GHz frequency — so its name and its band disagreed. Evidence and conclusions in `DEVELOPMENT.md` §3d, with the same table in the mock's own docstring so the next edit has it in front of it.
+- **A second adapter**, `wlp2s0` with `"type": "wireless"`, carrying its own payload. Makes three things reachable in the container for the first time: the `"wireless"` branch of `get_interfaces` — which exists because a Pi reports it, and whose absence once made auto-detection return nothing for every Pi user — multi-entry behaviour, and the entry-scoped repair ids that only misbehave with two entries.
+- **An unrecognised interface now returns 400**, as the real Supervisor does. Any path containing "accesspoints" previously returned 200, so a wrong interface name could not fail in the container at all.
+- **Variability on two networks**, by minute-of-hour: `Neighbors_WiFi_5G` ramps 55-95 and crosses the proximity threshold twice an hour, `Unknown_WiFi_6G` is present for the first half hour only. Everything else is fixed — a flapping known set would trip the canary continuously. `MOCK_STATIC=1` pins the payload, wired into `docker-compose.override.yml`.
+- **Fault injection** through `GET /mock/fault?mode=<name>`, eleven faults, `&scans=N` to auto-clear. Out of band because the integration builds its own fixed URL; stateful so a fault can be **cleared** mid-session, which is the point — recovery and repair deletion are the least observed behaviour in the health system. All eight health checks and all three repair cards are now reachable in the UI.
+
+### Added — tests
+
+- **Three sweeps over the repair-issue contract**, the gap `dev_standards` §19 warns about and nothing here guarded: every repair must have `title` and `description` in `strings.json` **and** every compiled `translations/*.json`; no orphan `issues.*` entry may survive a rename; and no check may declare a `repair=` that `all_issue_ids()` omits. The last is the sharp one — `async_remove_entry` deletes exactly that list, so an unregistered repair outlives the integration with no UI path to clear it. All three verified to fail first.
+
+### Added — tooling
+
+- **`Mock: Fault Drill`** (`.devcontainer/fault_drill.sh`) — attended, standalone, not in `Validate All`. Covers the one thing no test can: what a user sees. Clears the fault on exit including Ctrl-C.
+- **`Mock: Fault Drill Staleness`**, inside `Validate All`. Compares the recorded drill date against the last commit touching the files that could invalidate it, and warns — never fails. **Prints nothing when current**, so its appearance means something.
+
+### Notes
+
+- Test count 387 → **390**, 100% line and branch, 0 partial branches, assertion audit 0 of 312.
+- `ha_compatibility.md` narrowed to its stated purpose and given a scope note; two sections had drifted into architecture. `DEVELOPMENT.md` gained §3d and §3e.
 
 ## [2.0.2-dev5] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes
 
