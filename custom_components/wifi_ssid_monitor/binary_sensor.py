@@ -20,6 +20,7 @@ from .const import (
 )
 from .coordinator import WifiScanCoordinator
 from .entity import WifiScanEntity
+from .health import SEVERITY_UNKNOWN
 
 PARALLEL_UPDATES = 0
 
@@ -209,7 +210,9 @@ class WifiHealthBinarySensor(WifiScanEntity, BinarySensorEntity):
         return self._with_about(
             {
                 "issues": list(snapshot.get("issues") or []),
-                "severity": snapshot.get("severity"),
+                # Section 19: never `None`. The default covers a snapshot
+                # written before this key existed, e.g. across an upgrade.
+                "severity": snapshot.get("severity") or SEVERITY_UNKNOWN,
                 "degraded_capabilities": list(
                     snapshot.get("degraded_capabilities") or []
                 ),

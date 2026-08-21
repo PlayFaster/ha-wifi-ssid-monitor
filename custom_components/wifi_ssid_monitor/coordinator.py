@@ -50,7 +50,14 @@ from .const import (
     last_seen_storage_key,
     visit_counts_storage_key,
 )
-from .health import SEVERITY_SERIOUS, Finding, ScanFacts, run_checks
+from .health import (
+    SEVERITY_ERROR,
+    SEVERITY_UNKNOWN,
+    Finding,
+    ScanFacts,
+    run_checks,
+    worst_severity,
+)
 from .parse import (
     history_key,
     normalize_access_point,
@@ -114,8 +121,16 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         # being updated — it would keep asserting the last known state, which
         # was healthy.
         self.health_snapshot: dict[str, Any] = {
+            # `problem` stays False through cold start on purpose. Section 19
+            # maps `unknown` to the sensor being on, but firing the problem
+            # sensor on every restart is the jitter the same section forbids,
+            # and it would clear itself one poll later. `zte_router_5g` pairs
+            # `unknown` with `problem: False` for the same reason.
             "problem": False,
-            "severity": None,
+            # Nothing has been fetched, so no verdict is possible. Section 19
+            # forbids `None` here: rendered beside three empty lists it is
+            # indistinguishable from a sensor that never populated.
+            "severity": SEVERITY_UNKNOWN,
             "issues": [],
             "degraded_capabilities": [],
             "drift": [],
@@ -387,7 +402,9 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         self.health_snapshot = {
             **self.health_snapshot,
             "problem": True,
-            "severity": SEVERITY_SERIOUS,
+            # Total outage — the Supervisor is unreachable, which is exactly
+            # what Section 19 reserves `error` for.
+            "severity": SEVERITY_ERROR,
             "issues": [f"Cannot reach the Supervisor API: {err}"],
             "degraded_capabilities": ["supervisor_unreachable"],
             # No payload arrived, so no drift verdict is possible this cycle.
@@ -420,13 +437,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             if key not in fired:
                 del self._drift_strikes[key]
 
-        severity = None
-        if confirmed:
-            severity = (
-                SEVERITY_SERIOUS
-                if any(f.severity == SEVERITY_SERIOUS for f in confirmed)
-                else confirmed[0].severity
-            )
+        # No confirmed finding is a positive verdict, not an absent one:
+        # Section 19 requires `ok` rather than `None` so a healthy sensor and
+        # one that never reported cannot be confused.
+        severity = worst_severity([f.severity for f in confirmed])
 
         self.health_snapshot = {
             "problem": bool(confirmed),
@@ -774,7 +788,15 @@ def _parse_timestamps(raw: dict[str, str]) -> dict[str, datetime]:
         try:
             parsed[key] = datetime.fromisoformat(value)
         except (TypeError, ValueError):
-            _LOGGER.debug("Discarding unreadable stored timestamp for %s", key)
+            continue
+    # The count, not the keys. A key here is a neighbouring network's SSID or
+    # its Hidden-<last4> label — third-party data, in a file with no redaction
+    # layer (dev_standards Section 20). How many entries were unreadable is
+    # also the more useful diagnostic: one is a corrupt row, all of them is a
+    # storage-format change.
+    discarded = len(raw) - len(parsed)
+    if discarded:
+        _LOGGER.debug("Discarded %d unreadable stored timestamp(s)", discarded)
     return parsed
 
 

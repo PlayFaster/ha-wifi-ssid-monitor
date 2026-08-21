@@ -106,8 +106,14 @@ class WifiScanAPI:
         access_points: list[dict[str, Any]] = raw_aps
         # One-off shape capture for support: the Supervisor's AccessPoint model
         # is not versioned, so the raw key set is the only evidence of drift.
+        #
+        # The key set, never the values. dev_standards Section 20: a log file
+        # has no redaction layer and users are routinely asked to paste one
+        # into a public issue, so a verbatim access point would publish a
+        # neighbour's SSID and BSSID. The keys are what a drift question
+        # actually needs; the values never answered it.
         if access_points:
-            _LOGGER.debug("raw AP sample: %s", access_points[0])
+            _LOGGER.debug("raw AP sample keys: %s", sorted(access_points[0]))
         return access_points
 
     async def get_interfaces(self) -> list[str]:

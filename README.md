@@ -1520,6 +1520,20 @@ Some failures are **silent** - a scan succeeds but the data is wrong (e.g. a Sup
 
 It's deliberately cautious: it gives startup grace before judging drift, requires a condition to persist over several cycles before flipping, and auto-recovers on the next clean scan. Details live in the sensor's attributes: `issues`, `severity`, `signal_unit`, `last_good_update`, and two that are deliberately separate - **`degraded_capabilities`** (something stopped working) and **`drift`** (the data changed shape underneath a successful scan). Put it on a dashboard or alert on it to catch breakage early instead of later - see the [Integration Health Problem Alert](#-integration-health-problem-alert) example.
 
+**`severity` is always one of five words**, never blank, so a template can compare against it safely. The same five are used by the other PlayFaster router and network integrations, so an automation written for one works against all of them:
+
+| Value | Meaning |
+| :-- | :-- |
+| `ok` | Nothing wrong. |
+| `degraded` | Something stopped working, but scanning itself is fine - no known network was seen, or the scan came back empty. |
+| `warning` | The scan worked, but the data it returned may be wrong - a field vanished, the signal unit changed, or a frequency no longer maps to a band. |
+| `error` | The Supervisor is unreachable, or the monitored interface is gone. |
+| `unknown` | Nothing has been fetched yet. You see this only in the moments after a restart, before the first scan completes. |
+
+> [!NOTE]
+>
+> **If you have an automation testing for `serious` or `minor`, update it.** Those were this integration's own earlier words for the same idea and were replaced in `2.0.2-dev4` by the five shared ones above. `serious` is now `warning` or `error` depending on the cause, and `minor` is now `warning` or `degraded`. A healthy integration previously left `severity` blank and now says `ok`.
+
 ### 🔄 Data Polling & 3-Strike Resilience
 
 The integration utilizes a custom polling mechanism designed to interact with the Home Assistant Supervisor Network API:
@@ -1727,7 +1741,7 @@ Logs are then visible under **Settings > System > Logs** (click **Load Full Logs
 
 > [!IMPORTANT]
 >
-> **Log files have NO redaction of any kind** - unlike the diagnostics file above, nothing is stripped or pseudonymized. Review a log before pasting it anywhere. In particular, at debug level the raw Supervisor access-point sample (including nearby SSIDs and BSSIDs) can appear in the log.
+> **Log files have NO redaction of any kind** - unlike the diagnostics file above, nothing is stripped or pseudonymized. Review a log before pasting it anywhere. The integration itself does not log nearby SSIDs or BSSIDs at any level - debug lines carry counts and field names rather than network identifiers - but Home Assistant core and other integrations write to the same file.
 
 ---
 

@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev5\] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes](#202-dev5---2026-08-21---section-19-severity-enum-section-20-logging-fixes)
   - [\[2.0.2-dev4\] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit](#202-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
   - [\[2.0.2-dev3\] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep](#202-dev3---2026-08-21---ci-bumps-github-ruff-phacc-sensor-manifest-process-hacsjson-ha-min-ver-mutation-testing-prep)
   - [\[2.0.2-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#202-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
@@ -98,6 +99,36 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.2-dev5] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes
+
+Closes `x_project` chores C-014 and C-020. **Both are behaviour changes**, unlike dev4.
+
+### Changed — BREAKING for automations reading `severity`
+
+- **`severity` now uses `dev_standards` §19's five normative values**: `ok`, `degraded`, `warning`, `error`, `unknown` — the same words as `huawei_router_5g` and `zte_router_5g`, so a template written for one works against all of them. **`None` is gone**, which was the live half of the defect: a healthy integration published nothing for `severity`, and Home Assistant renders that as "Unknown" beside three legitimately-empty lists — indistinguishable from a sensor that never populated.
+  - Healthy → `ok`. Cold start, before the first poll → `unknown` (paired with `problem: False`, matching `zte_router_5g`; firing the problem sensor on every restart is the jitter §19 forbids).
+  - Supervisor unreachable, and `interface_missing` → `error`. Both are total outages; there is no core still working to call degraded.
+  - Every drift finding → `warning`; `no_known_networks` and `empty_scan` → `degraded`. The value follows the `is_drift` classification the checks already carried, not how alarming the finding reads — which is precisely the `degraded` / `warning` distinction §19 exists to make.
+  - Aggregation ladder is §19's own order, `ok` < `degraded` < `warning` < `error`, in a new `health.worst_severity()`. `zte_router_5g` resolves a simultaneous drift and capability finding the same way.
+  - **Migration:** `serious` is now `warning` or `error` depending on cause; `minor` is now `warning` or `degraded`. `README.md` carries the value table and a migration note.
+
+### Fixed — privacy
+
+- **`api.py` no longer logs an access point verbatim.** It logged `access_points[0]` whole at debug, publishing a neighbour's SSID and BSSID into a file with no redaction layer that users are routinely asked to paste into public issues (§20). Now logs the sorted key set, which is what the payload-drift question the line exists for actually needs.
+- **`coordinator._parse_timestamps` no longer logs the network key** of an unreadable stored timestamp — that key is an SSID or a `Hidden-<last4>` label. Now logs how many were discarded, which is also the better diagnostic: one is a corrupt row, all of them is a format change.
+- **`README.md` troubleshooting updated with the fix, not before it.** The old text warned that raw access-point data could appear in debug logs; that was accurate until this release, and would have become a false reassurance if removed any earlier.
+
+### Added — tests
+
+- Seven tests. `severity` is guarded three ways (healthy says `ok`; cold start says `unknown`; a sweep over every snapshot writer proves none can publish a blank), the classification coupling is swept over `CHECKS` reusing the existing `_FIRING_FACTS`, and the aggregation ladder is asserted directly. Nothing guarded either value before today, which is how `None` survived in two places.
+- Two §20 tests assert the **property** — the SSID and BSSID do not appear in the log text — rather than the message wording, so a future rewrite cannot quietly reintroduce them.
+- All five were verified to fail first: `severity` forced back to `None`, a drift finding re-tagged `degraded`, a sixth value invented, and both log lines reverted to their old form.
+
+### Notes
+
+- Test count 378 → **387**. 100% line and branch coverage, 0 partial branches, assertion audit 0 of 309.
+- `AGENTS.md` gained two rows in _Tests that will stop you, and why they exist_.
 
 ## [2.0.2-dev4] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit
 

@@ -26,7 +26,12 @@ from custom_components.wifi_ssid_monitor.const import (
     NEW_NETWORK_EVENT_MAX_PER_CYCLE,
 )
 from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
-from custom_components.wifi_ssid_monitor.health import SEVERITY_SERIOUS, Finding
+from custom_components.wifi_ssid_monitor.health import (
+    SEVERITY_ERROR,
+    SEVERITY_OK,
+    SEVERITY_UNKNOWN,
+    Finding,
+)
 
 # Frequencies for the two bands, so fixtures don't rely on a channel field.
 FREQ_24 = 2437  # channel 6
@@ -1185,7 +1190,7 @@ async def test_supervisor_unreachable_is_published_on_the_runtime_path(
 
     snapshot = coordinator.health_snapshot
     assert snapshot["problem"] is True
-    assert snapshot["severity"] == SEVERITY_SERIOUS
+    assert snapshot["severity"] == SEVERITY_ERROR, "a total outage is `error`"
     assert snapshot["degraded_capabilities"] == ["supervisor_unreachable"]
     assert snapshot["drift"] == [], "no payload arrived, so no drift verdict"
     assert snapshot["cold_start"] is False
@@ -1411,7 +1416,7 @@ async def test_repair_issue_ids_are_scoped_to_the_config_entry(
             [
                 Finding(
                     key="interface_missing",
-                    severity=SEVERITY_SERIOUS,
+                    severity=SEVERITY_ERROR,
                     message="gone",
                     repair="interface_missing",
                 )
@@ -1443,7 +1448,7 @@ async def test_a_cleared_repair_deletes_the_entry_scoped_id(
 
     finding = Finding(
         key="interface_missing",
-        severity=SEVERITY_SERIOUS,
+        severity=SEVERITY_ERROR,
         message="gone",
         repair="interface_missing",
     )
@@ -1519,7 +1524,7 @@ async def test_a_missing_interface_flags_immediately_on_cold_start(
 
     snapshot = coordinator.health_snapshot
     assert snapshot["problem"] is True, "cold start must not wait out the strikes"
-    assert snapshot["severity"] == SEVERITY_SERIOUS
+    assert snapshot["severity"] == SEVERITY_ERROR
     assert "interface_missing" in snapshot["degraded_capabilities"]
     assert snapshot["cold_start"] is True
 
@@ -1750,3 +1755,106 @@ async def test_a_raising_health_pass_does_not_replace_the_fetch_error(
         pytest.raises(UpdateFailed, match="supervisor gone"),
     ):
         await coordinator._async_update_data()
+
+
+# ---------------------------------------------------------------------------
+# Section 19 severity vocabulary — x_project C-014
+# ---------------------------------------------------------------------------
+#
+# The values are a published contract: users write templates against them, and
+# the same five words mean the same things on `huawei_router_5g` and
+# `zte_router_5g`. `None` is banned outright, because Home Assistant renders it
+# as "Unknown" beside three legitimately-empty lists — a healthy sensor and one
+# that never populated then look identical on screen.
+#
+# Nothing guarded either value before 2026-08-21, which is how `None` survived
+# in two places for as long as it did.
+
+
+@pytest.mark.asyncio
+async def test_a_healthy_snapshot_says_ok_rather_than_nothing(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A clean poll publishes `ok`, not `None`."""
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["problem"] is False
+    assert snapshot["severity"] == SEVERITY_OK
+    assert snapshot["issues"] == []
+
+
+def test_the_cold_start_snapshot_says_unknown(hass, mock_config_entry, mock_wifi_api):
+    """Before the first poll the verdict is `unknown`, and no problem is raised.
+
+    Section 19 maps `unknown` to the sensor being on. It is deliberately paired
+    with `problem: False` here: firing the problem sensor on every restart is
+    the jitter the same section forbids, and it would clear itself one poll
+    later. `zte_router_5g` makes the same pairing.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+
+    assert coordinator.health_snapshot["severity"] == SEVERITY_UNKNOWN
+    assert coordinator.health_snapshot["problem"] is False
+
+
+@pytest.mark.asyncio
+async def test_no_code_path_publishes_a_blank_severity(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Sweep the three snapshot writers; none of them may leave it empty.
+
+    Written as a sweep rather than three assertions because the failure mode is
+    a *new* path added later that forgets — which is exactly how the two
+    original `None`s got there.
+    """
+    from custom_components.wifi_ssid_monitor.health import _SEVERITY_RANK
+
+    allowed = set(_SEVERITY_RANK) | {SEVERITY_UNKNOWN}
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    seen = [coordinator.health_snapshot["severity"]]
+
+    # Assigned by hand: driving `_async_update_data` directly bypasses the
+    # coordinator wrapper that normally sets `data`, and without held values
+    # the failure path below takes the cold-start branch instead of the strike
+    # budget — a different writer from the one under test here.
+    coordinator.data = await coordinator._async_update_data()
+    seen.append(coordinator.health_snapshot["severity"])
+
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("down")
+    for _ in range(FETCH_STRIKE_LIMIT):
+        await coordinator._async_update_data()
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+    seen.append(coordinator.health_snapshot["severity"])
+
+    assert all(value in allowed for value in seen), seen
+    assert None not in seen
+
+
+@pytest.mark.asyncio
+async def test_discarded_timestamps_are_counted_not_named(caplog):
+    """A corrupt stored row is logged as a count, never as its network key.
+
+    Section 20, and x_project chore C-020. The key here is a neighbouring
+    network's SSID or its Hidden-<last4> label — third-party data, in a file
+    with nothing stripping it.
+    """
+    import logging
+
+    from custom_components.wifi_ssid_monitor.coordinator import _parse_timestamps
+
+    with caplog.at_level(logging.DEBUG):
+        parsed = _parse_timestamps(
+            {
+                "TheNeighbours": "not-a-timestamp",
+                "Hidden-9f3a": "also-not",
+                "Home": "2026-08-21T12:00:00+00:00",
+            }
+        )
+
+    assert set(parsed) == {"Home"}
+    assert "2" in caplog.text, "the count is what the line is for"
+    assert "TheNeighbours" not in caplog.text
+    assert "Hidden-9f3a" not in caplog.text
