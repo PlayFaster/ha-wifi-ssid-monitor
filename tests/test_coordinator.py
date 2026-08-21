@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -18,8 +19,10 @@ from custom_components.wifi_ssid_monitor.const import (
     CONF_LAST_SEEN_TTL_DAYS,
     CONF_SHOW_5GHZ,
     CONF_SHOW_24GHZ,
+    DOMAIN,
     EVENT_NEW_NETWORK,
     FETCH_STRIKE_LIMIT,
+    HEALTH_DRIFT_STRIKE_LIMIT,
     HEALTH_STARTUP_GRACE_SCANS,
     HISTORY_MAX_ENTRIES,
     ISSUE_SUPERVISOR_UNAVAILABLE,
@@ -636,7 +639,10 @@ async def test_signal_unit_change_and_event_suppression(
     # Event fire after baseline with no new keys (line 597)
     coordinator._fire_new_network_events(set(), {})
 
-    # Signal unit change notification (lines 526-531)
+    # A unit that disagrees with the baseline is reported and the baseline is
+    # HELD, not adopted. Adopting it silenced `check_signal_unit_flip` after a
+    # single strike, so the finding could never confirm — see
+    # `test_a_signal_unit_flip_can_actually_be_confirmed`.
     coordinator._baseline_signal_unit = "dBm"
     mock_wifi_api.get_access_points.return_value = [
         {
@@ -647,7 +653,17 @@ async def test_signal_unit_change_and_event_suppression(
         }
     ]
     await coordinator._async_update_data()
-    assert coordinator._baseline_signal_unit == "percent"
+    assert coordinator._baseline_signal_unit == "dBm", (
+        "the baseline must survive a differing scan, or the flip check cannot "
+        "accumulate the strikes it needs"
+    )
+    assert coordinator._signal_flip_logged is True
+
+    # Logged once, not once per poll: the mismatch now recurs every scan.
+    coordinator._signal_flip_logged = False
+    await coordinator._async_update_data()
+    assert coordinator._signal_flip_logged is True
+    coordinator._baseline_signal_unit = "percent"
 
     # Create 15 new networks to exceed NEW_NETWORK_EVENT_MAX_PER_CYCLE (10)
     burst_aps = [
@@ -1459,7 +1475,12 @@ async def test_a_cleared_repair_deletes_the_entry_scoped_id(
     with patch.object(coordinator_module.ir, "async_delete_issue") as mock_delete:
         coordinator._sync_repairs([])
 
-    assert mock_delete.call_args.args[2] == created_id
+    # The sweep now covers every repair key, not just the one raised, so the
+    # created id must be *among* the deletions rather than the last of them —
+    # see `test_a_repair_raised_before_a_reload_is_still_cleared_after_one`
+    # for why the stateless sweep is what makes a reload survivable.
+    deleted = {call.args[2] for call in mock_delete.call_args_list}
+    assert created_id in deleted, deleted
 
 
 @pytest.mark.asyncio
@@ -1858,3 +1879,143 @@ async def test_discarded_timestamps_are_counted_not_named(caplog):
     assert "2" in caplog.text, "the count is what the line is for"
     assert "TheNeighbours" not in caplog.text
     assert "Hidden-9f3a" not in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Faults found by the attended drill, 2026-08-21
+# ---------------------------------------------------------------------------
+#
+# Both were invisible to 390 tests at 100% branch coverage, and both for the
+# same reason: every existing test calls the health checks directly with a
+# hand-built ScanFacts. Nothing drove two consecutive polls through the
+# coordinator, which is where each of these lives.
+
+
+@pytest.mark.asyncio
+async def test_a_missing_interface_is_not_reported_as_healthy(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A failing fetch is an outage from the moment the strikes run out.
+
+    The 400 path used to take the `interface_missing` branch, hand off to
+    `_apply_health`, and return — publishing `problem: False, severity: ok`
+    while every poll was failing and the entities had gone unavailable. It
+    needed FETCH_STRIKE_LIMIT **plus** HEALTH_DRIFT_STRIKE_LIMIT consecutive
+    failures before saying anything, so a missing interface — permanent and
+    user-fixable — reported healthier for longer than an unreachable
+    Supervisor, which is transient and says `error` immediately.
+
+    The drift budget may govern the *repair*. It may not downgrade a live
+    outage to `ok`.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    # Warm: there are held values, so the strike budget applies.
+    coordinator.data = await coordinator._async_update_data()
+
+    mock_wifi_api.last_interface_present = False
+    mock_wifi_api.get_access_points.side_effect = WifiScanError(
+        "API returned status 400"
+    )
+
+    for _ in range(FETCH_STRIKE_LIMIT):
+        await coordinator._async_update_data()
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["severity"] != SEVERITY_OK, (
+        "the fetch has failed past its budget — reporting `ok` here tells the "
+        "user everything is fine while every entity is unavailable"
+    )
+    assert snapshot["problem"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_signal_unit_flip_can_actually_be_confirmed(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """`signal_format_changed` must be reachable through consecutive polls.
+
+    It was not. The baseline was reassigned to the new unit at the end of the
+    first flipped scan, so the check fired once, took one strike of the three
+    it needs, and then stopped firing — at which point `_apply_health` deleted
+    the strike count because the key was no longer in `fired`. One of three
+    repair issues could never be raised, and `drift` never named it.
+
+    Driving real polls is the whole point of this test: calling
+    `check_signal_unit_flip` with a hand-built ScanFacts passes either way.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    percent_ap = {
+        "mac": "AA:BB:CC:00:00:01",
+        "ssid": "BaseNet",
+        "signal": 80,
+        "frequency": FREQ_5,
+    }
+    # Establish the baseline, and clear the startup grace window.
+    for _ in range(HEALTH_STARTUP_GRACE_SCANS + 1):
+        mock_wifi_api.get_access_points.return_value = [percent_ap]
+        coordinator.data = await coordinator._async_update_data()
+    assert coordinator._baseline_signal_unit == "percent"
+
+    # The Supervisor starts reporting dBm. Negative values are the signal.
+    dbm_ap = {**percent_ap, "signal": -55}
+    for _ in range(HEALTH_DRIFT_STRIKE_LIMIT):
+        mock_wifi_api.get_access_points.return_value = [dbm_ap]
+        coordinator.data = await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["problem"] is True
+    assert any("dBm" in issue for issue in snapshot["issues"]), snapshot["issues"]
+    assert snapshot["drift"], "a unit flip is drift and must be named there"
+    assert coordinator._drift_strikes.get("signal_format_changed", 0) >= (
+        HEALTH_DRIFT_STRIKE_LIMIT
+    ), "the strike count was reset before it could confirm"
+
+
+@pytest.mark.asyncio
+async def test_a_repair_raised_before_a_reload_is_still_cleared_after_one(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A reload must not orphan a repair the previous coordinator raised.
+
+    `_active_repairs` is per-coordinator state, and the delete loop only ever
+    walked that set — so a reload or a Home Assistant restart gave the new
+    coordinator an empty set and no memory of what was raised. The issue
+    registry persists across both, and these repairs are `is_fixable=False`,
+    so the card sat in the Repairs panel for ever with no UI path to clear it,
+    long after the condition had resolved.
+
+    Found by the fault drill on 2026-08-22: two `signal_format_changed` cards
+    survived a reload and a clean scan.
+    """
+    mock_config_entry.add_to_hass(hass)
+
+    raised = _coord(hass, mock_config_entry, mock_wifi_api)
+    raised._sync_repairs(
+        [
+            Finding(
+                key="interface_missing",
+                severity=SEVERITY_ERROR,
+                message="gone",
+                repair="interface_missing",
+            )
+        ]
+    )
+    issue_id = raised._issue_id("interface_missing")
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+    # The reload: a brand-new coordinator over the same entry, with no memory
+    # of what its predecessor raised.
+    reloaded = _coord(hass, mock_config_entry, mock_wifi_api)
+    assert not reloaded._active_repairs
+    reloaded._sync_repairs([])
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None, (
+        "the repair outlived the coordinator that raised it, and nothing left "
+        "in the integration can ever delete it"
+    )

@@ -18,6 +18,7 @@ from homeassistant.util import dt as dt_util
 
 from .api import WifiScanAPI
 from .const import (
+    ALL_REPAIR_KEYS,
     BAND_5,
     BAND_6,
     BAND_24,
@@ -139,6 +140,9 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         }
         self._drift_strikes: dict[str, int] = {}
         self._baseline_signal_unit: str | None = None
+        # Logged once, not once per poll: the baseline is now held, so
+        # the mismatch recurs on every scan until the entry is reloaded.
+        self._signal_flip_logged = False
         self._scans_completed = 0
         self._active_repairs: set[str] = set()
 
@@ -360,27 +364,33 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             findings = []
 
         missing = [f for f in findings if f.key == "interface_missing"]
-        if missing:
-            if not cold_start:
-                # At runtime a 400/404 can be transient — the Supervisor
-                # restarting mid-poll produces one — and there are held values
-                # to show meanwhile, so corroboration is worth the wait.
-                #
-                # Guarded because this whole method runs inside the fetch
-                # error handler: _apply_health re-runs the checks and touches
-                # the issue registry, and anything raised here would replace
-                # the Supervisor error that actually caused the failure. The
-                # _process_scan call site guards it for the same reason.
-                try:
-                    self._apply_health(facts)
-                except Exception:
-                    _LOGGER.debug(
-                        "Health computation failed on the failure path; "
-                        "leaving the previous snapshot",
-                        exc_info=True,
-                    )
-                return
+        if missing and not cold_start:
+            # At runtime a 400/404 can be transient — the Supervisor
+            # restarting mid-poll produces one — and there are held values
+            # to show meanwhile, so corroboration is worth the wait.
+            #
+            # Guarded because this whole method runs inside the fetch
+            # error handler: _apply_health re-runs the checks and touches
+            # the issue registry, and anything raised here would replace
+            # the Supervisor error that actually caused the failure. The
+            # _process_scan call site guards it for the same reason.
+            try:
+                self._apply_health(facts)
+            except Exception:
+                _LOGGER.debug(
+                    "Health computation failed on the failure path; "
+                    "leaving the previous snapshot",
+                    exc_info=True,
+                )
+            # Deliberately NOT returning here. `_apply_health` exists to
+            # corroborate the *repair* over the drift budget; it must not get
+            # to describe a fetch that has already failed past its strike
+            # budget as `ok`. It used to, and the effect was that a missing
+            # interface — permanent and user-fixable — reported healthy for
+            # two more polls than an unreachable Supervisor, which is usually
+            # transient. Found by the attended fault drill, 2026-08-21.
 
+        elif missing:
             # Cold start publishes without corroboration, for the reason in
             # this method's docstring: there is nothing held, so three polls of
             # "no problem" against a wholly unavailable integration is the
@@ -399,14 +409,22 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             self._sync_repairs(missing)
             return
 
+        # The fetch failed past its budget, so this is an outage either way.
+        # Which one is named depends on whether the Supervisor told us the
+        # interface is gone or simply did not answer.
         self.health_snapshot = {
             **self.health_snapshot,
             "problem": True,
-            # Total outage — the Supervisor is unreachable, which is exactly
-            # what Section 19 reserves `error` for.
+            # Total outage — Section 19 reserves `error` for exactly this.
             "severity": SEVERITY_ERROR,
-            "issues": [f"Cannot reach the Supervisor API: {err}"],
-            "degraded_capabilities": ["supervisor_unreachable"],
+            "issues": [
+                missing[0].message
+                if missing
+                else f"Cannot reach the Supervisor API: {err}"
+            ],
+            "degraded_capabilities": [
+                missing[0].key if missing else "supervisor_unreachable"
+            ],
             # No payload arrived, so no drift verdict is possible this cycle.
             "drift": [],
             "cold_start": cold_start,
@@ -497,7 +515,15 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             )
             self._active_repairs.add(key)
 
-        for key in list(self._active_repairs - set(wanted)):
+        # Deletion sweeps every repair this integration can raise, NOT just the
+        # ones this coordinator remembers raising. `_active_repairs` is
+        # per-instance, and the issue registry outlives the instance: after a
+        # reload or a Home Assistant restart the set is empty, so a set-driven
+        # delete could never clear a card raised before it. These issues are
+        # `is_fixable=False`, so that card had no UI path out and sat in the
+        # Repairs panel for ever. `async_delete_issue` is a no-op for an issue
+        # that is not there, which is what makes the stateless sweep cheap.
+        for key in set(ALL_REPAIR_KEYS) - set(wanted):
             ir.async_delete_issue(self.hass, DOMAIN, self._issue_id(key))
             self._active_repairs.discard(key)
 
@@ -666,12 +692,22 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         if signal_unit and self._baseline_signal_unit is None:
             self._baseline_signal_unit = signal_unit
         elif signal_unit and signal_unit != self._baseline_signal_unit:
-            _LOGGER.info(
-                "Supervisor signal unit changed from %s to %s",
-                self._baseline_signal_unit,
-                signal_unit,
-            )
-            self._baseline_signal_unit = signal_unit
+            # The baseline is deliberately NOT moved to the new unit. Adopting
+            # it here made `check_signal_unit_flip` unraisable: it fired once,
+            # took one strike of the three it needs, and then stopped firing
+            # because the baseline now matched — at which point `_apply_health`
+            # deleted the strike count. One of three repair issues could never
+            # appear. Holding the baseline lets the strike budget do its job,
+            # and the finding persists until the entry is reloaded, which is
+            # the right duration: a unit flip invalidates the user's proximity
+            # threshold until they act on it.
+            if not self._signal_flip_logged:
+                _LOGGER.info(
+                    "Supervisor signal unit changed from %s to %s",
+                    self._baseline_signal_unit,
+                    signal_unit,
+                )
+                self._signal_flip_logged = True
 
         return {
             "count": len(labels),

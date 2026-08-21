@@ -149,17 +149,23 @@ def issue_id(key: str, entry_id: str) -> str:
     return f"{key}_{entry_id}"
 
 
+# Every repair key this integration can raise, unscoped. One source of truth:
+# `all_issue_ids` scopes it for removal, and the coordinator sweeps it when
+# clearing, so neither side can drift from the raise side.
+ALL_REPAIR_KEYS: tuple[str, ...] = (
+    ISSUE_SUPERVISOR_UNAVAILABLE,
+    ISSUE_INTERFACE_MISSING,
+    ISSUE_SIGNAL_FORMAT_CHANGED,
+)
+
+
 def all_issue_ids(entry_id: str) -> tuple[str, ...]:
     """Return every repair issue this integration can raise for an entry.
 
     Used by ``async_remove_entry`` so the delete side cannot drift from the
     raise side, the same way ``all_storage_keys`` works below.
     """
-    return (
-        issue_id(ISSUE_SUPERVISOR_UNAVAILABLE, entry_id),
-        issue_id(ISSUE_INTERFACE_MISSING, entry_id),
-        issue_id(ISSUE_SIGNAL_FORMAT_CHANGED, entry_id),
-    )
+    return tuple(issue_id(key, entry_id) for key in ALL_REPAIR_KEYS)
 
 
 def all_storage_keys(entry_id: str) -> tuple[str, ...]:
