@@ -5,18 +5,18 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
-  - [\[2.0.2-dev12\] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap](#202-dev12---2026-08-22---mutation-cadence-closed-843-kill-the-failed-fetch-gap)
-  - [\[2.0.2-dev11\] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list](#202-dev11---2026-08-22---coordinatorpy-enters-mutation-testing-nine-tests-from-the-survivor-list)
-  - [\[2.0.2-dev10\] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned](#202-dev10---2026-08-22---about-notes-review-historical-clutter-pruned-pause-polling-aligned)
-  - [\[2.0.2-dev9\] - 2026-08-22 - Depth findings closed; the coverage-context trap](#202-dev9---2026-08-22---depth-findings-closed-the-coverage-context-trap)
-  - [\[2.0.2-dev8\] - 2026-08-22 - Test depth check; the real-transport test pattern](#202-dev8---2026-08-22---test-depth-check-the-real-transport-test-pattern)
-  - [\[2.0.2-dev7\] - 2026-08-22 - Three health defects found by the fault drill](#202-dev7---2026-08-22---three-health-defects-found-by-the-fault-drill)
-  - [\[2.0.2-dev6\] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill](#202-dev6---2026-08-21---mock-supervisor-rebuilt-against-real-hardware-repair-text-sweep-fault-drill)
-  - [\[2.0.2-dev5\] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes](#202-dev5---2026-08-21---section-19-severity-enum-section-20-logging-fixes)
-  - [\[2.0.2-dev4\] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit](#202-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
-  - [\[2.0.2-dev3\] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep](#202-dev3---2026-08-21---ci-bumps-github-ruff-phacc-sensor-manifest-process-hacsjson-ha-min-ver-mutation-testing-prep)
-  - [\[2.0.2-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#202-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
-  - [\[2.0.2-dev1\] - 2026-08-07 - Bump Ruff to 0.16.1](#202-dev1---2026-08-07---bump-ruff-to-0161)
+  - [\[2.0.3-dev12\] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap](#203-dev12---2026-08-22---mutation-cadence-closed-843-kill-the-failed-fetch-gap)
+  - [\[2.0.3-dev11\] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list](#203-dev11---2026-08-22---coordinatorpy-enters-mutation-testing-nine-tests-from-the-survivor-list)
+  - [\[2.0.3-dev10\] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned](#203-dev10---2026-08-22---about-notes-review-historical-clutter-pruned-pause-polling-aligned)
+  - [\[2.0.3-dev9\] - 2026-08-22 - Depth findings closed; the coverage-context trap](#203-dev9---2026-08-22---depth-findings-closed-the-coverage-context-trap)
+  - [\[2.0.3-dev8\] - 2026-08-22 - Test depth check; the real-transport test pattern](#203-dev8---2026-08-22---test-depth-check-the-real-transport-test-pattern)
+  - [\[2.0.3-dev7\] - 2026-08-22 - Three health defects found by the fault drill](#203-dev7---2026-08-22---three-health-defects-found-by-the-fault-drill)
+  - [\[2.0.3-dev6\] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill](#203-dev6---2026-08-21---mock-supervisor-rebuilt-against-real-hardware-repair-text-sweep-fault-drill)
+  - [\[2.0.3-dev5\] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes](#203-dev5---2026-08-21---section-19-severity-enum-section-20-logging-fixes)
+  - [\[2.0.3-dev4\] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit](#203-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
+  - [\[2.0.3-dev3\] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep](#203-dev3---2026-08-21---ci-bumps-github-ruff-phacc-sensor-manifest-process-hacsjson-ha-min-ver-mutation-testing-prep)
+  - [\[2.0.3-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#203-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
+  - [\[2.0.3-dev1\] - 2026-08-07 - Bump Ruff to 0.16.1](#203-dev1---2026-08-07---bump-ruff-to-0161)
   - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
   - [\[2.0.1\] - 2026-08-06 - Release - Multi SSID Plus More Fixes; Major Test Improvements](#201---2026-08-06---release---multi-ssid-plus-more-fixes-major-test-improvements)
   - [\[2.0.1-dev25\] - 2026-08-07 - Add `release.yaml` to add zipfile to releases on github](#201-dev25---2026-08-07---add-releaseyaml-to-add-zipfile-to-releases-on-github)
@@ -107,14 +107,14 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
-## [2.0.2-dev12] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap
+## [2.0.3-dev12] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap
 
 The verifying run of the documented two-run cadence, one further test, and the write-backs. **No source change.**
 
 ### Added — tests
 
 - **`test_a_failed_fetch_survives_an_entry_with_no_known_ssids_option`** (`tests/test_coordinator.py`). `_record_fetch_failure_health` reads `CONF_KNOWN_SSIDS` a second time, at `coordinator.py:357`, and that read sits **outside** the `try` that guards the health computation — so replacing its `""` default with `None` makes `_split_patterns` raise `AttributeError` mid-outage, and the failure path that exists to explain the outage is itself what breaks. Driven on cold start so the strike budget does not short-circuit it. Verified to fail under that mutant.
-  - This closes the gap `[2.0.2-dev11]` recorded rather than fixed: the M8 test drives a **successful** poll and reaches the other read, at line 604.
+  - This closes the gap `[2.0.3-dev11]` recorded rather than fixed: the M8 test drives a **successful** poll and reaches the other read, at line 604.
 
 ### Verified — mutation cadence run 2
 
@@ -134,7 +134,7 @@ The verifying run of the documented two-run cadence, one further test, and the w
 - **A partial result was nearly reported as a final one.** Midway through run 2, `mutmut results` showed 63 survivors — because 879 mutants were still `not checked` and pending mutants are not counted as survived. The check that caught it was reading the **status breakdown** rather than the survivor count alone. Worth remembering: a falling survivor count during a run is not progress, it is incompleteness.
 - For comparison across the family: `zte_router_5g` 96.6%, `huawei_router_5g` ~85.9%. This project now sits with Huawei, and for the same reason — both mutate their coordinator, which is where the unkillable-by-design survivors concentrate.
 
-## [2.0.2-dev11] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list
+## [2.0.3-dev11] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list
 
 First mutation run with `coordinator.py` on the list, and the nine tests its survivors produced. **No source change** — every mutation below was restored by file copy and confirmed by checksum.
 
@@ -168,7 +168,7 @@ First mutation run with `coordinator.py` on the list, and the nine tests its sur
 - **Ten hand mutations verified**, each restored by file copy and checksum. `mutmut` was **not** re-run: the documented cadence is exactly twice per phase, and the second run is a separate decision.
 - One equivalent proved and recorded: `get(CONF_KNOWN_SSIDS, "XXXX")` cannot be distinguished from the `""` default, since neither matches any network — while the sibling `None` mutant **is** killed. Two gaps recorded rather than closed: the same default on the failed-fetch path at `coordinator.py:357`, and the remaining `__init__` survivors for attributes nothing else reads.
 
-## [2.0.2-dev10] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned
+## [2.0.3-dev10] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned
 
 Executed `about_notes_review.md` audit across all entity descriptions in `custom_components/wifi_ssid_monitor/`. Cleaned up entity `about:` attribute notes displayed to end users in Home Assistant UI modals per `doc_style.md` and `dev_standards.md` §14, and re-synchronized documentation.
 
@@ -186,7 +186,7 @@ Executed `about_notes_review.md` audit across all entity descriptions in `custom
 
 ---
 
-## [2.0.2-dev9] - 2026-08-22 - Depth findings closed; the coverage-context trap
+## [2.0.3-dev9] - 2026-08-22 - Depth findings closed; the coverage-context trap
 
 `Tests: Depth Check` now reports **PASSED** here — 10 of 10 declared outcomes driven, no stubbed publishes, no stubbed seams, no undriven gates. First project through the checklist, and the worked example for the other three (chore **C-022**). No source change: every mutation below was restored and checksum-verified.
 
@@ -213,7 +213,7 @@ Executed `about_notes_review.md` audit across all entity descriptions in `custom
 - **`Pytest: Check Test Coverage` now sets `COVERAGE_CORE=ctrace`** (workbench source, synced to all four). `--cov-context=test` is **silently useless without it** on Python 3.12+: coverage's default `sys.monitoring` core does not support dynamic contexts, so once a line has been seen it stops being monitored and keeps whichever test touched it first. Measured here — 404 tests, 123 contexts recorded, no line carrying more than two — and the depth check reported **seven driven outcomes as never driven**, one of them with a test driving it through a real HTTP seam. If you run pytest by hand, set it.
 - **`check_test_depth.py`** gained three fixes and two sweeps, all in the workbench: it refuses context data that looks gutted rather than reporting it; it resolves module-level test helpers, so a test driving the poll through `_settle()` is no longer read as driving nothing; **SEQ** reports an accumulation gate no test drives far enough; **HEAL** reports a check that overwrites the value it just compared — the `signal_format_changed` shape, which it reproduces on this project's pre-fix `coordinator.py`.
 
-## [2.0.2-dev8] - 2026-08-22 - Test depth check; the real-transport test pattern
+## [2.0.3-dev8] - 2026-08-22 - Test depth check; the real-transport test pattern
 
 Tooling and one worked test. No source change.
 
@@ -232,7 +232,7 @@ Tooling and one worked test. No source change.
 - `dev_standards` §11 gained the rule as Standard Version 1.32.0; cross-project adoption is chore **C-021**, with `huawei_router_5g` flagged as reduced scope — it reaches the network through a library holding its own `requests.Session`.
 - `testing_deeper_lev1_review.md` gained four categories — **SEQ, LIFE, REACH, PUB** — at v1.1.0. The original six are each scoped to one function, which is why three defects survived 390 tests at 100% branch coverage.
 
-## [2.0.2-dev7] - 2026-08-22 - Three health defects found by the fault drill
+## [2.0.3-dev7] - 2026-08-22 - Three health defects found by the fault drill
 
 All three were invisible to 390 tests at 100% line **and** branch coverage, and all three share one shape: **the tests examined the parts, and the defect lived in the sequence.** Every existing test called a health check directly with a hand-built `ScanFacts`; nothing drove consecutive polls through the coordinator. Each fix has a failing test written first.
 
@@ -252,7 +252,7 @@ All three were invisible to 390 tests at 100% line **and** branch coverage, and 
 - `dev_standards` §19 gained two rules from the first two defects — see Standard Version 1.31.0.
 - Research and options for reaching this class of defect in the other three projects: `.shared/issues/x_project/fault_injection_options.md`.
 
-## [2.0.2-dev6] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill
+## [2.0.3-dev6] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill
 
 No shipped code changed. Development environment, tests and documentation.
 
@@ -278,7 +278,7 @@ No shipped code changed. Development environment, tests and documentation.
 - Test count 387 → **390**, 100% line and branch, 0 partial branches, assertion audit 0 of 312.
 - `ha_compatibility.md` narrowed to its stated purpose and given a scope note; two sections had drifted into architecture. `DEVELOPMENT.md` gained §3d and §3e.
 
-## [2.0.2-dev5] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes
+## [2.0.3-dev5] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes
 
 Closes `x_project` chores C-014 and C-020. **Both are behaviour changes**, unlike dev4.
 
@@ -308,7 +308,7 @@ Closes `x_project` chores C-014 and C-020. **Both are behaviour changes**, unlik
 - Test count 378 → **387**. 100% line and branch coverage, 0 partial branches, assertion audit 0 of 309.
 - `AGENTS.md` gained two rows in _Tests that will stop you, and why they exist_.
 
-## [2.0.2-dev4] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit
+## [2.0.3-dev4] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit
 
 Unattended pass over every open `wifi_ssid_monitor` item in `.shared/issues/x_project/`. No functional change: tests, one `about` note, and documentation only.
 
@@ -330,7 +330,7 @@ Unattended pass over every open `wifi_ssid_monitor` item in `.shared/issues/x_pr
 - **Two logging findings are recorded and not fixed**, because they are source changes: `api.py:110` logs a verbatim access-point payload including a real SSID and BSSID, and `coordinator.py:777` logs a network key. Both are `debug`. `README.md:1730` warns about the first and was verified accurate — it must change _with_ the fix, not before it. Scoped in chore C-020.
 - The §19 `severity` enum (chore C-014) is likewise assessed and scoped, not applied: `severity` is `None` when healthy, which §19 forbids. Mapping table in the chore.
 
-## [2.0.2-dev3] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep
+## [2.0.3-dev3] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep
 
 ### Bumps
 
@@ -355,7 +355,7 @@ Unattended pass over every open `wifi_ssid_monitor` item in `.shared/issues/x_pr
 
 - **`python-typing-update`**: Dropped as HA has moved to enforcing these rules via `ruff`.
 
-## [2.0.2-dev2] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md
+## [2.0.3-dev2] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md
 
 ### Bumps
 
@@ -369,7 +369,7 @@ Unattended pass over every open `wifi_ssid_monitor` item in `.shared/issues/x_pr
 - **`AGENTS.md`**: Added note about different linting for `.notes` and `.shared` and existence of `docs/ROADMAP.md`.
 - **`CHANGELOG.md`**: Rewrote some entries for clarity and tone.
 
-## [2.0.2-dev1] - 2026-08-07 - Bump Ruff to 0.16.1
+## [2.0.3-dev1] - 2026-08-07 - Bump Ruff to 0.16.1
 
 ### Bumps
 

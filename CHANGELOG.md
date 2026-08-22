@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [2.0.2] - 2026-08-22 - Release - Integration Health Severity Standardization & Repair Fixes
+## [2.0.3] - 2026-08-22 - Release - Integration Health Severity Standardization & Repair Fixes
 
 ### Summary
 
@@ -302,7 +302,7 @@ Entry structure — headers, titles, category headings and the split between thi
 ---
 
 - [Changelog: WiFi SSID Monitor](#changelog-wifi-ssid-monitor)
-  - [\[2.0.2\] - 2026-08-22 - Release - Integration Health Severity Standardization \& Repair Fixes](#202---2026-08-22---release---integration-health-severity-standardization--repair-fixes)
+  - [\[2.0.3\] - 2026-08-22 - Release - Integration Health Severity Standardization \& Repair Fixes](#203---2026-08-22---release---integration-health-severity-standardization--repair-fixes)
   - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
   - [\[2.0.0\] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames](#200---2026-07-25---signal-as-a-percentage-health-sensor-breaking-renames)
   - [\[1.6.1\] - 2026-07-04 - Release - Reconfigure Shows All Settings; Polling Toggle](#161---2026-07-04---release---reconfigure-shows-all-settings-polling-toggle)
