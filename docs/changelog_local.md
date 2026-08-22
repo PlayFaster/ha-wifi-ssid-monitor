@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev11\] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list](#202-dev11---2026-08-22---coordinatorpy-enters-mutation-testing-nine-tests-from-the-survivor-list)
   - [\[2.0.2-dev10\] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned](#202-dev10---2026-08-22---about-notes-review-historical-clutter-pruned-pause-polling-aligned)
   - [\[2.0.2-dev9\] - 2026-08-22 - Depth findings closed; the coverage-context trap](#202-dev9---2026-08-22---depth-findings-closed-the-coverage-context-trap)
   - [\[2.0.2-dev8\] - 2026-08-22 - Test depth check; the real-transport test pattern](#202-dev8---2026-08-22---test-depth-check-the-real-transport-test-pattern)
@@ -105,14 +106,48 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.2-dev11] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list
+
+First mutation run with `coordinator.py` on the list, and the nine tests its survivors produced. **No source change** — every mutation below was restored by file copy and confirmed by checksum.
+
+### Added — tests
+
+- **Nine tests in `tests/test_coordinator.py`**, one per finding in `.notes/issues/testing_deeper/recommendations_20260822.md`, each naming in its docstring the mutant it was written against so the evidence survives the next survivor list.
+  - **The published health-snapshot keys** (M1) — the one that matters. Mutating `_apply_health`'s dict **keys** survived: `binary_sensor.py` reads them with `snapshot.get(...)`, so a rename does not raise and the published attribute silently becomes `None`. Nothing caught it because the assertions sat on opposite sides of the seam — `conftest.py` sets `"signal_unit"` in a hand-built snapshot and asserts the entity reads it, while no test drove a poll and asserted what the coordinator produced. **Invisible to depth, coverage and the assertion audit, all three passing.**
+  - **The fetch timeout** (M2) — `asyncio.timeout(COORDINATOR_TIMEOUT_SECONDS)` → `timeout(None)` survived, which disables the budget entirely. The existing test raises `TimeoutError` from the mocked API, proving the handler and not the budget.
+  - **Two loop-truncation tests** (M3) — `continue` → `break` survived in `_fire_new_network_events` and `_sync_repairs`; one skipped item silently abandons everything sorted after it. Both loops had only ever been driven with items that took the same branch.
+  - **The force-refresh latch** (M4) — `self._force_refresh_once = False` → `True` survived, which would make every later poll bypass the pause setting for ever.
+  - **Repair severity and fixability** (M5), swept over `ALL_REPAIR_KEYS` — existing tests asserted an issue was created and with which id, never with what properties.
+  - **Store payloads** (M7) — `async_save(None)` survived; the tests asserted a save was _called_, not what it carried.
+  - **Constructor attributes other modules read** (M6) and **the missing-option default** (M8).
+- **`test_every_finding_sets_a_valid_severity`** in `tests/test_integration_health.py` — sweeps `CHECKS` and asserts every finding's severity is in the §19 vocabulary. Written for a survivor recorded on 2026-08-06 as "worth revisiting"; it is now dead. It asserts the **published strings**, not the `SEVERITY_*` constants, because a rename mutation survived the first version — comparing the finding against the constant compares the code with itself while every user automation matching on `severity` breaks.
+
+### Changed — mutation scope
+
+- **`coordinator.py` added to `.validate/mutmut_modules.txt`.** `huawei_router_5g` already mutates its own, so this is the family pattern rather than an experiment. The measurement that justified it is what the **module** touches, not what the test file mocks: **8 of 864 lines** reference `self.api.`, across three functions. Everything else — history, pruning, health application, repair sync — runs over a payload that has already arrived.
+- **That file was then trimmed back.** It had grown twelve lines of reasoning that now lives in `mutation_covered_not_covered.md`, and part of it was **disproved by the run it was written for** (see Notes). It now carries the format rules and a pointer.
+
+### Added — documentation
+
+- **`.notes/test_pytest_issues/mutation_covered_not_covered.md`** — the per-module record behind the module list: what is included and why, what was **tried and rejected** and why, and candidates with the case for _and against_ each. Every entry carries its three costs — run time, triage burden, expected false-positive share — because a proposal without them is an impression. Records `api.py` as rejected and states that `aioclient_mock` does **not** reopen it.
+- **The same file for the other three projects** at v1.0.0, from their own recorded run data, under cross-project chore **C-023**.
+
+### Notes
+
+- Test count 405 → **414**. 100% line and branch, assertion audit 0 of 336, Test Depth PASSED in coverage-contexts mode, `mypy --strict` clean.
+- **Run result: 232 survivors** — `coordinator.py` 158, `health.py` 32, `diagnostics.py` 27, `parse.py` 15. The three original modules were at 82 and are now 74, so the previous session's tests killed 8.
+- **A prediction in this project's own record was wrong, and is recorded as wrong.** `mutation_covered_not_covered.md` predicted `coordinator.py`'s survivors would concentrate in the three functions touching the mocked API. They did not: those account for 65 of 158, and the largest single group is **`__init__` at 31**, which touches nothing mocked. The inference was also backwards — sampling shows those are `self.version = None`-style **killable gaps**, not mocked-boundary noise, so the module is _more_ productive than estimated. `huawei_router_5g` saw the same construction-heavy pattern.
+- **Ten hand mutations verified**, each restored by file copy and checksum. `mutmut` was **not** re-run: the documented cadence is exactly twice per phase, and the second run is a separate decision.
+- One equivalent proved and recorded: `get(CONF_KNOWN_SSIDS, "XXXX")` cannot be distinguished from the `""` default, since neither matches any network — while the sibling `None` mutant **is** killed. Two gaps recorded rather than closed: the same default on the failed-fetch path at `coordinator.py:357`, and the remaining `__init__` survivors for attributes nothing else reads.
+
 ## [2.0.2-dev10] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned
 
 Executed `about_notes_review.md` audit across all entity descriptions in `custom_components/wifi_ssid_monitor/`. Cleaned up entity `about:` attribute notes displayed to end users in Home Assistant UI modals per `doc_style.md` and `dev_standards.md` §14, and re-synchronized documentation.
 
 ### Changed — Entity About Descriptions
 
-- **`number.py` (`scan_interval`):** Pruned historical migration commentary (*" — it is no longer in the Configure dialog."*). Note now reads cleanly: `"How often a scheduled scan runs."`
-- **`sensor.py` (`strongest_unknown_signal`):** Pruned retired sensor reference (*" Replaces the old dBm 'RSSI' sensor."*). Note now reads: `"Signal quality of the closest unknown network, 0-100%. Higher is closer."`
+- **`number.py` (`scan_interval`):** Pruned historical migration commentary (_" — it is no longer in the Configure dialog."_). Note now reads cleanly: `"How often a scheduled scan runs."`
+- **`sensor.py` (`strongest_unknown_signal`):** Pruned retired sensor reference (_" Replaces the old dBm 'RSSI' sensor."_). Note now reads: `"Signal quality of the closest unknown network, 0-100%. Higher is closer."`
 - **`switch.py` (`stop_polling`):** Adopted canonical cross-project wording registered in `about_notes_alignment.md` for `system_pause_polling`, trimming developer-level architectural comparison with Home Assistant's internal system options. Note now reads: `"Temporarily suspends background polling without disabling the integration. Entities hold their last values rather than going unavailable, and manual refresh actions still reach the device."`
 
 ### Changed — Documentation

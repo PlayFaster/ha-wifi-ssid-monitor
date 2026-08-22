@@ -283,6 +283,45 @@ def test_every_check_has_a_firing_fixture():
         )
 
 
+def test_every_finding_sets_a_valid_severity():
+    """No check may publish a severity outside the Section 19 vocabulary.
+
+    Written because a mutation setting `severity=None` on `check_signal_unit_flip`
+    **survived** the 2026-08-06 run: every test asserted the severity of the check
+    it was written for, so nothing noticed when one check stopped setting one.
+    Severity is what the health sensor publishes and what user automations
+    compare against, and `worst_severity` looks the value up in `_SEVERITY_RANK`
+    — a `None` reaching it is a `KeyError` inside a poll, not a wrong string.
+
+    Sweeps `CHECKS` rather than a list, so a check added later is covered without
+    anyone remembering. `unknown` is deliberately excluded: it is the
+    never-reported state, not something a firing check may claim.
+    """
+    from custom_components.wifi_ssid_monitor.health import CHECKS
+
+    # The **published strings**, not the constants. Asserting
+    # `{SEVERITY_OK, ...}` compares the code against itself: renaming a constant
+    # renames both sides and the sweep still passes, while every user automation
+    # matching on `severity` breaks. Section 19 fixes this vocabulary, so it is
+    # spelled out here.
+    allowed = {"ok", "degraded", "warning", "error"}
+    assert {
+        SEVERITY_OK,
+        SEVERITY_DEGRADED,
+        SEVERITY_WARNING,
+        SEVERITY_ERROR,
+    } == allowed, "a severity constant no longer carries its published string"
+
+    for check in CHECKS:
+        finding = check(_FIRING_FACTS[check.__name__])
+        assert finding is not None
+        assert finding.severity in allowed, (
+            f"{check.__name__} published severity {finding.severity!r}, which is "
+            f"not one of {sorted(allowed)}. Section 19 fixes this vocabulary and "
+            f"user automations compare against it."
+        )
+
+
 def test_every_finding_is_classified_exactly_once():
     """Each key a check can produce is either drift or a capability, never both.
 
