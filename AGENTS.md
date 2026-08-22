@@ -89,19 +89,19 @@ Shared conventions (ruff/mypy strictness, `PARALLEL_UPDATES`, `translation_key`,
 - **There is not a single `type: ignore` in this project** — zero in `custom_components/`, zero in `tests/`. Strict mypy passes without suppressions, so adding one is a signal that something is wrong with the annotation rather than with the stubs. Justify it in the commit if you add one.
 - The `.comp/` directory contains unrelated scratch/reference files; ignore it.
 - `quality_scale.yaml` tracks compliance with HA Integration Quality Scale (currently Platinum level).
-- **Mutation testing is scoped by `.validate/mutmut_modules.txt`** — currently `parse.py`, `diagnostics.py`, `health.py`. Those three were chosen because their tests exercise real code; `config_flow.py` and `__init__.py` were tried and rejected because their tests mock the thing being mutated, so every mutation of a call into that mock survives and none of them is a findable defect. Run it with the **Tests: Mutation Check** task, or on one function via `devcon_coverage` STEP 3c. Not part of `Validate All` — survivors need judging, not counting. Background: [`.shared/info/test_better_docs/mutation_testing_setup.md`](.shared/info/test_better_docs/mutation_testing_setup.md).
+- **Mutation testing is scoped by `.validate/mutmut_modules.txt`** — currently `parse.py`, `diagnostics.py`, `health.py`. Those three were chosen because their tests exercise real code; `config_flow.py` and `__init__.py` were tried and rejected because their tests mock the thing being mutated, so every mutation of a call into that mock survives and none of them is a findable defect. Run it with the **Tests: Mutation Check** task, or on one function per [`.shared/info/test_better_docs/mutation_testing_setup.md`](.shared/info/test_better_docs/mutation_testing_setup.md) §6.1. Not part of `Validate All` — survivors need judging, not counting. Background: [`.shared/info/test_better_docs/mutation_testing_setup.md`](.shared/info/test_better_docs/mutation_testing_setup.md).
 - **`SLF001` and `RET504` are exempted for `tests/**`, only**. This comes from the **synced** file `pyproject.toml`, do not edit that file, see [shared conventions → Synced Files](.shared/dev_std/agent_conventions.md). Tests must reach private state (asserting on`\_unrecorded_attributes`, driving `coordinator.\_async_update_data()`), so forbidding it would forbid the tests the standards require. Production code is not exempt: a genuine need there gets a `# ruff: noqa` at the site.
 
 ## Before you write a test for new behaviour
 
-Four questions, because the six categories in `testing_deeper_lev1_review.md` are each scoped to one function, and the defects that survive 100% branch coverage are not. All four are drawn from real findings on this project.
+Four questions, because the first six of the ten analysis categories are each scoped to one function and the defects that survive 100% branch coverage are not. All four are drawn from real findings on this project.
 
 - **Does it accumulate?** Anything needing N consecutive cycles — a strike budget, a drift counter — must be driven through N real polls. And ask the killer question: **after the first differing cycle, does the comparison still differ?** If the code adopts the new value, the finding can never confirm. That made one of three repair issues unraisable in every release.
 - **Does it need cleaning up?** For everything created, prove it is destroyed — across **reload and restart**, not only entry removal. Anything tracked in per-instance state that writes to a registry outliving the instance is the shape to watch.
 - **Can the outcome actually happen?** Every declared finding, repair key and enum value needs one test that produces it **end to end**, not by constructing the object by hand. `Tests: Depth Check` sweeps this.
 - **Is the value published?** Assert the string a user template compares against, and prove its translation exists — not just the internal constant.
 
-Long form, with what-to-look-for lists: `.shared/prompts/testing_deeper_lev1_review.md` categories **SEQ / LIFE / REACH / PUB**.
+Long form, all ten categories: [`.shared/dev_std/testing_when_writing.md`](.shared/dev_std/testing_when_writing.md) — these four are **SEQ / LIFE / REACH / PUB**.
 
 ## Tests that will stop you, and why they exist
 

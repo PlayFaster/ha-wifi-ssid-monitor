@@ -30,6 +30,7 @@ from custom_components.wifi_ssid_monitor.const import (
 )
 from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
 from custom_components.wifi_ssid_monitor.health import (
+    SEVERITY_DEGRADED,
     SEVERITY_ERROR,
     SEVERITY_OK,
     SEVERITY_UNKNOWN,
@@ -2117,3 +2118,233 @@ async def test_a_payload_with_no_accesspoints_key_confirms_as_drift(
     # and `Tests: Depth Check` reads this assertion as the evidence that
     # `payload_no_ap_list` is reachable at all.
     assert "payload_no_ap_list" in coordinator._drift_strikes
+
+
+# ---------------------------------------------------------------------------
+# The rest of the declared outcomes, driven the same way
+# ---------------------------------------------------------------------------
+#
+# One test per remaining key in `health.CHECKS`. Each drives the real
+# `WifiScanAPI` over `aioclient_mock`, so the payload is the input and every
+# derived field — `band`, `signal_pct`, `mac`, `last_response_had_ap_key` — is
+# computed by `parse.py` rather than supplied by the fixture.
+#
+# Each asserts **the key of the check that fired**, not merely that the
+# snapshot is unhealthy. Several of these checks can produce the same severity
+# from the same payload, so a severity assertion would pass on the wrong one,
+# and `Tests: Depth Check` reads the key as the evidence the outcome is
+# reachable at all.
+
+
+def _ap(ssid, *, mac="AA:BB:CC:00:00:01", signal=80, frequency=FREQ_5, **extra):
+    """One raw Supervisor access point. Omit a field by passing it as None."""
+    raw = {
+        "mac": mac,
+        "ssid": ssid,
+        "signal": signal,
+        "frequency": frequency,
+        "mode": "infrastructure",
+    }
+    raw.update(extra)
+    return {k: v for k, v in raw.items() if v is not None}
+
+
+def _payload(*aps):
+    return {"data": {"accesspoints": list(aps)}}
+
+
+async def _settle(coordinator, aioclient_mock, payload, cycles):
+    """Serve `payload` for `cycles` polls, carrying `data` forward each time.
+
+    The `DataUpdateCoordinator` wrapper is not in play when `_async_update_data`
+    is called directly, so `coordinator.data` has to be assigned here or every
+    cycle takes the cold-start path and nothing ever accumulates.
+    """
+    for _ in range(cycles):
+        _serve(aioclient_mock, payload)
+        coordinator.data = await coordinator._async_update_data()
+
+
+_HEALTHY = _payload(
+    _ap("MyNetwork1", mac="AA:BB:CC:00:00:01"),
+    _ap("Neighbour", mac="AA:BB:CC:00:00:02"),
+    _ap("Cafe", mac="AA:BB:CC:00:00:03"),
+)
+
+
+@pytest.mark.asyncio
+async def test_a_field_missing_from_every_network_confirms_as_drift(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`payload_field_missing` — the Supervisor stops sending `mac` at all.
+
+    Driven end to end, so `mac` is absent from the wire and `parse.py` produces
+    the `None` the check counts. A `ScanFacts` built by hand with
+    `{"mac": None}` proves the arithmetic and not that any payload can cause it.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(
+            coordinator, aioclient_mock, _HEALTHY, HEALTH_STARTUP_GRACE_SCANS + 1
+        )
+        assert coordinator.health_snapshot["severity"] == SEVERITY_OK
+
+        # Every access point loses `mac`. 3 of 3 is above the 0.9 majority.
+        gone = _payload(
+            _ap("MyNetwork1", mac=None),
+            _ap("Neighbour", mac=None),
+            _ap("Cafe", mac=None),
+        )
+        await _settle(coordinator, aioclient_mock, gone, HEALTH_DRIFT_STRIKE_LIMIT)
+
+    snapshot = coordinator.health_snapshot
+    assert "payload_field_missing" in coordinator._drift_strikes, snapshot
+    assert snapshot["drift"], snapshot
+    assert any("mac" in issue for issue in snapshot["issues"]), snapshot
+
+
+@pytest.mark.asyncio
+async def test_a_field_missing_from_some_networks_confirms_as_drift(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`payload_field_partial` — one network of three stops reporting `signal`.
+
+    The partial and total cases are separate findings with separate messages,
+    and only the fraction tells them apart, so this pins the boundary from
+    below: 1 of 3 is 0.33, under the 0.9 majority.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(
+            coordinator, aioclient_mock, _HEALTHY, HEALTH_STARTUP_GRACE_SCANS + 1
+        )
+
+        partial = _payload(
+            _ap("MyNetwork1", mac="AA:BB:CC:00:00:01", signal=None),
+            _ap("Neighbour", mac="AA:BB:CC:00:00:02"),
+            _ap("Cafe", mac="AA:BB:CC:00:00:03"),
+        )
+        await _settle(coordinator, aioclient_mock, partial, HEALTH_DRIFT_STRIKE_LIMIT)
+
+    snapshot = coordinator.health_snapshot
+    assert "payload_field_partial" in coordinator._drift_strikes, snapshot
+    assert "payload_field_missing" not in coordinator._drift_strikes, (
+        "1 of 3 is under the majority; the total-absence finding must not fire"
+    )
+    assert any("signal_pct" in issue for issue in snapshot["issues"]), snapshot
+
+
+@pytest.mark.asyncio
+async def test_an_unresolvable_frequency_on_some_networks_confirms_as_drift(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`band_unresolved_some` — the signature of a frequency-format change.
+
+    `band` is derived by `parse.py` from `frequency`; nothing on the wire
+    carries it. Driving the real seam is the only way this test can fail if
+    `frequency_to_channel` stops returning a band.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(
+            coordinator, aioclient_mock, _HEALTHY, HEALTH_STARTUP_GRACE_SCANS + 1
+        )
+
+        # One of three reports a frequency in no known band.
+        odd = _payload(
+            _ap("MyNetwork1", mac="AA:BB:CC:00:00:01", frequency=9999),
+            _ap("Neighbour", mac="AA:BB:CC:00:00:02"),
+            _ap("Cafe", mac="AA:BB:CC:00:00:03"),
+        )
+        await _settle(coordinator, aioclient_mock, odd, HEALTH_DRIFT_STRIKE_LIMIT)
+
+    snapshot = coordinator.health_snapshot
+    assert "band_unresolved_some" in coordinator._drift_strikes, snapshot
+    assert "band_unresolved_all" not in coordinator._drift_strikes, (
+        "1 of 3 is under the majority; the all-networks finding must not fire"
+    )
+
+
+@pytest.mark.asyncio
+async def test_every_established_known_network_vanishing_is_reported(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`no_known_networks` — the canary, and it needs real history.
+
+    `established_known` comes from the visit-count history, so this cannot be
+    reached without driving at least `CANARY_MIN_VISITS` polls that actually
+    record visits. That is the whole reason it was never driven end to end.
+
+    Note the second budget: `_apply_health` applies `HEALTH_DRIFT_STRIKE_LIMIT`
+    to **every** finding, capability ones included, despite the constant's
+    name. So this needs `CANARY_MIN_VISITS` polls to establish the history and
+    a further three consecutive polls to confirm.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+
+        # Establish MyNetwork1 as usually-visible.
+        await _settle(coordinator, aioclient_mock, _HEALTHY, CANARY_MIN_VISITS + 1)
+        assert coordinator.established_known_keys(["MyNetwork1"]) == {"MyNetwork1"}
+
+        # It disappears, but the scan is not empty — neighbours are still there.
+        without = _payload(
+            _ap("Neighbour", mac="AA:BB:CC:00:00:02"),
+            _ap("Cafe", mac="AA:BB:CC:00:00:03"),
+        )
+        await _settle(coordinator, aioclient_mock, without, HEALTH_DRIFT_STRIKE_LIMIT)
+
+    snapshot = coordinator.health_snapshot
+    assert "no_known_networks" in snapshot["degraded_capabilities"], snapshot
+    assert snapshot["severity"] == SEVERITY_DEGRADED, snapshot
+    assert snapshot["problem"] is True, snapshot
+
+
+@pytest.mark.asyncio
+async def test_a_scan_returning_nothing_is_reported(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`empty_scan` — gated on history, so a genuinely quiet place is safe.
+
+    Distinct from the canary above: that one fires when known networks vanish
+    from a scan that still found something. This one needs `total_aps == 0`,
+    which is a different payload and a different message. Both confirm here,
+    which is correct — an empty scan is also a scan with no known networks in
+    it — so the assertion names this one specifically.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(coordinator, aioclient_mock, _HEALTHY, CANARY_MIN_VISITS + 1)
+
+        # A 200 carrying an empty list, not a missing one — that is drift and a
+        # different finding entirely.
+        await _settle(
+            coordinator, aioclient_mock, _payload(), HEALTH_DRIFT_STRIKE_LIMIT
+        )
+
+    snapshot = coordinator.health_snapshot
+    assert "empty_scan" in snapshot["degraded_capabilities"], snapshot
+    assert any("no networks at all" in issue for issue in snapshot["issues"]), snapshot
+    assert "payload_no_ap_list" not in coordinator._drift_strikes, (
+        "an empty list is not a missing list"
+    )

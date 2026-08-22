@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev9\] - 2026-08-22 - Depth findings closed; the coverage-context trap](#202-dev9---2026-08-22---depth-findings-closed-the-coverage-context-trap)
   - [\[2.0.2-dev8\] - 2026-08-22 - Test depth check; the real-transport test pattern](#202-dev8---2026-08-22---test-depth-check-the-real-transport-test-pattern)
   - [\[2.0.2-dev7\] - 2026-08-22 - Three health defects found by the fault drill](#202-dev7---2026-08-22---three-health-defects-found-by-the-fault-drill)
   - [\[2.0.2-dev6\] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill](#202-dev6---2026-08-21---mock-supervisor-rebuilt-against-real-hardware-repair-text-sweep-fault-drill)
@@ -102,6 +103,33 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.2-dev9] - 2026-08-22 - Depth findings closed; the coverage-context trap
+
+`Tests: Depth Check` now reports **PASSED** here — 10 of 10 declared outcomes driven, no stubbed publishes, no stubbed seams, no undriven gates. First project through the checklist, and the worked example for the other three (chore **C-022**). No source change: every mutation below was restored and checksum-verified.
+
+### Added — tests
+
+- **Five REACH tests** in `tests/test_coordinator.py`, one per remaining outcome in `health.CHECKS`: `payload_field_missing`, `payload_field_partial`, `band_unresolved_some`, `no_known_networks`, `empty_scan`. Each drives the real `WifiScanAPI` over `aioclient_mock`, so the payload is the input and `mac`, `signal_pct` and `band` are **derived by `parse.py`** rather than supplied. Each asserts the key of the check that fired, not the severity — several of these produce the same severity from the same payload, so a severity assertion would pass on the wrong one.
+- **Six tests driving the two config-flow helpers for real**, replacing two that patched `WifiScanAPI`: the `wifi`/`wireless` interface filter, the raise on a bad status, the swallow that turns it into an empty picker, the missing-token path, and both sides of `_validate_input`. Plus **one full user flow with neither helper patched**, proving the seam is reachable through the flow.
+- **`tests/test_depth_allowlist.txt`** — two SEAM entries covering the flow-branch patches in `test_config_flow.py`, with the reason recorded. The helpers themselves are driven for real in the same file, which is what makes it an exemption rather than a hole.
+
+### Fixed — tests
+
+- **`_validate_input` was being called with a dict where the flow passes a string.** `test_validate_input_helper` passed `{CONF_INTERFACE: "wlan0"}` and passed, because the patched `WifiScanAPI` never built a URL from it. The replacement asserts the chosen interface reaches the wire — verified to fail when the interface is hard-coded.
+- **A test asserting nothing.** The first version of `test_validate_input_accepts_a_real_response` relied on "it does not raise". The assertion audit caught it; it now asserts the request count and the URL.
+
+### Notes
+
+- Test count 394 → **404**. 100% line and branch, assertion audit 0 of 326, `mypy --strict` clean.
+- **Nine mutations verified**, each restored by file copy and confirmed by checksum: the five health checks made unreachable one at a time; `parse.py` no longer deriving `band` (which only the real-seam test catches); dropping `"wireless"` from the interface filter — the Raspberry Pi regression; deleting the bad-status raise in `get_interfaces`; and removing the `except WifiScanError` swallow in `_get_wifi_interfaces`.
+- **`_apply_health` applies `HEALTH_DRIFT_STRIKE_LIMIT` to every finding, capability ones included**, despite the constant's name. `no_known_networks` and `empty_scan` need `CANARY_MIN_VISITS` polls to establish the history **and** three further consecutive polls to confirm. Recorded in the tests, because the name says otherwise.
+- Dropping the bad-status raise in `get_interfaces` survived the first mutation attempt: a 500 leaves the payload empty, so the helper returns `[]` either way. The raise is now asserted against the API object directly, where the distinction is visible. Without it, a Supervisor outage would reach the user as "this machine has no WiFi interfaces".
+
+### Changed — tooling
+
+- **`Pytest: Check Test Coverage` now sets `COVERAGE_CORE=ctrace`** (workbench source, synced to all four). `--cov-context=test` is **silently useless without it** on Python 3.12+: coverage's default `sys.monitoring` core does not support dynamic contexts, so once a line has been seen it stops being monitored and keeps whichever test touched it first. Measured here — 404 tests, 123 contexts recorded, no line carrying more than two — and the depth check reported **seven driven outcomes as never driven**, one of them with a test driving it through a real HTTP seam. If you run pytest by hand, set it.
+- **`check_test_depth.py`** gained three fixes and two sweeps, all in the workbench: it refuses context data that looks gutted rather than reporting it; it resolves module-level test helpers, so a test driving the poll through `_settle()` is no longer read as driving nothing; **SEQ** reports an accumulation gate no test drives far enough; **HEAL** reports a check that overwrites the value it just compared — the `signal_format_changed` shape, which it reproduces on this project's pre-fix `coordinator.py`.
 
 ## [2.0.2-dev8] - 2026-08-22 - Test depth check; the real-transport test pattern
 
