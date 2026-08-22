@@ -175,11 +175,6 @@ This integration provides its **18 entities** organized under a single **WiFi SS
 &nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
 </summary><br>
 
-| Device / Category | Entities | Entity Types | Key Metrics | Disabled by Default |
-| :-- | --: | :-- | :-- | :-- |
-| 📡 **WiFi SSID Monitor** | 18 | 7 Sensors, 3 Binary Sensors, 2 Numbers, 5 Switches, 1 Button | Total/Unknown SSID counts, New 24h, Signal Quality (0–100%), Interface, Last Updated, New Network/Proximity alerts, Scan Interval, Hidden/Band toggles, Scan Now | 0 |
-| 🛠️ **Actions** | 6 | — | Add, remove, or replace known/denylist SSIDs; query live networks (`get_networks`); trigger scan; clear history | — |
-
 | Category / Entity Type | Enabled / Total | Description & Key Metrics |
 | :-- | :-: | :-- |
 | 📊 **Sensors** | 7 / 7 | Total Count, Unknown Count, New 24h, Interface, Last Updated, Strongest Unknown SSID & Signal |
@@ -1952,7 +1947,6 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 ## 🔀 Other Options
 
 - **Ubiquiti UniFi Networks**: If you run a Ubiquiti UniFi network anchored by a UDM Gateway and UniFi Access Points, see **[UniFi Network Monitor](https://github.com/PlayFaster/ha-unifi-network-monitor)** (`ha-unifi-network-monitor`) which provides distributed Rogue Access Point detection across all of your APs simultaneously.
-
 
 ---
 

@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.0.2] - 2026-08-22 - Release - Integration Health Severity Standardization & Repair Fixes
+
+### Summary
+
+Maintenance and reliability update standardizing the **Integration Health** sensor's `severity` attribute to consistent status values, fixing three edge-case defects in health and Repair issue handling, and preventing raw WiFi access point credentials from appearing in debug logs.
+
+If you have automations that inspect `state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'severity')`, see the **Breaking** section below for the standardized vocabulary.
+
+### Breaking
+
+- **Integration Health `severity` attribute standardized:** The `severity` attribute on `binary_sensor.wifi_ssid_monitor_integration_health` now uses standard status values: `ok`, `degraded`, `warning`, `error`, and `unknown` (during initial startup).
+  - A healthy integration now explicitly reports `ok` instead of `None` (which previously rendered as "Unknown" in Home Assistant).
+  - The previous informal strings `minor` and `serious` are replaced: operational faults report `error`, drift warnings report `warning`, and degraded scans report `degraded`.
+  - Update any template or automation matching on `severity`.
+
+### Fixed
+
+- **Persistent Repair issue cleanup:** Repair notifications now clear automatically when the underlying issue resolves across Home Assistant restarts or integration reloads, rather than remaining stuck in the Repairs panel.
+- **Immediate missing-adapter reporting:** A missing or detached WiFi interface now immediately reports `error` outage status on the health sensor instead of delaying behind drift budgets while reporting `ok`.
+- **Signal format change detection:** Corrected an issue where a signal unit change from Supervisor was cleared after one poll instead of being held to raise a Repair notification.
+- **Privacy in debug logs:** Debug logs no longer print raw neighboring SSIDs and BSSIDs verbatim, logging payload field names and discarded record counts instead.
+
+### Changed
+
+- **Entity information notes cleaned up:** Pruned outdated migration notes from the `about` attributes on Scan Interval, Strongest Unknown Signal, and Pause Polling entities.
+
+### Under the hood
+
+- Expanded the test suite with end-to-end outcome reachability verification and mutation testing coverage.
+
+---
+
 ## [2.0.1] - 2026-08-06 - Release
 
 ### Summary
@@ -32,25 +64,21 @@ Maintenance update mostly focused on internal test coverage expansion, with some
 
 ### Summary
 
-A major update, with significant capability improvements and fixes BUT also some **breaking changes** unfortunately. The integration was originally developed taking SSID signal as RSSI in dBm [-100 to -30], but this number is actually Signal Quality in % [0 to 100]. This meant that the proximity threshold checking was not working as expected.
+Major release correcting signal calculations to a **0–100% quality scale**, individualizing hidden network identification, and introducing an **Integration Health** sensor alongside device-page controls and a `get_networks` action.
 
-**THE FIX**: SSID Signal is now as a **0–100% quality figure** (not dBm), and Proximity Signal Threshold is also % to match.
+- **Individual hidden network labels:** Cloaked networks receive a distinct label using their BSSID suffix to distinguish recurring and new hidden networks.
 
-**NEW**: Hidden networks are now identified individually, BSSID is captured and matchable, an **Integration Health** sensor catches silent errors, and several set-up controls move to became control entities. A new `get_networks` action allows current SSID status to be captured and used in automations and scripts.
+- **Enhanced identification:** Hardware addresses (BSSIDs) are matchable in known and denylist filters, spoofed names are flagged via `ssid_anomaly`, and a New Networks (24h) sensor tracks recent arrivals.
 
-- Hidden Network Labelled - Hidden networks now get a name label, using the hidden BSSID, so you can distinguish between always on, repeat and new hidden networks
+- **Integration Health monitoring:** Stays available during outages to report missing adapters, payload format shifts, or dropped networks, raising Repair notifications for actionable issues.
 
-- Sharper identification - hardware addresses (BSSIDs) usable in your known and blocked lists, spoofed-looking names flagged, and a New Networks (24h) sensor for what's appeared recently.
+- **Device page controls:** Scan interval, band switches (2.4/5/6 GHz), hidden-network inclusion, proximity threshold, and Pause Polling are now entities configurable directly on dashboards or via automations.
 
-- Integration Health sensor - stays visible even when everything else goes unavailable, and tells you when a WiFi adapter has disappeared, a Home Assistant update changed the data underneath, or all your known networks vanished at once. Raises a Repair notification where there's something you can act on.
-
-- Controls on the device page - scan interval, per-band 2.4/5/6 GHz switches, hidden-network handling, proximity threshold and a new Pause Polling switch, all usable from a dashboard or an automation instead of the settings dialog.
-
-- Get Networks action and New Network event - ask for exactly the networks you want (by band, signal, keyword, known or unknown) and get data automations can use; the event fires once per genuinely new arrival and remembers across restarts.
+- **Actions and events:** The `get_networks` response action returns filtered network data for scripts, and the `wifi_ssid_monitor_new_network` bus event alerts on new networks across restarts.
 
 ### Breaking
 
-> **Upgrading from 1.6.x to 2.0.0 or above - breaking changes.** This release corrects long-standing signal-unit and band-filter bugs, which required renaming several things. There are also some moves. This was not done lightly, but the previous set-up was incorrect.
+> **Upgrading from 1.6.x to 2.0.0 or above — breaking changes.** This release aligns signal units and list-management services with standard Home Assistant patterns, requiring the following entity and service updates:
 >
 > 1. **`sensor.wifi_ssid_monitor_strongest_unknown_rssi` is removed**, replaced by `sensor.wifi_ssid_monitor_strongest_unknown_signal` (0–100%, not dBm). The old entity becomes unavailable - delete it when convenient; its long-term statistics are kept (delete in Tools > Statistics). Update any dashboard or automation referencing it.
 > 2. **Signal is now a 0–100% quality figure** everywhere. Higher means closer. The Proximity Alert now compares on this scale, and its threshold moved to the **Proximity Signal Threshold** number entity (default 80%). A stored dBm threshold is migrated automatically.
@@ -60,9 +88,9 @@ A major update, with significant capability improvements and fixes BUT also some
 ### Added
 
 - **Integration Health binary sensor** - a `problem` sensor that stays available even during an outage, reporting an unreachable Supervisor, a changed payload shape or unit, an unresolved band, or all known networks vanishing at once. Backed by `interface_missing`, `signal_format_changed`, and `supervisor_unavailable` repair issues.
-- **`about` notes**: All sensor entities now have an "about:" attribute (visible in details) that explains the sensor. This information is set as `unrecorded` which prevents it being written to the Home Assistant database and taking up unnecessary space.
-- **Pause Polling switch** - halt scheduled scanning; explicit actions still fetch while paused.
-- **6 GHz support** and per-band **Show 2.4 / 5 / 6 GHz** switches replacing the single-choice band filter. Obviously this only has an impact if your Home Assistant system WiFi is 6GHz capable.
+- **Entity `about` notes:** Sensor entities provide unrecorded `about` attributes explaining their function without consuming database storage.
+- **Pause Polling switch:** Halt scheduled scanning; explicit actions still fetch while paused.
+- **6 GHz support:** Added per-band **Show 2.4 / 5 / 6 GHz** switches replacing the single-choice band filter.
 - **Individual hidden-network naming** - cloaked networks are identified as `Hidden-<last 4 of BSSID>` instead of collapsing into one `[hidden]` entry.
 - **`get_networks` action** - a response action returning the current networks filtered by scope, band, signal and keyword; reads live scan data, so it works when the sensors are unavailable or their attribute list is capped.
 - **New Networks (24h) sensor** and the **`wifi_ssid_monitor_new_network` bus event** - fires once per genuinely-new network, survives restarts, baselined on first scan and rate-limited.
@@ -75,13 +103,13 @@ A major update, with significant capability improvements and fixes BUT also some
 ### Changed
 
 - **Signal is a 0–100% quality figure throughout** - sensors, the proximity threshold, and the action filters all use the same scale.
-- **Channel / Band Correct**: The channel and band detail (Strongest Unknown SSID - Networks attribute) was being misreported on many systems (conflating frequency and channel).
+- **Channel and band reporting:** Corrected channel derivation on the `networks` attribute of Strongest Unknown SSID to prevent frequency and channel conflation.
 - **Per-network detail relocated** onto **Strongest Unknown SSID** as a `networks` list capped at the 25 strongest (with a `networks_truncated` flag), and excluded from the recorder along with the other high-churn attributes.
 - **Strongest Unknown SSID reads `None Detected`** when nothing unknown is in range, instead of `unknown`.
 - **History writes are coalesced** rather than written on every scan, with a hard entry cap bounding growth in SSID-heavy locations.
 - **First-run setup failures raise `ConfigEntryNotReady`**, so Home Assistant shows its native retry behavior instead of marking the entry set up. The 3-strike hold still applies once running.
 - **Documentation overhauled** - the README gained a detection deep-dive, an entity/action reference, architecture and self-diagnosis sections, and a restructured FAQ.
-- **All Attributes `unrecorded`**: All attributes of sensor entities are now written as `unrecorded`, which prevents them being written to the Home Assistant database and taking up unnecessary space.
+- **Recorder exclusions:** All entity attributes are marked `unrecorded` to prevent unnecessary recorder database growth.
 
 ### Fixed
 
@@ -101,7 +129,7 @@ A major update, with significant capability improvements and fixes BUT also some
 
 ### Summary
 
-- **Mostly Behind the Scenes**: Most of the changes in v1.6.1 are behind-the-scenes or under-the-hood: a lot of improvements in the CI Validation and Testing system; some documentation updates. No new features , but some improvements for more predictable performance.
+- **Maintenance & Testing:** Internal CI validation, automated testing infrastructure, and documentation updates for consistent runtime performance.
 
 ### Changed
 
@@ -185,7 +213,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 ### Changed
 
 - **Custom User Naming**: Users can now define a custom prefix (e.g., "GuestScanner") for all devices and entities during setup or via the Options flow.
-- **Startup Safe**: Changed to try to ensure that integration startup will not block Home Assistant, e.g. if WiFi is unavailable etc.
+- **Non-blocking startup:** Integration startup handles unavailable WiFi adapters without blocking Home Assistant initialization.
 - **Enhanced Resilience**: The integration now holds last known values for up to 3 failures, preventing sensors from showing as "Unavailable" during brief network or Supervisor API hiccups.
 
 ## [1.4.0] - 2026-04-05 - WiFi Interface Auto-Discovery
@@ -202,7 +230,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ### Changed
 
-- **Entity Naming**: Changed the default entity names to not have the WiFi interface name embedded, resulting in slightly shorter, more predictable names (good for example automations, etc.). If a second instance was to be added, it would include the WiFi interface in the entity names.
+- **Entity naming:** Default entity names omit the interface prefix for cleaner names on single-adapter setups; multi-instance setups append the interface name automatically.
 - **Logging**: Improved exception logging so that if there is a problem, it should appear in the Home Assistant log.
 
 ## [1.3.1] - 2026-04-02 - Structured Network Data Model
@@ -274,6 +302,7 @@ Entry structure — headers, titles, category headings and the split between thi
 ---
 
 - [Changelog: WiFi SSID Monitor](#changelog-wifi-ssid-monitor)
+  - [\[2.0.2\] - 2026-08-22 - Release - Integration Health Severity Standardization \& Repair Fixes](#202---2026-08-22---release---integration-health-severity-standardization--repair-fixes)
   - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
   - [\[2.0.0\] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames](#200---2026-07-25---signal-as-a-percentage-health-sensor-breaking-renames)
   - [\[1.6.1\] - 2026-07-04 - Release - Reconfigure Shows All Settings; Polling Toggle](#161---2026-07-04---release---reconfigure-shows-all-settings-polling-toggle)
