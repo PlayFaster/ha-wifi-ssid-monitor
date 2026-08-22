@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev12\] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap](#202-dev12---2026-08-22---mutation-cadence-closed-843-kill-the-failed-fetch-gap)
   - [\[2.0.2-dev11\] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list](#202-dev11---2026-08-22---coordinatorpy-enters-mutation-testing-nine-tests-from-the-survivor-list)
   - [\[2.0.2-dev10\] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned](#202-dev10---2026-08-22---about-notes-review-historical-clutter-pruned-pause-polling-aligned)
   - [\[2.0.2-dev9\] - 2026-08-22 - Depth findings closed; the coverage-context trap](#202-dev9---2026-08-22---depth-findings-closed-the-coverage-context-trap)
@@ -105,6 +106,33 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.2-dev12] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap
+
+The verifying run of the documented two-run cadence, one further test, and the write-backs. **No source change.**
+
+### Added — tests
+
+- **`test_a_failed_fetch_survives_an_entry_with_no_known_ssids_option`** (`tests/test_coordinator.py`). `_record_fetch_failure_health` reads `CONF_KNOWN_SSIDS` a second time, at `coordinator.py:357`, and that read sits **outside** the `try` that guards the health computation — so replacing its `""` default with `None` makes `_split_patterns` raise `AttributeError` mid-outage, and the failure path that exists to explain the outage is itself what breaks. Driven on cold start so the strike budget does not short-circuit it. Verified to fail under that mutant.
+  - This closes the gap `[2.0.2-dev11]` recorded rather than fixed: the M8 test drives a **successful** poll and reaches the other read, at line 604.
+
+### Verified — mutation cadence run 2
+
+- **1,307 mutants, 1,102 killed, 205 survived — an 84.3% kill rate.** Survivors 232 → **205**: the ten tests from `recommendations_20260822.md` killed 27, and **every one landed in `coordinator.py`**. `parse.py`, `diagnostics.py` and `health.py` are unchanged at 15, 27 and 32, which is the right answer — every test targeted the coordinator.
+- **`_apply_health` went from 8 survivors to 0**, closing the M1 finding outright. That was the published health-snapshot keys, which three passing checks — depth, coverage and the assertion audit — could not see.
+- Coordinator by function: `__init__` 31 → 26, `_sync_repairs` 10 → 6, `async_flush_stores` 9 → 7, `_async_update_data` 18 → 15, `_process_scan` 25 → 23, `_record_fetch_failure_health` 22 → 20, `_fire_new_network_events` 22 → 21.
+
+### Changed — documentation
+
+- **`.notes/test_pytest_issues/mutation_covered_not_covered.md` → v1.2.0.** Records the generated-mutant total v1.1.0 had flagged as missing, which finally puts a measurement behind the cost model: **0.83 mutants per line, about 2.1 seconds of run time per line, ~55 minutes for the full list.** The ~2 s per line rule carried from a single 2026-08-05 measurement turns out to be right. Adds the run-2 per-function table and the conclusion that `coordinator.py` earned its place.
+- **`.shared/info/test_better_docs/mutation_testing_setup.md` §10** — the `wifi_ssid_monitor` half of the 2026-08-15 sibling chore is closed. `mutants/` now carries `icons.json`, `strings.json` and `translations/` identical to the live component, verified by diff rather than assumed. `unifi_network_monitor` is still open.
+
+### Notes
+
+- Test count 414 → **415**. 100% line and branch, assertion audit 0 of 337, Test Depth PASSED in coverage-contexts mode, `mypy --strict` clean.
+- **The cadence is now complete for this phase** — run 1 for the survivor list, run 2 to verify the fixes together. `mutants/` is retained: it is the cache and the results store, and the next run resumes from it.
+- **A partial result was nearly reported as a final one.** Midway through run 2, `mutmut results` showed 63 survivors — because 879 mutants were still `not checked` and pending mutants are not counted as survived. The check that caught it was reading the **status breakdown** rather than the survivor count alone. Worth remembering: a falling survivor count during a run is not progress, it is incompleteness.
+- For comparison across the family: `zte_router_5g` 96.6%, `huawei_router_5g` ~85.9%. This project now sits with Huawei, and for the same reason — both mutate their coordinator, which is where the unkillable-by-design survivors concentrate.
 
 ## [2.0.2-dev11] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list
 

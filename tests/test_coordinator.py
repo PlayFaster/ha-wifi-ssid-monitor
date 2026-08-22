@@ -2672,3 +2672,37 @@ async def test_a_fetch_that_outlasts_its_budget_fails_the_update(
         await coordinator._async_update_data()
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_a_failed_fetch_survives_an_entry_with_no_known_ssids_option(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The same missing-option default, on the failed-fetch path.
+
+    `_record_fetch_failure_health` reads `CONF_KNOWN_SSIDS` a second time, at
+    `coordinator.py:357`, and that read is **outside** the `try` that guards the
+    health computation. Replacing its `""` default with `None` makes
+    `_split_patterns` raise `AttributeError` mid-outage, so the failure path
+    that exists to explain the outage is itself what breaks.
+
+    `test_a_poll_survives_an_entry_with_no_known_ssids_option` drives a
+    successful poll and reaches the other read, at line 604. This one drives a
+    failure, on cold start so the strike budget does not short-circuit it.
+    """
+    mock_config_entry.add_to_hass(hass)
+    options = dict(mock_config_entry.options)
+    options.pop(CONF_KNOWN_SSIDS)
+    hass.config_entries.async_update_entry(mock_config_entry, options=options)
+
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    coordinator.data = None  # cold start: the failure path runs in full
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("down")
+
+    with pytest.raises((UpdateFailed, ConfigEntryNotReady)):
+        await coordinator._async_update_data()
+
+    # The outage verdict must have been published — an AttributeError here
+    # would leave the snapshot at its cold-start values instead.
+    assert coordinator.health_snapshot["problem"] is True
+    assert coordinator.health_snapshot["severity"] == SEVERITY_ERROR
