@@ -2019,3 +2019,101 @@ async def test_a_repair_raised_before_a_reload_is_still_cleared_after_one(
         "the repair outlived the coordinator that raised it, and nothing left "
         "in the integration can ever delete it"
     )
+
+
+# ---------------------------------------------------------------------------
+# Driving the real HTTP seam — the G-lite pattern
+# ---------------------------------------------------------------------------
+#
+# Every test above builds the coordinator over `mock_wifi_api`, a MagicMock
+# standing in for `WifiScanAPI`. That proves the coordinator handles what the
+# API object returns, and proves nothing about `api.py` or `parse.py`, because
+# neither runs.
+#
+# These drive the same code through `aioclient_mock`, the fixture
+# `pytest-homeassistant-custom-component` provides for exactly this: it
+# intercepts `async_get_clientsession`, so the real `WifiScanAPI` makes a real
+# request and gets a real response object back. No new dependency, and it is
+# the seam Home Assistant's own test suite uses.
+#
+# What that buys, concretely: `last_response_had_ap_key` is computed inside
+# `api.py` from the shape of the payload. The MagicMock fixture sets it by
+# hand, so every test of the drift it feeds has been asserting a value the
+# test itself supplied. Here the payload is the input and the flag is derived,
+# which is the difference between testing the check and testing the system.
+#
+# Pattern, reusable across the family:
+#   1. build the component's real API object over the mocked session
+#   2. register the payload for this cycle
+#   3. drive `_async_update_data()`, assigning `coordinator.data` yourself
+#      because the coordinator wrapper is not in play
+#   4. repeat with a changed payload for as many cycles as the budget needs
+
+_ACCESSPOINTS_URL = "http://supervisor/network/interface/wlan0/accesspoints"
+
+
+def _real_api(hass):
+    """Build the real API object over Home Assistant's mocked session."""
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+    from custom_components.wifi_ssid_monitor.api import WifiScanAPI
+
+    return WifiScanAPI(async_get_clientsession(hass), "wlan0")
+
+
+def _serve(aioclient_mock, payload):
+    """Replace the registered response, so each cycle can differ."""
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(_ACCESSPOINTS_URL, json=payload)
+
+
+@pytest.mark.asyncio
+async def test_a_payload_with_no_accesspoints_key_confirms_as_drift(
+    hass, mock_config_entry, aioclient_mock
+):
+    """A 200 carrying no `accesspoints` list must confirm as drift.
+
+    Driven end to end: the flag this depends on, `last_response_had_ap_key`,
+    is derived by `api.py` from the payload rather than set by the test. The
+    existing coverage of `check_response_shape` hands it a `ScanFacts` with
+    the flag already false, which cannot fail if `api.py` stops setting it.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+
+        good = {
+            "data": {
+                "accesspoints": [
+                    {
+                        "mac": "AA:BB:CC:00:00:01",
+                        "ssid": "Net",
+                        "signal": 80,
+                        "frequency": FREQ_5,
+                        "mode": "infrastructure",
+                    },
+                ]
+            }
+        }
+        for _ in range(HEALTH_STARTUP_GRACE_SCANS + 1):
+            _serve(aioclient_mock, good)
+            coordinator.data = await coordinator._async_update_data()
+        assert coordinator.health_snapshot["severity"] == SEVERITY_OK
+
+        # The contract changes: still a 200, still valid JSON, no list.
+        for _ in range(HEALTH_DRIFT_STRIKE_LIMIT):
+            _serve(aioclient_mock, {"data": {}})
+            coordinator.data = await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["drift"], snapshot
+    assert snapshot["severity"] == "warning"
+    assert any("accesspoints" in issue for issue in snapshot["issues"]), snapshot
+    # Name the check that confirmed, not just "something drifted". Two drift
+    # checks could produce a warning here and the test would not care which —
+    # and `Tests: Depth Check` reads this assertion as the evidence that
+    # `payload_no_ap_list` is reachable at all.
+    assert "payload_no_ap_list" in coordinator._drift_strikes

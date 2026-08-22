@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev8\] - 2026-08-22 - Test depth check; the real-transport test pattern](#202-dev8---2026-08-22---test-depth-check-the-real-transport-test-pattern)
   - [\[2.0.2-dev7\] - 2026-08-22 - Three health defects found by the fault drill](#202-dev7---2026-08-22---three-health-defects-found-by-the-fault-drill)
   - [\[2.0.2-dev6\] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill](#202-dev6---2026-08-21---mock-supervisor-rebuilt-against-real-hardware-repair-text-sweep-fault-drill)
   - [\[2.0.2-dev5\] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes](#202-dev5---2026-08-21---section-19-severity-enum-section-20-logging-fixes)
@@ -101,6 +102,25 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.2-dev8] - 2026-08-22 - Test depth check; the real-transport test pattern
+
+Tooling and one worked test. No source change.
+
+### Added
+
+- **`Tests: Depth Check`** (`check_test_depth.py`, in the workbench so all four projects get it). Two sweeps that read the **test suite** rather than the code it covers, because coverage answers "was this line executed" and neither of these is that question.
+  - **REACH** — every declared health finding and repair key must be produced by a test that drives a real poll. First run here reported **7 of 10 declared outcomes never driven end to end**.
+  - **PUBLISH** — a test file that stubs `async_write_ha_state` must capture, in at least one test, what a publish would have carried. Flagged **per file, not per assignment**: a test asserting an option was persisted may legitimately ignore the publish, and flagging all eleven bare stubs here would have been noise on a project that already has the capture.
+  - Both resolve constants, so a test importing `ISSUE_SUPERVISOR_UNAVAILABLE` counts the same as one writing the literal — a literal-only sweep would have punished the better-written tests.
+- **The real-transport test pattern** — one worked example in `tests/test_coordinator.py`, using `aioclient_mock` from `pytest-homeassistant-custom-component`. It intercepts `async_get_clientsession`, so the real `WifiScanAPI` makes a real request against a payload the test supplies, and `api.py` and `parse.py` both run. **No new dependency.** What it reaches that an object mock cannot: `last_response_had_ap_key` is _derived_ by `api.py` from the response shape, and every existing test of the drift it feeds asserts a flag the fixture set by hand — so those assertions could not fail if `api.py` stopped setting it.
+- **An authoring checklist in `AGENTS.md`** — four questions to ask before writing a test for new behaviour, because the audit taxonomy lives in a prompt used months after the feature ships.
+
+### Notes
+
+- Test count 393 → **394**. 100% line and branch, assertion audit 0 of 316.
+- `dev_standards` §11 gained the rule as Standard Version 1.32.0; cross-project adoption is chore **C-021**, with `huawei_router_5g` flagged as reduced scope — it reaches the network through a library holding its own `requests.Session`.
+- `testing_deeper_lev1_review.md` gained four categories — **SEQ, LIFE, REACH, PUB** — at v1.1.0. The original six are each scoped to one function, which is why three defects survived 390 tests at 100% branch coverage.
 
 ## [2.0.2-dev7] - 2026-08-22 - Three health defects found by the fault drill
 

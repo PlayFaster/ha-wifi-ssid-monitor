@@ -45,11 +45,30 @@ HA = "http://localhost:8123"
 SUPERVISOR = "http://supervisor"
 TOKEN_FILE = pathlib.Path(".notes/ha_restart/token.txt")
 STAMP = pathlib.Path(".notes/fault_drill_last.txt")
+REPORT = pathlib.Path(".reports/fault_drill.txt")
 DOMAIN = "wifi_ssid_monitor"
 
 # Longer than HA's 10-second refresh debounce, or the calls coalesce.
 SCAN_SPACING = 11.0
 MAX_SCANS = 8
+
+_TRANSCRIPT: list[str] = []
+
+
+def print(*args: Any, **kwargs: Any) -> None:  # noqa: A001
+    """Print to the screen and keep a colour-stripped copy for the report.
+
+    A run nobody can read afterwards is the defect `dev_standards` Section 22
+    records against the first hardware script: it printed everything and filed
+    nothing, so no run could be reviewed and a skip left no trace.
+    """
+    import builtins
+    import re
+
+    line = " ".join(str(a) for a in args)
+    _TRANSCRIPT.append(re.sub(r"\x1b\[[0-9;]*m", "", line))
+    builtins.print(line, **kwargs)
+
 
 GREEN, RED, YELLOW, CYAN, OFF = (
     "\033[1;32m",
@@ -74,6 +93,9 @@ class Drill:
         self.max_scans = 4 if quick else MAX_SCANS
         self.failures: list[str] = []
         self.checks = 0
+        # Counted, never written into the strings. Hardcoded step numbers
+        # printed 1 2 3 4 6 6 5 8 the first time the scenarios were reordered.
+        self.step = 0
 
     # ------------------------------------------------------------ plumbing
 
@@ -153,6 +175,11 @@ class Drill:
             issues = msg.get("result", {}).get("issues", [])
             return {i["issue_id"] for i in issues if i.get("domain") == DOMAIN}
 
+    def banner(self, title: str) -> None:
+        """Print the next step heading, numbered by position."""
+        self.step += 1
+        print(f"\n{CYAN}{self.step}. {title}{OFF}")
+
     # ------------------------------------------------------------ assertions
 
     def check(self, ok: bool, label: str, detail: str = "") -> bool:
@@ -211,7 +238,7 @@ class Drill:
 
     async def scenario_interface_missing(self, entity_id: str) -> None:
         """Assert a 400 reports `error`, names the interface, then repairs."""
-        print(f"\n{CYAN}1. Interface gone (400){OFF}")
+        self.banner("Interface gone (400)")
         await self.fault("unknown_interface")
         snap = await self.drive_until(
             entity_id,
@@ -245,7 +272,7 @@ class Drill:
 
     async def scenario_recovery(self, entity_id: str, label: str) -> None:
         """Assert clearing the fault returns to `ok` and drops every repair."""
-        print(f"\n{CYAN}{label}{OFF}")
+        self.banner(label)
         await self.fault("off")
         snap = await self.drive_until(
             entity_id,
@@ -262,7 +289,7 @@ class Drill:
 
     async def scenario_supervisor_down(self, entity_id: str) -> None:
         """Assert a 500 reports `error` without taking the sensor down."""
-        print(f"\n{CYAN}3. Supervisor unreachable (500){OFF}")
+        self.banner("Supervisor unreachable (500)")
         await self.fault("down")
         snap = await self.drive_until(
             entity_id,
@@ -283,7 +310,7 @@ class Drill:
 
     async def scenario_signal_flip(self, entity_id: str) -> None:
         """Assert a unit flip confirms as drift and raises its repair."""
-        print(f"\n{CYAN}5. Signal unit flip to dBm{OFF}")
+        self.banner("Signal unit flip to dBm (held until reload)")
         await self.fault("dbm")
         snap = await self.drive_until(
             entity_id,
@@ -311,7 +338,7 @@ class Drill:
 
     async def scenario_drift_without_a_card(self, entity_id: str) -> None:
         """Drift must warn without raising an actionable repair."""
-        print(f"\n{CYAN}6. Payload drift, no accesspoints key{OFF}")
+        self.banner("Payload drift, no accesspoints key")
         await self.fault("no_ap_key")
         snap = await self.drive_until(
             entity_id,
@@ -346,6 +373,12 @@ class Drill:
             ):
                 pass
         await asyncio.sleep(self.spacing)
+
+
+def _write_report() -> None:
+    """File the transcript from a `finally`, so an aborted run still leaves one."""
+    REPORT.parent.mkdir(parents=True, exist_ok=True)
+    REPORT.write_text("\n".join(_TRANSCRIPT) + "\n", encoding="utf-8")
 
 
 async def main() -> int:
@@ -393,20 +426,21 @@ async def main() -> int:
 
         try:
             await drill.scenario_interface_missing(entity_id)
-            await drill.scenario_recovery(entity_id, "2. Recovery")
+            await drill.scenario_recovery(entity_id, "Recovery")
             await drill.scenario_supervisor_down(entity_id)
-            await drill.scenario_recovery(entity_id, "4. Recovery")
+            await drill.scenario_recovery(entity_id, "Recovery")
             await drill.scenario_drift_without_a_card(entity_id)
-            await drill.scenario_recovery(entity_id, "6. Recovery")
+            await drill.scenario_recovery(entity_id, "Recovery")
             # Last on purpose. This is the only scenario whose finding is held
             # until the entry reloads, so running anything after it inherits
             # its repairs and reports them as leftovers.
             await drill.scenario_signal_flip(entity_id)
-            await drill.scenario_recovery(entity_id, "8. Final state")
+            await drill.scenario_recovery(entity_id, "Final state")
         finally:
             # However this ends, the mock must not be left faulted: the next
             # person would debug the fault instead of their own change.
             await drill.fault("off")
+            _write_report()
 
         took = int(time.time() - started)
         print()
@@ -417,6 +451,8 @@ async def main() -> int:
             )
             for f in drill.failures:
                 print(f"     - {f}")
+            print(f"Report: {REPORT}")
+            _write_report()
             return 1
 
         STAMP.parent.mkdir(parents=True, exist_ok=True)
@@ -432,6 +468,10 @@ async def main() -> int:
         print("Still worth one look, because no API can judge it:")
         print("  - does each Repairs card read like a sentence a user can act on?")
         print("  - does the Integration Health more-info dialog read clearly?")
+        # Written again, last, so the filed report carries the verdict. The
+        # `finally` above covers the aborted run; this covers the normal one.
+        print(f"Report: {REPORT}")
+        _write_report()
         return 0
 
 

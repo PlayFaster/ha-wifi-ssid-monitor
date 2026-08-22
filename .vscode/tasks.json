@@ -392,6 +392,18 @@
       "type": "shell"
     },
     {
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && python3 .workbench/check_test_depth.py; }",
+      "label": "Tests: Depth Check",
+      "detail": "Reads the test suite, not the code. REACH: every declared health finding and repair key must be produced by a test that drives a real poll, not by calling the check with a hand-built snapshot. PUBLISH: a file that stubs async_write_ha_state must capture what one publish would have carried. Report-only.",
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "echo": false
+      },
+      "problemMatcher": [],
+      "type": "shell"
+    },
+    {
       "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && FORCE_COLOR=1 pre-commit run --all-files | tee >(sed -e 's/.*\\r//g' -e 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' -e 's/\\x1b\\][^\\x1b]*\\x1b\\\\//g' -e 's/\\x1b\\][^\\x07]*\\x07//g' -e 's/\\x1b(B//g' > .reports/precommit_all.txt); }",
       "label": "Pre-commit: Fix + Check All",
       "presentation": {
@@ -449,9 +461,9 @@
       "type": "shell"
     },
     {
-      "command": "[ -f .devcontainer/fault_drill.py ] && python3 .devcontainer/fault_drill.py || echo \"[Skipped: no .devcontainer/fault_drill.py in this project]\"",
+      "command": "[ -f .devcontainer/fault_drill.py ] && { mkdir -p .reports && python3 .devcontainer/fault_drill.py; } || echo \"[Skipped: no .devcontainer/fault_drill.py in this project]\"",
       "label": "Mock: Fault Drill",
-      "detail": "Automated. Arms each mock Supervisor fault, drives real scans through the integration's own scan_now action, and asserts Integration Health and Repairs over the HA APIs. Paced by HA's 10-second refresh debounce, so a full run takes a few minutes. Clears the fault however it exits. Not part of Validate All.",
+      "detail": "Automated. Arms each mock Supervisor fault, drives real scans through the integration's own scan_now action, and asserts Integration Health and Repairs over the HA APIs. Paced by HA's 10-second refresh debounce, so a full run takes a few minutes. Clears the fault however it exits. Not part of Validate All. Writes .reports/fault_drill.txt as well as the screen.",
       "presentation": {
         "clear": true,
         "panel": "dedicated",
@@ -496,6 +508,7 @@
         "Sensor: Check Manifest",
         "IQS: Static Check",
         "Tests: Assertion Audit",
+        "Tests: Depth Check",
         "Mock: Fault Drill Staleness",
         "YAML: Lint Project",
         "JSON: Verify All Files",
