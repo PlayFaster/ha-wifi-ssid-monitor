@@ -297,9 +297,9 @@ The following sensors have **no LTS** to avoid unnecessary database growth:
 
 > [!TIP]
 >
-> **Want to remove a sensor from Long Term Statistics anyway?**
+> **Want to add a sensor to Long Term Statistics?**
 >
-> Add a `state_class` override via [Manual Customization](https://www.home-assistant.io/integrations/homeassistant/#manual-customization) in your `configuration.yaml`. For example, to remove Total SSID Count:
+> Add a `state_class` override via [Manual Customization](https://www.home-assistant.io/integrations/homeassistant/#manual-customization) in your `configuration.yaml`. For example, to track Total SSID Count in LTS:
 >
 > ```yaml
 > homeassistant:
@@ -308,13 +308,19 @@ The following sensors have **no LTS** to avoid unnecessary database growth:
 >       state_class: none
 > ```
 >
-> Restart Home Assistant after saving. The sensor will stop accumulating LTS from that point forward.
+> Restart Home Assistant after saving. The sensor will begin accumulating LTS from that point forward.
 >
-> This is a legitimate tactic, if you want to see a sensor's value for this week (default retention), but not for this year.
+> The inverse is also true, setting `state_class: none` will remove a sensor from LTS. This is a legitimate tactic, if you want to see a sensors value for this week (default retention), but not for this year.
 >
 > If you want to see the current value, but have no interest in short or long term history, you can [exclude a value from the Recorder](https://www.home-assistant.io/integrations/recorder/#configure-filter).
 >
-> And of course, if a particular sensor is of no interest to you, you can very easily disable it. Remember you don't **need** to do **any** of this. These are _extra_ options for the Home Assistant user who wants _extra_ control.
+> And of course, if a particular sensor, or group of sensors is of no interest to you, you can very easily disable it. See [What You Get](#-what-you-get) above.
+
+---
+
+> [!NOTE]
+>
+> Remember you don't **need** to do **any** of this. These are _extra_ options for the Home Assistant user who wants _extra_ control.
 
 ---
 
@@ -702,7 +708,7 @@ Payload fields:
 
 > [!NOTE]
 >
-> The Automation examples below use the `note:` functionality introduced in Home Assistant 2026.6 as a way to document/comment Automations that is permanent and **not** stripped out by the editor. If using an older version of Home Assistant you may need to remove the `note:` sections
+> The Automation examples below use the `note:` functionality introduced in Home Assistant 2026.6 as a way to document/comment Automations that is permanent and **not** stripped out by the editor. If using an older version of Home Assistant you may need to remove the `note:` sections.
 
 ---
 
@@ -718,7 +724,7 @@ Payload fields:
 Replace
 
 ```yaml
-action: persistent_notification.create
+action: notify.persistent_notification
 ```
 
 with
@@ -756,7 +762,7 @@ triggers:
       while any unknown network is present, so this triggers
       once per appearance, not once per network.
 actions:
-  - action: persistent_notification.create
+  - action: notify.persistent_notification
     data:
       message: |
         Unknown WiFi network detected: {{ states('sensor.wifi_ssid_monitor_unknown_ssid_count') }} unknown network(s) found
@@ -792,7 +798,7 @@ triggers:
       Raise that number to alert only on very close networks,
       lower it to catch weaker ones.
 actions:
-  - action: persistent_notification.create
+  - action: notify.persistent_notification
     data:
       message: |
         Unknown WiFi detected nearby! Signal: {{ state_attr('binary_sensor.wifi_ssid_monitor_proximity_alert', 'strongest_unknown_signal') }}%. Networks: {{ state_attr('sensor.wifi_ssid_monitor_unknown_ssid_count', 'ssids') | join(', ') }}
@@ -826,7 +832,7 @@ triggers:
       so this never replays a backlog. Emission is capped at 10
       per scan cycle.
 actions:
-  - action: persistent_notification.create
+  - action: notify.persistent_notification
     data:
       message: |
         New WiFi network seen: {{ trigger.event.data.ssid }} ({{ trigger.event.data.band }}, {{ trigger.event.data.signal }}%)
@@ -874,7 +880,7 @@ conditions:
       cloaked network. The hidden check is required: without it
       this fires for every ordinary non-broadcasting network too.
 actions:
-  - action: persistent_notification.create
+  - action: notify.persistent_notification
     data:
       title: Possible spoofed WiFi network
       message: |
@@ -931,7 +937,7 @@ actions:
   - condition: template
     value_template: "{{ persistent | count > 0 }}"
     note: "Stop here (no notification) when nothing has been seen repeatedly."
-  - action: persistent_notification.create
+  - action: notify.persistent_notification
     data:
       title: Recurring unknown WiFi networks
       message: |
@@ -982,7 +988,7 @@ conditions:
       the setup-network name prefixes your own brands use.
       Matching is a lowercased substring test.
 actions:
-  - action: persistent_notification.create
+  - action: notify.persistent_notification
     data:
       message: |
         Smart Device in AP Mode Detected: {{ states('sensor.wifi_ssid_monitor_unknown_ssid_count') }} APs found.
@@ -1047,7 +1053,7 @@ conditions:
       evidence your router is down - Integration Health reports
       it separately, so this stays silent for it.
 actions:
-  - action: persistent_notification.create
+  - action: notify.persistent_notification
     data:
       message: |
         A home network may be offline - only {{ (states('sensor.wifi_ssid_monitor_total_ssid_count') | int(0))
@@ -1338,7 +1344,7 @@ triggers:
       this reports only problems that persist. Shorten it if
       you would rather hear about transient faults too.
 actions:
-  - action: persistent_notification.create
+  - action: notify.persistent_notification
     data:
       title: WiFi SSID Monitor needs attention
       message: |
@@ -1388,6 +1394,7 @@ Use the **shortcut badge** above, then proceed to Step 3 - or just …
 ---
 
 </details>
+
 <br>
 
 ### 🔄 Updating
@@ -1412,6 +1419,7 @@ Standard HACS custom-repository integration update behavior:
 ---
 
 </details>
+
 <br>
 
 ## 📋 Configuration
@@ -1554,7 +1562,7 @@ It is deliberately **available at all times**, including when every other entity
 
 ### 🔨 Repairs
 
-Some problems require user attention, so they are raised in Home Assistant's **Repairs** panel in addition to the Integration Health sensor. All clear themselves automatically once the condition resolves:
+Some problems need you to do something, so they are also raised in Home Assistant's **Repairs** panel in addition to the Integration Health sensor. All clear themselves automatically once the condition resolves.
 
 <details>
 
@@ -1593,7 +1601,7 @@ Beyond passive entities, the integration exposes an on-demand response **action*
 
 </details>
 
-### 🆔 Stable Entities & Interface Identity
+### 🆔 Identity & Stable Entities
 
 <details>
 
@@ -1636,9 +1644,7 @@ Entries older than the **Last Seen History TTL** (default 90 days) are pruned au
 
 ### 🔄 Dynamic Polling & Standard System Options
 
-- **Both Available**: The integration provides dynamic polling controls to change the scan interval or trigger an on-demand scan. It also functions normally with the standard Home Assistant **System options** > **Enable polling for changes** toggle.
-
-<br>
+- **Both Available**: The integration provides dynamic polling controls, to change the scan interval or trigger an on-demand scan. It also functions normally with the standard Home Assistant **System options** > **Enable polling for changes** toggle.
 
 ## ❓ FAQ & Troubleshooting
 
@@ -1789,7 +1795,7 @@ This is the most useful file to attach to a GitHub issue. It captures your optio
 
 **It is redacted before it is written**, across multiple layers:
 
-- **Redacted outright** — Your own configured lists (Known SSIDs and Always-Unknown denylist values).
+- **Blanked outright** — Your own configured lists (Known SSIDs and Always-Unknown denylist values).
 - **Pseudonymized** — Everything identifying about nearby third-party networks is tokenized rather than blanked. Each SSID becomes `ssid-1`, `ssid-2`… and each BSSID becomes `bssid-1`, `bssid-2`… The same network keeps the same token everywhere it appears (including dictionary keys), so the file still cross-references cleanly without exposing real MAC addresses or network names.
 - **Retained as live metrics** — Signal quality, channel, band, counts, timestamps, and health flags — the non-identifying technical data needed for diagnosis.
 
@@ -1818,7 +1824,7 @@ Logs are then visible under **Settings > System > Logs** (click **Load Full Logs
 
 </details>
 
-#### 🔄 **I deleted and re-added the integration for a fresh start — why did my settings and history come back?**
+#### 🔄 **I deleted and re-added the integration for a fresh start - why did my settings and history come back?**
 
 <details>
 
@@ -1836,7 +1842,9 @@ Because Home Assistant keeps most of it on purpose. This is **Home Assistant beh
 | Renames, icons, areas, labels, enabled/disabled state | **30 days**, in the entity registry | Restored |
 | **Network history** (this integration's `.storage` files) | Not kept — deleted with the integration | Starts fresh |
 
-The **30 days** applies only to that fourth row — the entity-registry customizations. Statistics aren't on a timer at all, and your entity IDs come back either way. So re-adding after a year still reconnects your graphs; you would just need to redo any renames. Restarting Home Assistant in between makes no difference to any of this. Only this integration's own `first_seen` / `visit_count` history is genuinely lost — **New Networks (24h)** starts from scratch.
+The **30 days** applies only to that fourth row — the entity-registry customizations. Statistics aren't on a timer at all, and your entity IDs come back either way. So re-adding after a year still reconnects your graphs; you would just need to redo any renames. Restarting Home Assistant in between makes no difference to any of this.
+
+Only this integration's own `first_seen` / `visit_count` history is genuinely lost — **New Networks (24h)** starts from scratch.
 
 **If you actually wanted a clean slate**, Home Assistant doesn't really offer one — and in practice you rarely need it. Two supported options exist:
 
@@ -1894,7 +1902,7 @@ To remove the integration from Home Assistant:
 >
 > This integration's entities and devices are removed, along with the three [`config/.storage` files](#-files-written-to-configstorage) it created — which means your SSID history is discarded.
 >
-> Home Assistant keeps your recorded history and entity customizations independently, so re-adding later picks up much where it left off. If that matters to you, see [why settings and history come back](#-i-deleted-and-re-added-the-integration---why-did-my-settings-and-history-come-back).
+> Home Assistant keeps your recorded history and entity customizations independently, so re-adding later picks up much where it left off. If that matters to you, see [why settings and history come back](#-i-deleted-and-re-added-the-integration-for-a-fresh-start---why-did-my-settings-and-history-come-back).
 
 ---
 
@@ -1931,6 +1939,8 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 - Two things can put it out of step: a passage this document missed during a revision, or a Home Assistant screen or setting that has been renamed or moved since it was written.
 - If you find either, please [open an issue](https://github.com/PlayFaster/ha-wifi-ssid-monitor/issues). It will be corrected.
 
+---
+
 ## 🤝 Contributors & Acknowledgements
 
 - **Personal prior work**: The structure and integration architecture draw on my own custom components [ZTE Router 5G](https://github.com/PlayFaster/ha-zte-router-5g-monitor) and [Huawei Router 5G](https://github.com/PlayFaster/ha-huawei-router-5g-monitor) Monitors.
@@ -1942,7 +1952,7 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 ## 🔀 Other Options
 
 - **Ubiquiti UniFi Networks**: If you run a Ubiquiti UniFi network anchored by a UDM Gateway and UniFi Access Points, see **[UniFi Network Monitor](https://github.com/PlayFaster/ha-unifi-network-monitor)** (`ha-unifi-network-monitor`) which provides distributed Rogue Access Point detection across all of your APs simultaneously.
-- **Official Home Assistant Integrations**: For managing connections or standard network interfaces without rogue SSID tracking, standard core networking options are available in Home Assistant.
+
 
 ---
 

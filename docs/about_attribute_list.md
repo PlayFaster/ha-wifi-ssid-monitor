@@ -22,12 +22,12 @@
 
 The following entities carry no `about` attribute (self-explanatory or intentionally unannotated):
 
-| Entity | Platform | Key | Group |
-| :-- | :-- | :-- | :-- |
+| Entity             | Platform      | Key                  | Group  |
+| :----------------- | :------------ | :------------------- | :----- |
 | Integration Health | Binary sensor | `integration_health` | System |
-| New Network Alert | Binary sensor | `new_network` | System |
-| Proximity Alert | Binary sensor | `proximity_alert` | System |
-| Scan Now | Button | `scan_now` | System |
-| Last Updated | Sensor | `last_updated` | System |
+| New Network Alert  | Binary sensor | `new_network`        | System |
+| Proximity Alert    | Binary sensor | `proximity_alert`    | System |
+| Scan Now           | Button        | `scan_now`           | System |
+| Last Updated       | Sensor        | `last_updated`       | System |
 
 <!-- GENERATED:end -->
