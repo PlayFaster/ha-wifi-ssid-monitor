@@ -1,0 +1,25 @@
+# Findings that are deliberate, one per line, as:
+#
+#     REACH::outcome_key            # why no test can drive this end to end
+#     PUBLISH::test_file.py:123     # why the publish value cannot be captured
+#     SEAM::test_file.py:custom_components.x.mod.fn   # why it must be stubbed
+#     SEQ::FETCH_STRIKE_LIMIT       # why no test can drive it that far
+#     LIFE::coordinator.py:500      # why a successor cannot need to clean up
+#
+# Before adding a REACH entry, check that the outcome is genuinely reachable at
+# all. The check exists because one was not, in every shipped release, while
+# its own unit tests passed. "No test drives it" and "nothing can" are very
+# different answers and only the second belongs here.
+
+# The config-flow tests patch these two helpers so the flow branch under test
+# is the one that runs. Their subject is the state machine, not `api.py`.
+#
+# Not a hole: both helpers are driven over the real transport in the same file,
+# under "The two helpers, driven over the real transport", plus one user flow
+# with neither patched. All mutation-verified 2026-08-22.
+#
+# Revisit if the flow gains a branch depending on *which* interfaces come back
+# rather than whether any do.
+
+SEAM::test_config_flow.py:custom_components.wifi_ssid_monitor.config_flow._get_wifi_interfaces  # flow-branch tests; the helper is driven for real in the same file
+SEAM::test_config_flow.py:custom_components.wifi_ssid_monitor.config_flow._validate_input  # flow-branch tests; the helper is driven for real in the same file

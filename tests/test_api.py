@@ -418,3 +418,48 @@ async def test_an_unforeseen_error_is_wrapped_and_keeps_its_cause(
 
         assert "socket exploded" in str(excinfo.value)
         assert excinfo.value.__cause__ is original
+
+
+# ---------------------------------------------------------------------------
+# Section 20 — a log line is not a diagnostics download
+# ---------------------------------------------------------------------------
+#
+# x_project chore C-020. A diagnostics file has a redaction layer; a log file
+# has none, and users are routinely asked to paste one into a public issue. So
+# the shape of a payload may be logged and the payload itself may not — a
+# neighbouring network's SSID and BSSID are personal data about someone who
+# never installed this integration.
+#
+# This asserts the property rather than the wording, so a future rewrite of the
+# message cannot quietly reintroduce the values.
+
+
+@pytest.mark.asyncio
+async def test_the_ap_sample_log_carries_keys_and_never_values(
+    mock_aiohttp_client, caplog
+):
+    """The drift log names the fields, not what is in them."""
+    import logging
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(mock_aiohttp_client, "wlan0")
+        mock_aiohttp_client.get.return_value = MockResponse(
+            json_data={
+                "data": {
+                    "accesspoints": [
+                        {
+                            "ssid": "TheNeighbours",
+                            "mac": "AA:BB:CC:DD:EE:FF",
+                            "signal": 70,
+                        }
+                    ]
+                }
+            }
+        )
+
+        with caplog.at_level(logging.DEBUG):
+            await api.get_access_points()
+
+    assert "ssid" in caplog.text, "the key set is the point of the line"
+    assert "TheNeighbours" not in caplog.text
+    assert "AA:BB:CC:DD:EE:FF" not in caplog.text

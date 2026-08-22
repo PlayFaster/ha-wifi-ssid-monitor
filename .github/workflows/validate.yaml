@@ -20,8 +20,8 @@ permissions:
 
 jobs:
   validate:
-    # Branch @main — update SHA after pushing .github changes v2.0.10
-    uses: PlayFaster/.github/.github/workflows/validate.yaml@bd40d667b8c09451824f722cfaa03bf1f786b38f
+    # Branch @main — update SHA after pushing .github changes v2.0.14
+    uses: PlayFaster/.github/.github/workflows/validate.yaml@b12898ea9b0d954deaf2a099f6bb9fb1fd0bc041
     with:
       category: integration
       component_name: wifi_ssid_monitor

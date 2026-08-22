@@ -1,16 +1,19 @@
 """Tests for WiFi SSID Monitor coordinator."""
 
+import asyncio
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from custom_components.wifi_ssid_monitor import coordinator as coordinator_module
 from custom_components.wifi_ssid_monitor.api import WifiScanError
 from custom_components.wifi_ssid_monitor.const import (
+    ALL_REPAIR_KEYS,
     CANARY_MIN_VISITS,
     CONF_DENYLIST_SSIDS,
     CONF_INCLUDE_HIDDEN,
@@ -18,15 +21,24 @@ from custom_components.wifi_ssid_monitor.const import (
     CONF_LAST_SEEN_TTL_DAYS,
     CONF_SHOW_5GHZ,
     CONF_SHOW_24GHZ,
+    CONF_STOP_POLLING,
+    DOMAIN,
     EVENT_NEW_NETWORK,
     FETCH_STRIKE_LIMIT,
+    HEALTH_DRIFT_STRIKE_LIMIT,
     HEALTH_STARTUP_GRACE_SCANS,
     HISTORY_MAX_ENTRIES,
     ISSUE_SUPERVISOR_UNAVAILABLE,
     NEW_NETWORK_EVENT_MAX_PER_CYCLE,
 )
 from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
-from custom_components.wifi_ssid_monitor.health import SEVERITY_SERIOUS, Finding
+from custom_components.wifi_ssid_monitor.health import (
+    SEVERITY_DEGRADED,
+    SEVERITY_ERROR,
+    SEVERITY_OK,
+    SEVERITY_UNKNOWN,
+    Finding,
+)
 
 # Frequencies for the two bands, so fixtures don't rely on a channel field.
 FREQ_24 = 2437  # channel 6
@@ -631,7 +643,10 @@ async def test_signal_unit_change_and_event_suppression(
     # Event fire after baseline with no new keys (line 597)
     coordinator._fire_new_network_events(set(), {})
 
-    # Signal unit change notification (lines 526-531)
+    # A unit that disagrees with the baseline is reported and the baseline is
+    # HELD, not adopted. Adopting it silenced `check_signal_unit_flip` after a
+    # single strike, so the finding could never confirm — see
+    # `test_a_signal_unit_flip_can_actually_be_confirmed`.
     coordinator._baseline_signal_unit = "dBm"
     mock_wifi_api.get_access_points.return_value = [
         {
@@ -642,7 +657,17 @@ async def test_signal_unit_change_and_event_suppression(
         }
     ]
     await coordinator._async_update_data()
-    assert coordinator._baseline_signal_unit == "percent"
+    assert coordinator._baseline_signal_unit == "dBm", (
+        "the baseline must survive a differing scan, or the flip check cannot "
+        "accumulate the strikes it needs"
+    )
+    assert coordinator._signal_flip_logged is True
+
+    # Logged once, not once per poll: the mismatch now recurs every scan.
+    coordinator._signal_flip_logged = False
+    await coordinator._async_update_data()
+    assert coordinator._signal_flip_logged is True
+    coordinator._baseline_signal_unit = "percent"
 
     # Create 15 new networks to exceed NEW_NETWORK_EVENT_MAX_PER_CYCLE (10)
     burst_aps = [
@@ -1185,7 +1210,7 @@ async def test_supervisor_unreachable_is_published_on_the_runtime_path(
 
     snapshot = coordinator.health_snapshot
     assert snapshot["problem"] is True
-    assert snapshot["severity"] == SEVERITY_SERIOUS
+    assert snapshot["severity"] == SEVERITY_ERROR, "a total outage is `error`"
     assert snapshot["degraded_capabilities"] == ["supervisor_unreachable"]
     assert snapshot["drift"] == [], "no payload arrived, so no drift verdict"
     assert snapshot["cold_start"] is False
@@ -1411,7 +1436,7 @@ async def test_repair_issue_ids_are_scoped_to_the_config_entry(
             [
                 Finding(
                     key="interface_missing",
-                    severity=SEVERITY_SERIOUS,
+                    severity=SEVERITY_ERROR,
                     message="gone",
                     repair="interface_missing",
                 )
@@ -1443,7 +1468,7 @@ async def test_a_cleared_repair_deletes_the_entry_scoped_id(
 
     finding = Finding(
         key="interface_missing",
-        severity=SEVERITY_SERIOUS,
+        severity=SEVERITY_ERROR,
         message="gone",
         repair="interface_missing",
     )
@@ -1454,7 +1479,12 @@ async def test_a_cleared_repair_deletes_the_entry_scoped_id(
     with patch.object(coordinator_module.ir, "async_delete_issue") as mock_delete:
         coordinator._sync_repairs([])
 
-    assert mock_delete.call_args.args[2] == created_id
+    # The sweep now covers every repair key, not just the one raised, so the
+    # created id must be *among* the deletions rather than the last of them —
+    # see `test_a_repair_raised_before_a_reload_is_still_cleared_after_one`
+    # for why the stateless sweep is what makes a reload survivable.
+    deleted = {call.args[2] for call in mock_delete.call_args_list}
+    assert created_id in deleted, deleted
 
 
 @pytest.mark.asyncio
@@ -1519,7 +1549,7 @@ async def test_a_missing_interface_flags_immediately_on_cold_start(
 
     snapshot = coordinator.health_snapshot
     assert snapshot["problem"] is True, "cold start must not wait out the strikes"
-    assert snapshot["severity"] == SEVERITY_SERIOUS
+    assert snapshot["severity"] == SEVERITY_ERROR
     assert "interface_missing" in snapshot["degraded_capabilities"]
     assert snapshot["cold_start"] is True
 
@@ -1750,3 +1780,929 @@ async def test_a_raising_health_pass_does_not_replace_the_fetch_error(
         pytest.raises(UpdateFailed, match="supervisor gone"),
     ):
         await coordinator._async_update_data()
+
+
+# ---------------------------------------------------------------------------
+# Section 19 severity vocabulary — x_project C-014
+# ---------------------------------------------------------------------------
+#
+# The values are a published contract: users write templates against them, and
+# the same five words mean the same things on `huawei_router_5g` and
+# `zte_router_5g`. `None` is banned outright, because Home Assistant renders it
+# as "Unknown" beside three legitimately-empty lists — a healthy sensor and one
+# that never populated then look identical on screen.
+#
+# Nothing guarded either value before 2026-08-21, which is how `None` survived
+# in two places for as long as it did.
+
+
+@pytest.mark.asyncio
+async def test_a_healthy_snapshot_says_ok_rather_than_nothing(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A clean poll publishes `ok`, not `None`."""
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["problem"] is False
+    assert snapshot["severity"] == SEVERITY_OK
+    assert snapshot["issues"] == []
+
+
+def test_the_cold_start_snapshot_says_unknown(hass, mock_config_entry, mock_wifi_api):
+    """Before the first poll the verdict is `unknown`, and no problem is raised.
+
+    Section 19 maps `unknown` to the sensor being on. It is deliberately paired
+    with `problem: False` here: firing the problem sensor on every restart is
+    the jitter the same section forbids, and it would clear itself one poll
+    later. `zte_router_5g` makes the same pairing.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+
+    assert coordinator.health_snapshot["severity"] == SEVERITY_UNKNOWN
+    assert coordinator.health_snapshot["problem"] is False
+
+
+@pytest.mark.asyncio
+async def test_no_code_path_publishes_a_blank_severity(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """Sweep the three snapshot writers; none of them may leave it empty.
+
+    Written as a sweep rather than three assertions because the failure mode is
+    a *new* path added later that forgets — which is exactly how the two
+    original `None`s got there.
+    """
+    from custom_components.wifi_ssid_monitor.health import _SEVERITY_RANK
+
+    allowed = set(_SEVERITY_RANK) | {SEVERITY_UNKNOWN}
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    seen = [coordinator.health_snapshot["severity"]]
+
+    # Assigned by hand: driving `_async_update_data` directly bypasses the
+    # coordinator wrapper that normally sets `data`, and without held values
+    # the failure path below takes the cold-start branch instead of the strike
+    # budget — a different writer from the one under test here.
+    coordinator.data = await coordinator._async_update_data()
+    seen.append(coordinator.health_snapshot["severity"])
+
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("down")
+    for _ in range(FETCH_STRIKE_LIMIT):
+        await coordinator._async_update_data()
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+    seen.append(coordinator.health_snapshot["severity"])
+
+    assert all(value in allowed for value in seen), seen
+    assert None not in seen
+
+
+@pytest.mark.asyncio
+async def test_discarded_timestamps_are_counted_not_named(caplog):
+    """A corrupt stored row is logged as a count, never as its network key.
+
+    Section 20, and x_project chore C-020. The key here is a neighbouring
+    network's SSID or its Hidden-<last4> label — third-party data, in a file
+    with nothing stripping it.
+    """
+    import logging
+
+    from custom_components.wifi_ssid_monitor.coordinator import _parse_timestamps
+
+    with caplog.at_level(logging.DEBUG):
+        parsed = _parse_timestamps(
+            {
+                "TheNeighbours": "not-a-timestamp",
+                "Hidden-9f3a": "also-not",
+                "Home": "2026-08-21T12:00:00+00:00",
+            }
+        )
+
+    assert set(parsed) == {"Home"}
+    assert "2" in caplog.text, "the count is what the line is for"
+    assert "TheNeighbours" not in caplog.text
+    assert "Hidden-9f3a" not in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Faults found by the attended drill, 2026-08-21
+# ---------------------------------------------------------------------------
+#
+# Both were invisible to 390 tests at 100% branch coverage, and both for the
+# same reason: every existing test calls the health checks directly with a
+# hand-built ScanFacts. Nothing drove two consecutive polls through the
+# coordinator, which is where each of these lives.
+
+
+@pytest.mark.asyncio
+async def test_a_missing_interface_is_not_reported_as_healthy(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A failing fetch is an outage from the moment the strikes run out.
+
+    The 400 path used to take the `interface_missing` branch, hand off to
+    `_apply_health`, and return — publishing `problem: False, severity: ok`
+    while every poll was failing and the entities had gone unavailable. It
+    needed FETCH_STRIKE_LIMIT **plus** HEALTH_DRIFT_STRIKE_LIMIT consecutive
+    failures before saying anything, so a missing interface — permanent and
+    user-fixable — reported healthier for longer than an unreachable
+    Supervisor, which is transient and says `error` immediately.
+
+    The drift budget may govern the *repair*. It may not downgrade a live
+    outage to `ok`.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    # Warm: there are held values, so the strike budget applies.
+    coordinator.data = await coordinator._async_update_data()
+
+    mock_wifi_api.last_interface_present = False
+    mock_wifi_api.get_access_points.side_effect = WifiScanError(
+        "API returned status 400"
+    )
+
+    for _ in range(FETCH_STRIKE_LIMIT):
+        await coordinator._async_update_data()
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["severity"] != SEVERITY_OK, (
+        "the fetch has failed past its budget — reporting `ok` here tells the "
+        "user everything is fine while every entity is unavailable"
+    )
+    assert snapshot["problem"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_signal_unit_flip_can_actually_be_confirmed(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """`signal_format_changed` must be reachable through consecutive polls.
+
+    It was not. The baseline was reassigned to the new unit at the end of the
+    first flipped scan, so the check fired once, took one strike of the three
+    it needs, and then stopped firing — at which point `_apply_health` deleted
+    the strike count because the key was no longer in `fired`. One of three
+    repair issues could never be raised, and `drift` never named it.
+
+    Driving real polls is the whole point of this test: calling
+    `check_signal_unit_flip` with a hand-built ScanFacts passes either way.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+
+    percent_ap = {
+        "mac": "AA:BB:CC:00:00:01",
+        "ssid": "BaseNet",
+        "signal": 80,
+        "frequency": FREQ_5,
+    }
+    # Establish the baseline, and clear the startup grace window.
+    for _ in range(HEALTH_STARTUP_GRACE_SCANS + 1):
+        mock_wifi_api.get_access_points.return_value = [percent_ap]
+        coordinator.data = await coordinator._async_update_data()
+    assert coordinator._baseline_signal_unit == "percent"
+
+    # The Supervisor starts reporting dBm. Negative values are the signal.
+    dbm_ap = {**percent_ap, "signal": -55}
+    for _ in range(HEALTH_DRIFT_STRIKE_LIMIT):
+        mock_wifi_api.get_access_points.return_value = [dbm_ap]
+        coordinator.data = await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["problem"] is True
+    assert any("dBm" in issue for issue in snapshot["issues"]), snapshot["issues"]
+    assert snapshot["drift"], "a unit flip is drift and must be named there"
+    assert coordinator._drift_strikes.get("signal_format_changed", 0) >= (
+        HEALTH_DRIFT_STRIKE_LIMIT
+    ), "the strike count was reset before it could confirm"
+
+
+@pytest.mark.asyncio
+async def test_a_repair_raised_before_a_reload_is_still_cleared_after_one(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """A reload must not orphan a repair the previous coordinator raised.
+
+    `_active_repairs` is per-coordinator state, and the delete loop only ever
+    walked that set — so a reload or a Home Assistant restart gave the new
+    coordinator an empty set and no memory of what was raised. The issue
+    registry persists across both, and these repairs are `is_fixable=False`,
+    so the card sat in the Repairs panel for ever with no UI path to clear it,
+    long after the condition had resolved.
+
+    Found by the fault drill on 2026-08-22: two `signal_format_changed` cards
+    survived a reload and a clean scan.
+    """
+    mock_config_entry.add_to_hass(hass)
+
+    raised = _coord(hass, mock_config_entry, mock_wifi_api)
+    raised._sync_repairs(
+        [
+            Finding(
+                key="interface_missing",
+                severity=SEVERITY_ERROR,
+                message="gone",
+                repair="interface_missing",
+            )
+        ]
+    )
+    issue_id = raised._issue_id("interface_missing")
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+    # The reload: a brand-new coordinator over the same entry, with no memory
+    # of what its predecessor raised.
+    reloaded = _coord(hass, mock_config_entry, mock_wifi_api)
+    assert not reloaded._active_repairs
+    reloaded._sync_repairs([])
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None, (
+        "the repair outlived the coordinator that raised it, and nothing left "
+        "in the integration can ever delete it"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Driving the real HTTP seam — the G-lite pattern
+# ---------------------------------------------------------------------------
+#
+# Every test above builds the coordinator over `mock_wifi_api`, a MagicMock
+# standing in for `WifiScanAPI`. That proves the coordinator handles what the
+# API object returns, and proves nothing about `api.py` or `parse.py`, because
+# neither runs.
+#
+# These drive the same code through `aioclient_mock`, the fixture
+# `pytest-homeassistant-custom-component` provides for exactly this: it
+# intercepts `async_get_clientsession`, so the real `WifiScanAPI` makes a real
+# request and gets a real response object back. No new dependency, and it is
+# the seam Home Assistant's own test suite uses.
+#
+# What that buys, concretely: `last_response_had_ap_key` is computed inside
+# `api.py` from the shape of the payload. The MagicMock fixture sets it by
+# hand, so every test of the drift it feeds has been asserting a value the
+# test itself supplied. Here the payload is the input and the flag is derived,
+# which is the difference between testing the check and testing the system.
+#
+# Pattern, reusable across the family:
+#   1. build the component's real API object over the mocked session
+#   2. register the payload for this cycle
+#   3. drive `_async_update_data()`, assigning `coordinator.data` yourself
+#      because the coordinator wrapper is not in play
+#   4. repeat with a changed payload for as many cycles as the budget needs
+
+_ACCESSPOINTS_URL = "http://supervisor/network/interface/wlan0/accesspoints"
+
+
+def _real_api(hass):
+    """Build the real API object over Home Assistant's mocked session."""
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+    from custom_components.wifi_ssid_monitor.api import WifiScanAPI
+
+    return WifiScanAPI(async_get_clientsession(hass), "wlan0")
+
+
+def _serve(aioclient_mock, payload):
+    """Replace the registered response, so each cycle can differ."""
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(_ACCESSPOINTS_URL, json=payload)
+
+
+@pytest.mark.asyncio
+async def test_a_payload_with_no_accesspoints_key_confirms_as_drift(
+    hass, mock_config_entry, aioclient_mock
+):
+    """A 200 carrying no `accesspoints` list must confirm as drift.
+
+    Driven end to end: the flag this depends on, `last_response_had_ap_key`,
+    is derived by `api.py` from the payload rather than set by the test. The
+    existing coverage of `check_response_shape` hands it a `ScanFacts` with
+    the flag already false, which cannot fail if `api.py` stops setting it.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+
+        good = {
+            "data": {
+                "accesspoints": [
+                    {
+                        "mac": "AA:BB:CC:00:00:01",
+                        "ssid": "Net",
+                        "signal": 80,
+                        "frequency": FREQ_5,
+                        "mode": "infrastructure",
+                    },
+                ]
+            }
+        }
+        for _ in range(HEALTH_STARTUP_GRACE_SCANS + 1):
+            _serve(aioclient_mock, good)
+            coordinator.data = await coordinator._async_update_data()
+        assert coordinator.health_snapshot["severity"] == SEVERITY_OK
+
+        # The contract changes: still a 200, still valid JSON, no list.
+        for _ in range(HEALTH_DRIFT_STRIKE_LIMIT):
+            _serve(aioclient_mock, {"data": {}})
+            coordinator.data = await coordinator._async_update_data()
+
+    snapshot = coordinator.health_snapshot
+    assert snapshot["drift"], snapshot
+    assert snapshot["severity"] == "warning"
+    assert any("accesspoints" in issue for issue in snapshot["issues"]), snapshot
+    # Name the check that confirmed, not just "something drifted". Two drift
+    # checks could produce a warning here and the test would not care which —
+    # and `Tests: Depth Check` reads this assertion as the evidence that
+    # `payload_no_ap_list` is reachable at all.
+    assert "payload_no_ap_list" in coordinator._drift_strikes
+
+
+# ---------------------------------------------------------------------------
+# The rest of the declared outcomes, driven the same way
+# ---------------------------------------------------------------------------
+#
+# One test per remaining key in `health.CHECKS`. Each drives the real
+# `WifiScanAPI` over `aioclient_mock`, so the payload is the input and every
+# derived field — `band`, `signal_pct`, `mac`, `last_response_had_ap_key` — is
+# computed by `parse.py` rather than supplied by the fixture.
+#
+# Each asserts **the key of the check that fired**, not merely that the
+# snapshot is unhealthy. Several of these checks can produce the same severity
+# from the same payload, so a severity assertion would pass on the wrong one,
+# and `Tests: Depth Check` reads the key as the evidence the outcome is
+# reachable at all.
+
+
+def _ap(ssid, *, mac="AA:BB:CC:00:00:01", signal=80, frequency=FREQ_5, **extra):
+    """One raw Supervisor access point. Omit a field by passing it as None."""
+    raw = {
+        "mac": mac,
+        "ssid": ssid,
+        "signal": signal,
+        "frequency": frequency,
+        "mode": "infrastructure",
+    }
+    raw.update(extra)
+    return {k: v for k, v in raw.items() if v is not None}
+
+
+def _payload(*aps):
+    return {"data": {"accesspoints": list(aps)}}
+
+
+async def _settle(coordinator, aioclient_mock, payload, cycles):
+    """Serve `payload` for `cycles` polls, carrying `data` forward each time.
+
+    The `DataUpdateCoordinator` wrapper is not in play when `_async_update_data`
+    is called directly, so `coordinator.data` has to be assigned here or every
+    cycle takes the cold-start path and nothing ever accumulates.
+    """
+    for _ in range(cycles):
+        _serve(aioclient_mock, payload)
+        coordinator.data = await coordinator._async_update_data()
+
+
+_HEALTHY = _payload(
+    _ap("MyNetwork1", mac="AA:BB:CC:00:00:01"),
+    _ap("Neighbour", mac="AA:BB:CC:00:00:02"),
+    _ap("Cafe", mac="AA:BB:CC:00:00:03"),
+)
+
+
+@pytest.mark.asyncio
+async def test_a_field_missing_from_every_network_confirms_as_drift(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`payload_field_missing` — the Supervisor stops sending `mac` at all.
+
+    Driven end to end, so `mac` is absent from the wire and `parse.py` produces
+    the `None` the check counts. A `ScanFacts` built by hand with
+    `{"mac": None}` proves the arithmetic and not that any payload can cause it.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(
+            coordinator, aioclient_mock, _HEALTHY, HEALTH_STARTUP_GRACE_SCANS + 1
+        )
+        assert coordinator.health_snapshot["severity"] == SEVERITY_OK
+
+        # Every access point loses `mac`. 3 of 3 is above the 0.9 majority.
+        gone = _payload(
+            _ap("MyNetwork1", mac=None),
+            _ap("Neighbour", mac=None),
+            _ap("Cafe", mac=None),
+        )
+        await _settle(coordinator, aioclient_mock, gone, HEALTH_DRIFT_STRIKE_LIMIT)
+
+    snapshot = coordinator.health_snapshot
+    assert "payload_field_missing" in coordinator._drift_strikes, snapshot
+    assert snapshot["drift"], snapshot
+    assert any("mac" in issue for issue in snapshot["issues"]), snapshot
+
+
+@pytest.mark.asyncio
+async def test_a_field_missing_from_some_networks_confirms_as_drift(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`payload_field_partial` — one network of three stops reporting `signal`.
+
+    The partial and total cases are separate findings with separate messages,
+    and only the fraction tells them apart, so this pins the boundary from
+    below: 1 of 3 is 0.33, under the 0.9 majority.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(
+            coordinator, aioclient_mock, _HEALTHY, HEALTH_STARTUP_GRACE_SCANS + 1
+        )
+
+        partial = _payload(
+            _ap("MyNetwork1", mac="AA:BB:CC:00:00:01", signal=None),
+            _ap("Neighbour", mac="AA:BB:CC:00:00:02"),
+            _ap("Cafe", mac="AA:BB:CC:00:00:03"),
+        )
+        await _settle(coordinator, aioclient_mock, partial, HEALTH_DRIFT_STRIKE_LIMIT)
+
+    snapshot = coordinator.health_snapshot
+    assert "payload_field_partial" in coordinator._drift_strikes, snapshot
+    assert "payload_field_missing" not in coordinator._drift_strikes, (
+        "1 of 3 is under the majority; the total-absence finding must not fire"
+    )
+    assert any("signal_pct" in issue for issue in snapshot["issues"]), snapshot
+
+
+@pytest.mark.asyncio
+async def test_an_unresolvable_frequency_on_some_networks_confirms_as_drift(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`band_unresolved_some` — the signature of a frequency-format change.
+
+    `band` is derived by `parse.py` from `frequency`; nothing on the wire
+    carries it. Driving the real seam is the only way this test can fail if
+    `frequency_to_channel` stops returning a band.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(
+            coordinator, aioclient_mock, _HEALTHY, HEALTH_STARTUP_GRACE_SCANS + 1
+        )
+
+        # One of three reports a frequency in no known band.
+        odd = _payload(
+            _ap("MyNetwork1", mac="AA:BB:CC:00:00:01", frequency=9999),
+            _ap("Neighbour", mac="AA:BB:CC:00:00:02"),
+            _ap("Cafe", mac="AA:BB:CC:00:00:03"),
+        )
+        await _settle(coordinator, aioclient_mock, odd, HEALTH_DRIFT_STRIKE_LIMIT)
+
+    snapshot = coordinator.health_snapshot
+    assert "band_unresolved_some" in coordinator._drift_strikes, snapshot
+    assert "band_unresolved_all" not in coordinator._drift_strikes, (
+        "1 of 3 is under the majority; the all-networks finding must not fire"
+    )
+
+
+@pytest.mark.asyncio
+async def test_every_established_known_network_vanishing_is_reported(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`no_known_networks` — the canary, and it needs real history.
+
+    `established_known` comes from the visit-count history, so this cannot be
+    reached without driving at least `CANARY_MIN_VISITS` polls that actually
+    record visits. That is the whole reason it was never driven end to end.
+
+    Note the second budget: `_apply_health` applies `HEALTH_DRIFT_STRIKE_LIMIT`
+    to **every** finding, capability ones included, despite the constant's
+    name. So this needs `CANARY_MIN_VISITS` polls to establish the history and
+    a further three consecutive polls to confirm.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+
+        # Establish MyNetwork1 as usually-visible.
+        await _settle(coordinator, aioclient_mock, _HEALTHY, CANARY_MIN_VISITS + 1)
+        assert coordinator.established_known_keys(["MyNetwork1"]) == {"MyNetwork1"}
+
+        # It disappears, but the scan is not empty — neighbours are still there.
+        without = _payload(
+            _ap("Neighbour", mac="AA:BB:CC:00:00:02"),
+            _ap("Cafe", mac="AA:BB:CC:00:00:03"),
+        )
+        await _settle(coordinator, aioclient_mock, without, HEALTH_DRIFT_STRIKE_LIMIT)
+
+    snapshot = coordinator.health_snapshot
+    assert "no_known_networks" in snapshot["degraded_capabilities"], snapshot
+    assert snapshot["severity"] == SEVERITY_DEGRADED, snapshot
+    assert snapshot["problem"] is True, snapshot
+
+
+@pytest.mark.asyncio
+async def test_a_scan_returning_nothing_is_reported(
+    hass, mock_config_entry, aioclient_mock
+):
+    """`empty_scan` — gated on history, so a genuinely quiet place is safe.
+
+    Distinct from the canary above: that one fires when known networks vanish
+    from a scan that still found something. This one needs `total_aps == 0`,
+    which is a different payload and a different message. Both confirm here,
+    which is correct — an empty scan is also a scan with no known networks in
+    it — so the assertion names this one specifically.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(coordinator, aioclient_mock, _HEALTHY, CANARY_MIN_VISITS + 1)
+
+        # A 200 carrying an empty list, not a missing one — that is drift and a
+        # different finding entirely.
+        await _settle(
+            coordinator, aioclient_mock, _payload(), HEALTH_DRIFT_STRIKE_LIMIT
+        )
+
+    snapshot = coordinator.health_snapshot
+    assert "empty_scan" in snapshot["degraded_capabilities"], snapshot
+    assert any("no networks at all" in issue for issue in snapshot["issues"]), snapshot
+    assert "payload_no_ap_list" not in coordinator._drift_strikes, (
+        "an empty list is not a missing list"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Written from the 2026-08-22 mutation run
+# ---------------------------------------------------------------------------
+#
+# Findings M1-M8 of `.notes/issues/testing_deeper/recommendations_20260822.md`.
+# Each corresponds to a surviving mutant, named in the test's docstring so the
+# evidence is not lost when the survivor list is regenerated.
+
+
+@pytest.mark.asyncio
+async def test_a_real_poll_publishes_every_documented_snapshot_key(
+    hass, mock_config_entry, aioclient_mock
+):
+    """M1. The published keys, asserted against what the coordinator wrote.
+
+    Mutating `_apply_health`'s dict **keys** — `"signal_unit"` to
+    `"XXsignal_unitXX"` — survived the mutation run. `binary_sensor.py` reads
+    them with `snapshot.get(...)`, so a rename does not raise: the published
+    attribute silently becomes `None` and every automation reading it breaks.
+
+    Nothing caught it because the assertions sat on opposite sides of the seam.
+    `conftest.py` and `test_binary_sensor.py` set `"signal_unit"` in a
+    hand-built snapshot and assert the entity reads it; no test drove a poll and
+    asserted the snapshot the coordinator actually produced.
+
+    The literal strings are deliberate. These are the published contract, and
+    asserting them against the constants that produce them would compare the
+    code with itself.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(
+            coordinator, aioclient_mock, _HEALTHY, HEALTH_STARTUP_GRACE_SCANS + 1
+        )
+
+    assert set(coordinator.health_snapshot) >= {
+        "problem",
+        "severity",
+        "issues",
+        "degraded_capabilities",
+        "drift",
+        "signal_unit",
+        "baseline_signal_unit",
+        "last_good_update",
+        "networks_scanned",
+    }, coordinator.health_snapshot
+    # And the two the binary sensor reads must carry real values, not None,
+    # which is what a renamed key would leave behind.
+    assert coordinator.health_snapshot["signal_unit"] == "percent"
+    assert coordinator.health_snapshot["baseline_signal_unit"] == "percent"
+
+
+def _event_net(key, bssid, signal):
+    """One entry of the network map, in the shape the event builder reads."""
+    return {
+        "key": key,
+        "bssid": bssid,
+        "band": "5 GHz",
+        "channel": 48,
+        "signal": signal,
+        "hidden": False,
+        "ssid_anomaly": False,
+        "mode": "infrastructure",
+    }
+
+
+@pytest.mark.asyncio
+async def test_a_filtered_network_does_not_stop_the_events_after_it(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """M3. `continue` becoming `break` in `_fire_new_network_events` survived.
+
+    A `break` where `continue` was meant abandons every **remaining** network,
+    so one unmapped key silences the events for everything sorted after it. The
+    loop was only ever driven with networks that all took the same branch.
+
+    Three keys, sorted, with the middle one absent from the map: the first and
+    third must still fire.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    coordinator._event_baseline_done = True
+
+    events: list = []
+    hass.bus.async_listen(EVENT_NEW_NETWORK, events.append)
+
+    network_map = {
+        "AAA": _event_net("AAA", "AA:BB:CC:00:00:01", 80),
+        "CCC": _event_net("CCC", "AA:BB:CC:00:00:03", 60),
+    }
+    # "BBB" sorts between the two and has no entry, so it hits the `continue`.
+    coordinator._fire_new_network_events({"AAA", "BBB", "CCC"}, network_map)
+    await hass.async_block_till_done()
+
+    fired = sorted(e.data["key"] for e in events)
+    assert fired == ["AAA", "CCC"], (
+        "a skipped network must not stop the ones sorted after it"
+    )
+
+
+@pytest.mark.asyncio
+async def test_an_already_active_repair_does_not_stop_the_ones_after_it(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """M3, second half. `continue` becoming `break` in `_sync_repairs` survived.
+
+    The loop skips a repair already raised. A `break` there abandons every
+    later finding, so one already-active repair suppresses the rest — and the
+    loop was only ever driven with a single finding.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    keys = sorted(ALL_REPAIR_KEYS)
+    assert len(keys) >= 3, "this test needs three repair keys to order"
+
+    # The middle one is already raised, so it takes the `continue`.
+    coordinator._active_repairs = {keys[1]}
+
+    findings = [
+        Finding(key=k, severity=SEVERITY_ERROR, message=f"{k} detail", repair=k)
+        for k in keys
+    ]
+
+    created: list[str] = []
+    with patch.object(
+        ir, "async_create_issue", side_effect=lambda *a, **kw: created.append(a[2])
+    ):
+        coordinator._sync_repairs(findings)
+
+    assert coordinator._active_repairs == set(keys), (
+        "an already-active repair must not stop the ones after it"
+    )
+    assert len(created) == len(keys) - 1
+
+
+@pytest.mark.asyncio
+async def test_every_raised_repair_carries_its_severity_and_fixability(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """M5. Both repair-issue properties survived being nulled.
+
+    `severity=ir.IssueSeverity.WARNING` to `None`, and `is_fixable=False` to
+    `None`.
+
+    Severity decides how prominently Home Assistant presents the card;
+    `is_fixable` decides whether the user is offered a flow at all. Existing
+    tests assert an issue was created and with which id, never with what
+    properties. Swept over `ALL_REPAIR_KEYS` so a repair added later is covered.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    findings = [
+        Finding(key=k, severity=SEVERITY_ERROR, message=f"{k} detail", repair=k)
+        for k in ALL_REPAIR_KEYS
+    ]
+
+    calls: list[dict] = []
+    with patch.object(
+        ir, "async_create_issue", side_effect=lambda *a, **kw: calls.append(kw)
+    ):
+        coordinator._sync_repairs(findings)
+
+    assert len(calls) == len(ALL_REPAIR_KEYS)
+    for kw in calls:
+        assert kw["severity"] is ir.IssueSeverity.WARNING, kw
+        assert kw["is_fixable"] is False, kw
+
+
+@pytest.mark.asyncio
+async def test_forcing_a_refresh_bypasses_the_pause_exactly_once(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """M4. `self._force_refresh_once = False` becoming `True` survived.
+
+    With `True` the latch never clears, so every later poll behaves as a forced
+    refresh and the pause setting stops being honoured entirely.
+    `test_force_refresh_bypasses_pause` proves the bypass happens; nothing
+    proved it happens once.
+    """
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={**mock_config_entry.options, CONF_STOP_POLLING: True},
+    )
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    coordinator.data = {"networks": []}
+    assert coordinator.polling_paused is True
+
+    coordinator._force_refresh_once = True
+    await coordinator._async_update_data()
+    calls_after_forced = mock_wifi_api.get_access_points.await_count
+    assert calls_after_forced == 1, "the forced poll must reach the API"
+
+    # The latch must have been consumed by that poll, not left standing.
+    assert coordinator._force_refresh_once is False
+    await coordinator._async_update_data()
+    assert mock_wifi_api.get_access_points.await_count == calls_after_forced, (
+        "the second poll must return cached data — the latch is one-shot"
+    )
+
+
+@pytest.mark.asyncio
+async def test_flushing_the_stores_writes_the_history_it_holds(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """M7. The store payloads survived being nulled.
+
+    `async_save(dict(self._visit_counts))` becoming `async_save(None)` survived,
+    as did nulling the two timestamp comprehensions.
+
+    The tests asserted a save was **called**, never what it carried — the
+    argument-free mock assertion the authoring guide names under ASSERT.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    now = dt_util.now()
+    coordinator._last_seen = {"Net1": now}
+    coordinator._first_seen = {"Net1": now}
+    coordinator._visit_counts = {"Net1": 7}
+
+    saved: dict[str, object] = {}
+    for name, store in (
+        ("last_seen", coordinator.store),
+        ("first_seen", coordinator.store_first_seen),
+        ("visit_counts", coordinator.store_visit_counts),
+    ):
+        store.async_save = AsyncMock(
+            side_effect=lambda payload, _n=name: saved.__setitem__(_n, payload)
+        )
+
+    await coordinator.async_flush_stores()
+
+    assert saved["visit_counts"] == {"Net1": 7}
+    assert saved["last_seen"] == {"Net1": now.isoformat()}
+    assert saved["first_seen"] == {"Net1": now.isoformat()}
+
+
+@pytest.mark.asyncio
+async def test_construction_records_what_other_modules_read(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """M6. `self.version = None` and `self.last_known_ssids = None` survived.
+
+    `__init__` was the largest survivor group at 31 — and they are killable
+    gaps, not mocked-boundary noise. Only the attributes another module
+    consumes are asserted here: `version` reaches the diagnostics payload, and
+    `last_known_ssids` drives options-change detection. The rest are recorded
+    in `mutation_equivalents.md` rather than pinned one by one.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+
+    assert coordinator.version == "1.7.0"
+    assert coordinator.last_known_ssids == mock_config_entry.options[CONF_KNOWN_SSIDS]
+    assert coordinator._force_refresh_once is False
+
+
+@pytest.mark.asyncio
+async def test_a_poll_survives_an_entry_with_no_known_ssids_option(
+    hass, mock_config_entry, aioclient_mock
+):
+    """M8. The missing-option default was never driven.
+
+    The `""` in `options.get(CONF_KNOWN_SSIDS, "")` survived being replaced by
+    `None`, by nothing, and by `"XXXX"`.
+
+    Every existing test builds an entry that **has** the option, so the
+    fallback never executed. Driven through a real poll because the default is
+    read in two places on that path.
+    """
+    import os
+
+    mock_config_entry.add_to_hass(hass)
+    options = dict(mock_config_entry.options)
+    options.pop(CONF_KNOWN_SSIDS)
+    hass.config_entries.async_update_entry(mock_config_entry, options=options)
+
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        coordinator = _coord(hass, mock_config_entry, _real_api(hass))
+        await _settle(
+            coordinator, aioclient_mock, _HEALTHY, HEALTH_STARTUP_GRACE_SCANS + 1
+        )
+
+    assert coordinator.established_known_keys([]) == set()
+    assert (
+        "no_known_networks" not in coordinator.health_snapshot["degraded_capabilities"]
+    )
+    assert coordinator.health_snapshot["severity"] == SEVERITY_OK
+
+
+@pytest.mark.asyncio
+async def test_a_fetch_that_outlasts_its_budget_fails_the_update(
+    hass, mock_config_entry, mock_wifi_api, monkeypatch
+):
+    """M2. The fetch timeout was never proven.
+
+    `asyncio.timeout(COORDINATOR_TIMEOUT_SECONDS)` becoming
+    `asyncio.timeout(None)` survived — which disables the timeout entirely, so
+    a hung Supervisor would block the poll for ever.
+
+    `test_timeout_cold_start_raises` raises `TimeoutError` from the mocked API,
+    which proves the handler and not the budget. This lets the real
+    `asyncio.timeout` expire. The constant is read at call time, so patching
+    the module attribute is enough and no multi-second sleep is needed.
+    """
+    monkeypatch.setattr(coordinator_module, "COORDINATOR_TIMEOUT_SECONDS", 0.05)
+
+    async def _hang(*_args, **_kwargs):
+        await asyncio.sleep(5)
+
+    mock_wifi_api.get_access_points = AsyncMock(side_effect=_hang)
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    coordinator.data = {"networks": [{"label": "Net1"}]}
+
+    # The 3-strike rule holds the last payload until the budget is spent, so
+    # one timed-out poll is not yet a failure — drive past it.
+    for _ in range(FETCH_STRIKE_LIMIT):
+        await coordinator._async_update_data()
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_a_failed_fetch_survives_an_entry_with_no_known_ssids_option(
+    hass, mock_config_entry, mock_wifi_api
+):
+    """The same missing-option default, on the failed-fetch path.
+
+    `_record_fetch_failure_health` reads `CONF_KNOWN_SSIDS` a second time, at
+    `coordinator.py:357`, and that read is **outside** the `try` that guards the
+    health computation. Replacing its `""` default with `None` makes
+    `_split_patterns` raise `AttributeError` mid-outage, so the failure path
+    that exists to explain the outage is itself what breaks.
+
+    `test_a_poll_survives_an_entry_with_no_known_ssids_option` drives a
+    successful poll and reaches the other read, at line 604. This one drives a
+    failure, on cold start so the strike budget does not short-circuit it.
+    """
+    mock_config_entry.add_to_hass(hass)
+    options = dict(mock_config_entry.options)
+    options.pop(CONF_KNOWN_SSIDS)
+    hass.config_entries.async_update_entry(mock_config_entry, options=options)
+
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    coordinator.data = None  # cold start: the failure path runs in full
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("down")
+
+    with pytest.raises((UpdateFailed, ConfigEntryNotReady)):
+        await coordinator._async_update_data()
+
+    # The outage verdict must have been published — an AttributeError here
+    # would leave the snapshot at its cold-start values instead.
+    assert coordinator.health_snapshot["problem"] is True
+    assert coordinator.health_snapshot["severity"] == SEVERITY_ERROR

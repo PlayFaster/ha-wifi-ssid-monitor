@@ -90,7 +90,12 @@ Naming the expected networks removes all three, and needs no threshold.
 One entity per network showing whether it is currently visible. This is the phase that carries the hard mechanism; phases 1 and 3 are cheap on either side of it.
 
 - **`device_tracker`, built on `BaseScannerEntity`** — decided, see the prior art below. An access point is a physical device, and `home` states the useful fact: that device is in or near this house. That holds for a network the user owns and equally for one they are suspicious of, where the day the state changes to `not_home` is the point of tracking it at all. A `binary_sensor` was the alternative and is rejected: presence binary sensors carry a motion or occupancy connotation they do not shed, and a broadcasting AP is not that.
-- **Scope option** — which networks get an entity, because "all of them" in a dense location is hundreds. The choices are: off (default), my-WiFi only, known only, unknown only, or an explicit list. Off by default matters: a user upgrading should not silently acquire a hundred entities.
+- **Scope option** — which networks get an entity, because "all of them" in a dense location is hundreds. The choices are: off (default), my-WiFi only, known only, unknown only, or an explicit list. Off by default matters, **and for two reasons rather than one**:
+  - **Entity count.** A user upgrading should not silently acquire a hundred entities.
+  - **Privacy, which is the reason that does not relax as hardware gets faster.** Every phase of this item is equally capable of tracking the user's own access points and of building a per-network presence and signal history for **the neighbours'** — a record of when someone else's router is on, off, or moved, retained for `last_seen_ttl_days`. The scan itself is passive and reads only what is broadcast, so nothing here is done in secret; what changes is that an aggregate count becomes a per-identity time series. That is a different thing to hold, and it must be something the user turns on deliberately for networks they choose — never something an upgrade does on their behalf. It is also why `off` and the narrow scopes (`my-WiFi`, `known`) are the ones to make easy, and `unknown` the one to make a conscious choice.
+
+  **Do not let this argument be re-litigated on entity-count grounds alone.** Entity count is a performance concern and a future release could make it cheap; the privacy reasoning would still stand, and the default should not move with it.
+
 - **Created on sighting, not on configuration.** An entity appears the first time a network matching the scope is seen, so the list does not have to be written by hand in advance.
 - **Cleanup by age** — an action and a button that remove entities for networks not seen for N days (configurable, default 90, matching the existing history TTL). Creation on sighting means entities accumulate, so an explicit prune is part of the mechanism and not an afterthought.
 - **A defined "gone" state** — `not_home` when the network is not visible but the scan is healthy, `unavailable` only when the scan itself failed. `is_connected` is `False`, not `None`, in the first case: the scan ran and the network was not in it, which is a negative answer rather than no answer. Phase 3 depends on this distinction.
@@ -140,6 +145,22 @@ A **Number** control (`min_visit_count`, default `0` = disabled) excluding netwo
 A control rather than a Configure option because it is a value the user will want to tune against what they are actually seeing, and adjusting it from a dashboard slider — or from an automation — beats reopening the options flow each time. It follows the existing convention for disabled-by-default controls that change what other entities report.
 
 The `visit_counts` history that drives it is already persisted, so this is a filter over existing state rather than new state, which is what keeps the effort low.
+
+### History browser action
+
+#### **Value ⭐⭐⭐ · Effort Low**
+
+An action that returns the stored history for the networks matching a query, so a user can answer "when did I last see this, and how often" without building a template over entity attributes.
+
+**Why an action rather than an entity.** The history is already three persisted stores — `last_seen`, `first_seen` and `visit_counts`, keyed per network — and it is a **question the user asks occasionally**, not a value that belongs on a dashboard. That is the same reasoning that made `get_networks` an action: a long list is the wrong shape for an attribute, and the per-network detail attributes are already capped at `NETWORK_ATTR_MAX` for exactly that reason. `SupportsResponse.ONLY`, mirroring `get_networks`.
+
+**Shape.** Optional `ssid` filter accepting the same identity forms as the known and deny lists — exact SSID, `fnmatch` pattern, or BSSID — so a user who has learned one syntax does not learn a second. Optional `seen_since` / `min_visits` narrowing. Returns one record per match: key, SSID, BSSID where known, `first_seen`, `last_seen`, `visit_count`, and whether it is currently visible. Unfiltered, it returns everything in the stores, which is the "what have I ever seen here" case.
+
+**Retention is the thing to be explicit about.** The stores are pruned by `last_seen_ttl_days` (default 90, `0` = keep forever), so the action can only ever report inside that window. It should say so — return the effective retention window alongside the records rather than letting a user read an empty result as "never seen".
+
+**Effort is Low because no new state is created.** This is a query over history the coordinator already keeps and already prunes; `services.py` has the multi-entry `_resolve_entries` pattern and the `SupportsResponse` precedent to build on.
+
+**Origin:** `.notes/todo.md`, moved here 2026-08-21.
 
 ### Appearance / disappearance events
 
@@ -226,6 +247,7 @@ Phases of the per-network entities item are listed separately because their Effo
 | — phase 2, device trackers           | To Be Done | ⭐⭐⭐   | High              |
 | — phase 3, signal sensors            | To Be Done | ⭐⭐⭐   | Low after phase 2 |
 | Visit-count threshold                | To Be Done | ⭐⭐⭐   | Low               |
+| History browser action               | To Be Done | ⭐⭐⭐   | Low               |
 | Appearance / disappearance events    | To Be Done | ⭐⭐⭐   | Medium            |
 | Proximity alert hysteresis           | Maybe      | ⭐⭐     | Medium            |
 | Case-insensitive known-SSID matching | Maybe      | ⭐⭐     | Medium            |

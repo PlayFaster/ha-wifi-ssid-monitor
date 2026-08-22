@@ -198,7 +198,7 @@ def test_health_reflects_snapshot(mock_config_entry, mock_coordinator):
     """The health sensor reads problem/issues from the snapshot."""
     mock_coordinator.health_snapshot = {
         "problem": True,
-        "severity": "serious",
+        "severity": "error",
         "issues": ["Cannot reach the Supervisor API"],
         "degraded_capabilities": ["supervisor_unreachable"],
         "signal_unit": "percent",
@@ -209,7 +209,7 @@ def test_health_reflects_snapshot(mock_config_entry, mock_coordinator):
     )
     assert sensor.is_on is True
     attrs = sensor.extra_state_attributes
-    assert attrs["severity"] == "serious"
+    assert attrs["severity"] == "error"
     assert "Cannot reach the Supervisor API" in attrs["issues"]
 
 

@@ -12,6 +12,17 @@ services:
   supervisor:
     command: python /mock_supervisor.py
     container_name: supervisor_mock
+    # The script is bind-mounted, so editing it changes the file inside this
+    # container immediately — but the running Python process keeps the old
+    # module in memory. Restarting Home Assistant does NOT pick up a change:
+    #   docker restart supervisor_mock
+    environment:
+      # Uncomment to pin the payload. The mock varies two networks by
+      # minute-of-hour by default; set this for `Sensor: Verify HA` and for any
+      # bug reproduction that needs the same bytes twice. Needs a recreate
+      # (`docker compose up -d supervisor`), not just a restart.
+      # - MOCK_STATIC=1
+      - PYTHONUNBUFFERED=1
     image: python:3.11-slim
     volumes:
       - ./mock_supervisor.py:/mock_supervisor.py:ro

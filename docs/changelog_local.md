@@ -5,6 +5,18 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.3-dev12\] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap](#203-dev12---2026-08-22---mutation-cadence-closed-843-kill-the-failed-fetch-gap)
+  - [\[2.0.3-dev11\] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list](#203-dev11---2026-08-22---coordinatorpy-enters-mutation-testing-nine-tests-from-the-survivor-list)
+  - [\[2.0.3-dev10\] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned](#203-dev10---2026-08-22---about-notes-review-historical-clutter-pruned-pause-polling-aligned)
+  - [\[2.0.3-dev9\] - 2026-08-22 - Depth findings closed; the coverage-context trap](#203-dev9---2026-08-22---depth-findings-closed-the-coverage-context-trap)
+  - [\[2.0.3-dev8\] - 2026-08-22 - Test depth check; the real-transport test pattern](#203-dev8---2026-08-22---test-depth-check-the-real-transport-test-pattern)
+  - [\[2.0.3-dev7\] - 2026-08-22 - Three health defects found by the fault drill](#203-dev7---2026-08-22---three-health-defects-found-by-the-fault-drill)
+  - [\[2.0.3-dev6\] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill](#203-dev6---2026-08-21---mock-supervisor-rebuilt-against-real-hardware-repair-text-sweep-fault-drill)
+  - [\[2.0.3-dev5\] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes](#203-dev5---2026-08-21---section-19-severity-enum-section-20-logging-fixes)
+  - [\[2.0.3-dev4\] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit](#203-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
+  - [\[2.0.3-dev3\] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep](#203-dev3---2026-08-21---ci-bumps-github-ruff-phacc-sensor-manifest-process-hacsjson-ha-min-ver-mutation-testing-prep)
+  - [\[2.0.3-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#203-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
+  - [\[2.0.3-dev1\] - 2026-08-07 - Bump Ruff to 0.16.1](#203-dev1---2026-08-07---bump-ruff-to-0161)
   - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
   - [\[2.0.1\] - 2026-08-06 - Release - Multi SSID Plus More Fixes; Major Test Improvements](#201---2026-08-06---release---multi-ssid-plus-more-fixes-major-test-improvements)
   - [\[2.0.1-dev25\] - 2026-08-07 - Add `release.yaml` to add zipfile to releases on github](#201-dev25---2026-08-07---add-releaseyaml-to-add-zipfile-to-releases-on-github)
@@ -94,6 +106,274 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.3-dev12] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap
+
+The verifying run of the documented two-run cadence, one further test, and the write-backs. **No source change.**
+
+### Added — tests
+
+- **`test_a_failed_fetch_survives_an_entry_with_no_known_ssids_option`** (`tests/test_coordinator.py`). `_record_fetch_failure_health` reads `CONF_KNOWN_SSIDS` a second time, at `coordinator.py:357`, and that read sits **outside** the `try` that guards the health computation — so replacing its `""` default with `None` makes `_split_patterns` raise `AttributeError` mid-outage, and the failure path that exists to explain the outage is itself what breaks. Driven on cold start so the strike budget does not short-circuit it. Verified to fail under that mutant.
+  - This closes the gap `[2.0.3-dev11]` recorded rather than fixed: the M8 test drives a **successful** poll and reaches the other read, at line 604.
+
+### Verified — mutation cadence run 2
+
+- **1,307 mutants, 1,102 killed, 205 survived — an 84.3% kill rate.** Survivors 232 → **205**: the ten tests from `recommendations_20260822.md` killed 27, and **every one landed in `coordinator.py`**. `parse.py`, `diagnostics.py` and `health.py` are unchanged at 15, 27 and 32, which is the right answer — every test targeted the coordinator.
+- **`_apply_health` went from 8 survivors to 0**, closing the M1 finding outright. That was the published health-snapshot keys, which three passing checks — depth, coverage and the assertion audit — could not see.
+- Coordinator by function: `__init__` 31 → 26, `_sync_repairs` 10 → 6, `async_flush_stores` 9 → 7, `_async_update_data` 18 → 15, `_process_scan` 25 → 23, `_record_fetch_failure_health` 22 → 20, `_fire_new_network_events` 22 → 21.
+
+### Changed — documentation
+
+- **`.notes/test_pytest_issues/mutation_covered_not_covered.md` → v1.2.0.** Records the generated-mutant total v1.1.0 had flagged as missing, which finally puts a measurement behind the cost model: **0.83 mutants per line, about 2.1 seconds of run time per line, ~55 minutes for the full list.** The ~2 s per line rule carried from a single 2026-08-05 measurement turns out to be right. Adds the run-2 per-function table and the conclusion that `coordinator.py` earned its place.
+- **`.shared/info/test_better_docs/mutation_testing_setup.md` §10** — the `wifi_ssid_monitor` half of the 2026-08-15 sibling chore is closed. `mutants/` now carries `icons.json`, `strings.json` and `translations/` identical to the live component, verified by diff rather than assumed. `unifi_network_monitor` is still open.
+
+### Notes
+
+- Test count 414 → **415**. 100% line and branch, assertion audit 0 of 337, Test Depth PASSED in coverage-contexts mode, `mypy --strict` clean.
+- **The cadence is now complete for this phase** — run 1 for the survivor list, run 2 to verify the fixes together. `mutants/` is retained: it is the cache and the results store, and the next run resumes from it.
+- **A partial result was nearly reported as a final one.** Midway through run 2, `mutmut results` showed 63 survivors — because 879 mutants were still `not checked` and pending mutants are not counted as survived. The check that caught it was reading the **status breakdown** rather than the survivor count alone. Worth remembering: a falling survivor count during a run is not progress, it is incompleteness.
+- For comparison across the family: `zte_router_5g` 96.6%, `huawei_router_5g` ~85.9%. This project now sits with Huawei, and for the same reason — both mutate their coordinator, which is where the unkillable-by-design survivors concentrate.
+
+## [2.0.3-dev11] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list
+
+First mutation run with `coordinator.py` on the list, and the nine tests its survivors produced. **No source change** — every mutation below was restored by file copy and confirmed by checksum.
+
+### Added — tests
+
+- **Nine tests in `tests/test_coordinator.py`**, one per finding in `.notes/issues/testing_deeper/recommendations_20260822.md`, each naming in its docstring the mutant it was written against so the evidence survives the next survivor list.
+  - **The published health-snapshot keys** (M1) — the one that matters. Mutating `_apply_health`'s dict **keys** survived: `binary_sensor.py` reads them with `snapshot.get(...)`, so a rename does not raise and the published attribute silently becomes `None`. Nothing caught it because the assertions sat on opposite sides of the seam — `conftest.py` sets `"signal_unit"` in a hand-built snapshot and asserts the entity reads it, while no test drove a poll and asserted what the coordinator produced. **Invisible to depth, coverage and the assertion audit, all three passing.**
+  - **The fetch timeout** (M2) — `asyncio.timeout(COORDINATOR_TIMEOUT_SECONDS)` → `timeout(None)` survived, which disables the budget entirely. The existing test raises `TimeoutError` from the mocked API, proving the handler and not the budget.
+  - **Two loop-truncation tests** (M3) — `continue` → `break` survived in `_fire_new_network_events` and `_sync_repairs`; one skipped item silently abandons everything sorted after it. Both loops had only ever been driven with items that took the same branch.
+  - **The force-refresh latch** (M4) — `self._force_refresh_once = False` → `True` survived, which would make every later poll bypass the pause setting for ever.
+  - **Repair severity and fixability** (M5), swept over `ALL_REPAIR_KEYS` — existing tests asserted an issue was created and with which id, never with what properties.
+  - **Store payloads** (M7) — `async_save(None)` survived; the tests asserted a save was _called_, not what it carried.
+  - **Constructor attributes other modules read** (M6) and **the missing-option default** (M8).
+- **`test_every_finding_sets_a_valid_severity`** in `tests/test_integration_health.py` — sweeps `CHECKS` and asserts every finding's severity is in the §19 vocabulary. Written for a survivor recorded on 2026-08-06 as "worth revisiting"; it is now dead. It asserts the **published strings**, not the `SEVERITY_*` constants, because a rename mutation survived the first version — comparing the finding against the constant compares the code with itself while every user automation matching on `severity` breaks.
+
+### Changed — mutation scope
+
+- **`coordinator.py` added to `.validate/mutmut_modules.txt`.** `huawei_router_5g` already mutates its own, so this is the family pattern rather than an experiment. The measurement that justified it is what the **module** touches, not what the test file mocks: **8 of 864 lines** reference `self.api.`, across three functions. Everything else — history, pruning, health application, repair sync — runs over a payload that has already arrived.
+- **That file was then trimmed back.** It had grown twelve lines of reasoning that now lives in `mutation_covered_not_covered.md`, and part of it was **disproved by the run it was written for** (see Notes). It now carries the format rules and a pointer.
+
+### Added — documentation
+
+- **`.notes/test_pytest_issues/mutation_covered_not_covered.md`** — the per-module record behind the module list: what is included and why, what was **tried and rejected** and why, and candidates with the case for _and against_ each. Every entry carries its three costs — run time, triage burden, expected false-positive share — because a proposal without them is an impression. Records `api.py` as rejected and states that `aioclient_mock` does **not** reopen it.
+- **The same file for the other three projects** at v1.0.0, from their own recorded run data, under cross-project chore **C-023**.
+
+### Notes
+
+- Test count 405 → **414**. 100% line and branch, assertion audit 0 of 336, Test Depth PASSED in coverage-contexts mode, `mypy --strict` clean.
+- **Run result: 232 survivors** — `coordinator.py` 158, `health.py` 32, `diagnostics.py` 27, `parse.py` 15. The three original modules were at 82 and are now 74, so the previous session's tests killed 8.
+- **A prediction in this project's own record was wrong, and is recorded as wrong.** `mutation_covered_not_covered.md` predicted `coordinator.py`'s survivors would concentrate in the three functions touching the mocked API. They did not: those account for 65 of 158, and the largest single group is **`__init__` at 31**, which touches nothing mocked. The inference was also backwards — sampling shows those are `self.version = None`-style **killable gaps**, not mocked-boundary noise, so the module is _more_ productive than estimated. `huawei_router_5g` saw the same construction-heavy pattern.
+- **Ten hand mutations verified**, each restored by file copy and checksum. `mutmut` was **not** re-run: the documented cadence is exactly twice per phase, and the second run is a separate decision.
+- One equivalent proved and recorded: `get(CONF_KNOWN_SSIDS, "XXXX")` cannot be distinguished from the `""` default, since neither matches any network — while the sibling `None` mutant **is** killed. Two gaps recorded rather than closed: the same default on the failed-fetch path at `coordinator.py:357`, and the remaining `__init__` survivors for attributes nothing else reads.
+
+## [2.0.3-dev10] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned
+
+Executed `about_notes_review.md` audit across all entity descriptions in `custom_components/wifi_ssid_monitor/`. Cleaned up entity `about:` attribute notes displayed to end users in Home Assistant UI modals per `doc_style.md` and `dev_standards.md` §14, and re-synchronized documentation.
+
+### Changed — Entity About Descriptions
+
+- **`number.py` (`scan_interval`):** Pruned historical migration commentary (_" — it is no longer in the Configure dialog."_). Note now reads cleanly: `"How often a scheduled scan runs."`
+- **`sensor.py` (`strongest_unknown_signal`):** Pruned retired sensor reference (_" Replaces the old dBm 'RSSI' sensor."_). Note now reads: `"Signal quality of the closest unknown network, 0-100%. Higher is closer."`
+- **`switch.py` (`stop_polling`):** Adopted canonical cross-project wording registered in `about_notes_alignment.md` for `system_pause_polling`, trimming developer-level architectural comparison with Home Assistant's internal system options. Note now reads: `"Temporarily suspends background polling without disabling the integration. Entities hold their last values rather than going unavailable, and manual refresh actions still reach the device."`
+
+### Changed — Documentation
+
+- **`docs/about_attribute_list.md`:** Re-synchronized generated table via `check_sensor_manifest.py --sync-docs wifi`. Verified 18 entities match code manifest cleanly with `check_sensor_manifest.py --check wifi`.
+- **`prompt_use_log.md`:** Appended log entry for `about_notes_review` run on `ha-wifi-ssid-monitor`.
+- **`about_notes_review_20260822_1154.md`:** Generated complete findings audit report in `.notes/sensors_states/`.
+
+---
+
+## [2.0.3-dev9] - 2026-08-22 - Depth findings closed; the coverage-context trap
+
+`Tests: Depth Check` now reports **PASSED** here — 10 of 10 declared outcomes driven, no stubbed publishes, no stubbed seams, no undriven gates. First project through the checklist, and the worked example for the other three (chore **C-022**). No source change: every mutation below was restored and checksum-verified.
+
+### Added — tests
+
+- **Five REACH tests** in `tests/test_coordinator.py`, one per remaining outcome in `health.CHECKS`: `payload_field_missing`, `payload_field_partial`, `band_unresolved_some`, `no_known_networks`, `empty_scan`. Each drives the real `WifiScanAPI` over `aioclient_mock`, so the payload is the input and `mac`, `signal_pct` and `band` are **derived by `parse.py`** rather than supplied. Each asserts the key of the check that fired, not the severity — several of these produce the same severity from the same payload, so a severity assertion would pass on the wrong one.
+- **Six tests driving the two config-flow helpers for real**, replacing two that patched `WifiScanAPI`: the `wifi`/`wireless` interface filter, the raise on a bad status, the swallow that turns it into an empty picker, the missing-token path, and both sides of `_validate_input`. Plus **one full user flow with neither helper patched**, proving the seam is reachable through the flow.
+- **`tests/test_depth_allowlist.txt`** — two SEAM entries covering the flow-branch patches in `test_config_flow.py`, with the reason recorded. The helpers themselves are driven for real in the same file, which is what makes it an exemption rather than a hole.
+
+### Fixed — tests
+
+- **`_validate_input` was being called with a dict where the flow passes a string.** `test_validate_input_helper` passed `{CONF_INTERFACE: "wlan0"}` and passed, because the patched `WifiScanAPI` never built a URL from it. The replacement asserts the chosen interface reaches the wire — verified to fail when the interface is hard-coded.
+- **A test asserting nothing.** The first version of `test_validate_input_accepts_a_real_response` relied on "it does not raise". The assertion audit caught it; it now asserts the request count and the URL.
+
+### Notes
+
+- Test count 394 → **404**. 100% line and branch, assertion audit 0 of 326, `mypy --strict` clean.
+- **Nine mutations verified**, each restored by file copy and confirmed by checksum: the five health checks made unreachable one at a time; `parse.py` no longer deriving `band` (which only the real-seam test catches); dropping `"wireless"` from the interface filter — the Raspberry Pi regression; deleting the bad-status raise in `get_interfaces`; and removing the `except WifiScanError` swallow in `_get_wifi_interfaces`.
+- **`_apply_health` applies `HEALTH_DRIFT_STRIKE_LIMIT` to every finding, capability ones included**, despite the constant's name. `no_known_networks` and `empty_scan` need `CANARY_MIN_VISITS` polls to establish the history **and** three further consecutive polls to confirm. Recorded in the tests, because the name says otherwise.
+- Dropping the bad-status raise in `get_interfaces` survived the first mutation attempt: a 500 leaves the payload empty, so the helper returns `[]` either way. The raise is now asserted against the API object directly, where the distinction is visible. Without it, a Supervisor outage would reach the user as "this machine has no WiFi interfaces".
+
+### Changed — tooling
+
+- **`Pytest: Check Test Coverage` now sets `COVERAGE_CORE=ctrace`** (workbench source, synced to all four). `--cov-context=test` is **silently useless without it** on Python 3.12+: coverage's default `sys.monitoring` core does not support dynamic contexts, so once a line has been seen it stops being monitored and keeps whichever test touched it first. Measured here — 404 tests, 123 contexts recorded, no line carrying more than two — and the depth check reported **seven driven outcomes as never driven**, one of them with a test driving it through a real HTTP seam. If you run pytest by hand, set it.
+- **`check_test_depth.py`** gained three fixes and two sweeps, all in the workbench: it refuses context data that looks gutted rather than reporting it; it resolves module-level test helpers, so a test driving the poll through `_settle()` is no longer read as driving nothing; **SEQ** reports an accumulation gate no test drives far enough; **HEAL** reports a check that overwrites the value it just compared — the `signal_format_changed` shape, which it reproduces on this project's pre-fix `coordinator.py`.
+
+## [2.0.3-dev8] - 2026-08-22 - Test depth check; the real-transport test pattern
+
+Tooling and one worked test. No source change.
+
+### Added
+
+- **`Tests: Depth Check`** (`check_test_depth.py`, in the workbench so all four projects get it). Two sweeps that read the **test suite** rather than the code it covers, because coverage answers "was this line executed" and neither of these is that question.
+  - **REACH** — every declared health finding and repair key must be produced by a test that drives a real poll. First run here reported **7 of 10 declared outcomes never driven end to end**.
+  - **PUBLISH** — a test file that stubs `async_write_ha_state` must capture, in at least one test, what a publish would have carried. Flagged **per file, not per assignment**: a test asserting an option was persisted may legitimately ignore the publish, and flagging all eleven bare stubs here would have been noise on a project that already has the capture.
+  - Both resolve constants, so a test importing `ISSUE_SUPERVISOR_UNAVAILABLE` counts the same as one writing the literal — a literal-only sweep would have punished the better-written tests.
+- **The real-transport test pattern** — one worked example in `tests/test_coordinator.py`, using `aioclient_mock` from `pytest-homeassistant-custom-component`. It intercepts `async_get_clientsession`, so the real `WifiScanAPI` makes a real request against a payload the test supplies, and `api.py` and `parse.py` both run. **No new dependency.** What it reaches that an object mock cannot: `last_response_had_ap_key` is _derived_ by `api.py` from the response shape, and every existing test of the drift it feeds asserts a flag the fixture set by hand — so those assertions could not fail if `api.py` stopped setting it.
+- **An authoring checklist in `AGENTS.md`** — four questions to ask before writing a test for new behaviour, because the audit taxonomy lives in a prompt used months after the feature ships.
+
+### Notes
+
+- Test count 393 → **394**. 100% line and branch, assertion audit 0 of 316.
+- `dev_standards` §11 gained the rule as Standard Version 1.32.0; cross-project adoption is chore **C-021**, with `huawei_router_5g` flagged as reduced scope — it reaches the network through a library holding its own `requests.Session`.
+- `testing_deeper_lev1_review.md` gained four categories — **SEQ, LIFE, REACH, PUB** — at v1.1.0. The original six are each scoped to one function, which is why three defects survived 390 tests at 100% branch coverage.
+
+## [2.0.3-dev7] - 2026-08-22 - Three health defects found by the fault drill
+
+All three were invisible to 390 tests at 100% line **and** branch coverage, and all three share one shape: **the tests examined the parts, and the defect lived in the sequence.** Every existing test called a health check directly with a hand-built `ScanFacts`; nothing drove consecutive polls through the coordinator. Each fix has a failing test written first.
+
+### Fixed
+
+- **`signal_format_changed` could never be raised.** The signal-unit baseline was reassigned to the new unit at the end of the first differing scan, so the check fired once, banked one strike of the three it needs, and then stopped firing — at which point `_apply_health` deleted the strike count because the key was no longer in the fired set. One of three repair issues was unraisable in every release. The baseline is now **held**: the finding persists until the entry reloads, which is the honest duration, since a unit flip leaves the user's proximity threshold meaningless until they act. The `info` line is logged once, not once per poll.
+- **A missing interface reported `severity: ok` during a live outage.** The 400 path took the `interface_missing` branch, handed off to `_apply_health` and **returned**, publishing that routine's "nothing confirmed yet" verdict. A missing interface — permanent and user-fixable — needed `FETCH_STRIKE_LIMIT` **plus** `HEALTH_DRIFT_STRIKE_LIMIT` consecutive failures before saying anything, while an unreachable Supervisor, usually transient, said `error` immediately. The failure path no longer returns: the outage verdict is published either way, naming the interface when that is the cause. The drift budget still governs the repair, which is all it was for.
+- **A repair raised before a reload could never be cleared.** `_active_repairs` is per-coordinator state and the delete loop walked only that set, so a reload or a Home Assistant restart gave the new coordinator an empty set and no memory of what its predecessor raised. The issue registry outlives the instance and these repairs are `is_fixable=False`, so the card sat in the Repairs panel permanently, with no UI path out, long after the condition had resolved. Deletion now sweeps `ALL_REPAIR_KEYS` statelessly — `async_delete_issue` is a no-op for an issue that is not there. `const.ALL_REPAIR_KEYS` is now the single source `all_issue_ids()` derives from.
+
+### Changed — dev container
+
+- **`fault_drill.py` corrected twice by its own output.** It waited on `degraded_capabilities` to decide the repair had confirmed — but after the second fix that attribute names the cause as soon as the fetch budget is spent, while the repair still waits out the drift budget. The drill read the repairs list two polls early and reported a defect that was not there; it now polls the repairs list itself. The signal-flip scenario also moved **last**, because it is the only one whose finding is held until reload, so anything after it inherited its repairs as leftovers.
+
+### Notes
+
+- Test count 392 → **393**, 100% line and branch, assertion audit 0 of 315.
+- `dev_standards` §19 gained two rules from the first two defects — see Standard Version 1.31.0.
+- Research and options for reaching this class of defect in the other three projects: `.shared/issues/x_project/fault_injection_options.md`.
+
+## [2.0.3-dev6] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill
+
+No shipped code changed. Development environment, tests and documentation.
+
+### Changed — dev container
+
+- **The mock Supervisor now matches what the real one sends.** Three diagnostics downloads from two x86_64 HAOS boxes and a Raspberry Pi 4 (2026-08-21) showed it had drifted: `mode` was `"infra"` where every real access point says `"infrastructure"`, and only `wlan0` was ever offered where `wlp2s0` is in the wild. `Neighbors_WiFi_5G` was also defined at 2412 MHz — a 2.4 GHz frequency — so its name and its band disagreed. Evidence and conclusions in `DEVELOPMENT.md` §3d, with the same table in the mock's own docstring so the next edit has it in front of it.
+- **A second adapter**, `wlp2s0` with `"type": "wireless"`, carrying its own payload. Makes three things reachable in the container for the first time: the `"wireless"` branch of `get_interfaces` — which exists because a Pi reports it, and whose absence once made auto-detection return nothing for every Pi user — multi-entry behaviour, and the entry-scoped repair ids that only misbehave with two entries.
+- **An unrecognised interface now returns 400**, as the real Supervisor does. Any path containing "accesspoints" previously returned 200, so a wrong interface name could not fail in the container at all.
+- **Variability on two networks**, by minute-of-hour: `Neighbors_WiFi_5G` ramps 55-95 and crosses the proximity threshold twice an hour, `Unknown_WiFi_6G` is present for the first half hour only. Everything else is fixed — a flapping known set would trip the canary continuously. `MOCK_STATIC=1` pins the payload, wired into `docker-compose.override.yml`.
+- **Fault injection** through `GET /mock/fault?mode=<name>`, eleven faults, `&scans=N` to auto-clear. Out of band because the integration builds its own fixed URL; stateful so a fault can be **cleared** mid-session, which is the point — recovery and repair deletion are the least observed behaviour in the health system. All eight health checks and all three repair cards are now reachable in the UI.
+
+### Added — tests
+
+- **Three sweeps over the repair-issue contract**, the gap `dev_standards` §19 warns about and nothing here guarded: every repair must have `title` and `description` in `strings.json` **and** every compiled `translations/*.json`; no orphan `issues.*` entry may survive a rename; and no check may declare a `repair=` that `all_issue_ids()` omits. The last is the sharp one — `async_remove_entry` deletes exactly that list, so an unregistered repair outlives the integration with no UI path to clear it. All three verified to fail first.
+
+### Added — tooling
+
+- **`Mock: Fault Drill`** (`.devcontainer/fault_drill.sh`) — attended, standalone, not in `Validate All`. Covers the one thing no test can: what a user sees. Clears the fault on exit including Ctrl-C.
+- **`Mock: Fault Drill Staleness`**, inside `Validate All`. Compares the recorded drill date against the last commit touching the files that could invalidate it, and warns — never fails. **Prints nothing when current**, so its appearance means something.
+
+### Notes
+
+- Test count 387 → **390**, 100% line and branch, 0 partial branches, assertion audit 0 of 312.
+- `ha_compatibility.md` narrowed to its stated purpose and given a scope note; two sections had drifted into architecture. `DEVELOPMENT.md` gained §3d and §3e.
+
+## [2.0.3-dev5] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes
+
+Closes `x_project` chores C-014 and C-020. **Both are behaviour changes**, unlike dev4.
+
+### Changed — BREAKING for automations reading `severity`
+
+- **`severity` now uses `dev_standards` §19's five normative values**: `ok`, `degraded`, `warning`, `error`, `unknown` — the same words as `huawei_router_5g` and `zte_router_5g`, so a template written for one works against all of them. **`None` is gone**, which was the live half of the defect: a healthy integration published nothing for `severity`, and Home Assistant renders that as "Unknown" beside three legitimately-empty lists — indistinguishable from a sensor that never populated.
+  - Healthy → `ok`. Cold start, before the first poll → `unknown` (paired with `problem: False`, matching `zte_router_5g`; firing the problem sensor on every restart is the jitter §19 forbids).
+  - Supervisor unreachable, and `interface_missing` → `error`. Both are total outages; there is no core still working to call degraded.
+  - Every drift finding → `warning`; `no_known_networks` and `empty_scan` → `degraded`. The value follows the `is_drift` classification the checks already carried, not how alarming the finding reads — which is precisely the `degraded` / `warning` distinction §19 exists to make.
+  - Aggregation ladder is §19's own order, `ok` < `degraded` < `warning` < `error`, in a new `health.worst_severity()`. `zte_router_5g` resolves a simultaneous drift and capability finding the same way.
+  - **Migration:** `serious` is now `warning` or `error` depending on cause; `minor` is now `warning` or `degraded`. `README.md` carries the value table and a migration note.
+
+### Fixed — privacy
+
+- **`api.py` no longer logs an access point verbatim.** It logged `access_points[0]` whole at debug, publishing a neighbour's SSID and BSSID into a file with no redaction layer that users are routinely asked to paste into public issues (§20). Now logs the sorted key set, which is what the payload-drift question the line exists for actually needs.
+- **`coordinator._parse_timestamps` no longer logs the network key** of an unreadable stored timestamp — that key is an SSID or a `Hidden-<last4>` label. Now logs how many were discarded, which is also the better diagnostic: one is a corrupt row, all of them is a format change.
+- **`README.md` troubleshooting updated with the fix, not before it.** The old text warned that raw access-point data could appear in debug logs; that was accurate until this release, and would have become a false reassurance if removed any earlier.
+
+### Added — tests
+
+- Seven tests. `severity` is guarded three ways (healthy says `ok`; cold start says `unknown`; a sweep over every snapshot writer proves none can publish a blank), the classification coupling is swept over `CHECKS` reusing the existing `_FIRING_FACTS`, and the aggregation ladder is asserted directly. Nothing guarded either value before today, which is how `None` survived in two places.
+- Two §20 tests assert the **property** — the SSID and BSSID do not appear in the log text — rather than the message wording, so a future rewrite cannot quietly reintroduce them.
+- All five were verified to fail first: `severity` forced back to `None`, a drift finding re-tagged `degraded`, a sixth value invented, and both log lines reverted to their old form.
+
+### Notes
+
+- Test count 378 → **387**. 100% line and branch coverage, 0 partial branches, assertion audit 0 of 309.
+- `AGENTS.md` gained two rows in _Tests that will stop you, and why they exist_.
+
+## [2.0.3-dev4] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit
+
+Unattended pass over every open `wifi_ssid_monitor` item in `.shared/issues/x_project/`. No functional change: tests, one `about` note, and documentation only.
+
+### Added
+
+- **Suppression allow-list sweep** (chore C-004): `ALLOWED_SUPPRESSIONS` and three tests in `tests/test_entity_hygiene.py`, ported from `huawei_router_5g`. Finds comments with `tokenize` rather than a regex, is keyed on `(file, directive)` so line churn does not touch it, and sweeps `custom_components/` and `tests/` alike. Three entries, all `noqa`; this project has zero `type: ignore` and zero `pragma: no cover`. `_shipped_root()` came with it so a `mutmut` run reads the shipped tree rather than several hundred mutated copies of the same comment. Each of the three tests was verified to fail before being trusted.
+- **Publish-moment capture tests** (chore C-019): 12 tests across `tests/test_switch.py` and `tests/test_number.py`, asserting what an entity reads at the instant `async_write_ha_state` fires rather than afterwards. The integration is **not** affected by the defect these guard — every control is option-backed — but nothing proved it. Verified by inverting the publish/write order in both platforms: all 10 switch tests failed while the three pre-existing ones passed, which is the gap in one line of output. Spec: `.shared/issues/x_project/stubbed_publish_tests.md`.
+- **Masked-errors audit report** (chore C-003): `.notes/issues/masked_errors/masked_errors_20260821_1520.md`. `masked_errors_check` v1.4.0, all four classes, **0 findings**. Class B is `N/A` — there is no session to expire — and Class D has no library to make a false claim about, `manifest.json` carrying no requirements.
+
+### Changed
+
+- **`stop_polling` about note**: adopted the family's canonical `system_pause_polling` wording, which adds the §13 state-holding contract the note did not state — entities hold their last values rather than going unavailable. The sentence distinguishing this switch from Home Assistant's own "Enable polling for changes" system option is kept: the two controls sit next to each other on this integration's page. "service" also became "action", matching the rest of the project. `docs/about_attribute_list.md` and `docs/all_sensors.md` regenerated from it.
+- **AGENTS.md**: two rows added to _Tests that will stop you, and why they exist_, for the suppression sweep and the publish-moment tests.
+
+### Notes
+
+- Test count 363 → **378**. Line and branch coverage remain 100% with 0 partial branches, and the assertion audit reports 0 of 300 test functions asserting nothing.
+- `fail_under = 100` (chore C-007) was verified in both directions rather than read off the file: the full suite exits `0`, a single-file run exits `1` at 19.17%.
+- **Two logging findings are recorded and not fixed**, because they are source changes: `api.py:110` logs a verbatim access-point payload including a real SSID and BSSID, and `coordinator.py:777` logs a network key. Both are `debug`. `README.md:1730` warns about the first and was verified accurate — it must change _with_ the fix, not before it. Scoped in chore C-020.
+- The §19 `severity` enum (chore C-014) is likewise assessed and scoped, not applied: `severity` is `None` when healthy, which §19 forbids. Mapping table in the chore.
+
+## [2.0.3-dev3] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep
+
+### Bumps
+
+- **Shared CI**: Bump `.github` Shared CI Validation via SHA from v2.0.10 to v2.0.14
+- **Validate Bump**: Update `ruff` from 0.16.1 to 0.16.3
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.355 to 0.13.356
+
+### Changed
+
+- **HA Minimum Version**: Added `"homeassistant": "2024.8.0"` to `hacs.json` to bring it in line with `README.md`.
+- **Sensor Audit Docs**: `all_sensors.md`, `value_min_max.md`, and `about_attribute_list.md`, all updated as part of new Sensor Manifest script. Also added tasks to `tasks.json`.
+
+### Changed Tooling
+
+- **Mutation Testing**: Set-up for `mutmut`mutation testing. Not yet run.
+- **PyTest 100%**: Added `fail_under = 100`to `pytest`to ensure full coverage is maintained / enforced.
+- **Tool Comments**: Reduced the level of commentary in shared sync tool set-up files.
+- **Remove UV Warnings**: Added `requires-python = ">=3.13"` to `pyproject.toml`to remove `uv` warnings.
+- **AGENTS.md**: Updated for mutation testing and sensor manifest.
+
+### Removed
+
+- **`python-typing-update`**: Dropped as HA has moved to enforcing these rules via `ruff`.
+
+## [2.0.3-dev2] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md
+
+### Bumps
+
+- **Validate Bump**: Update `zizmor` from 1.28.0 to 1.29.0
+- **Validate Bump**: Update `mypy` from 2.1.0 to 2.3.0
+- **Validate Bump**: Update `check-jsonschema` from 0.37.4 to 0.38.0
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.354 to 0.13.355
+
+### Changed
+
+- **`AGENTS.md`**: Added note about different linting for `.notes` and `.shared` and existence of `docs/ROADMAP.md`.
+- **`CHANGELOG.md`**: Rewrote some entries for clarity and tone.
+
+## [2.0.3-dev1] - 2026-08-07 - Bump Ruff to 0.16.1
+
+### Bumps
+
+- **Validate Bump**: Update `ruff` from 0.16.0 to 0.16.1
 
 ## [2.0.1] - 2026-08-06 - Release
 

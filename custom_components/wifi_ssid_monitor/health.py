@@ -19,8 +19,38 @@ from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
 
-SEVERITY_MINOR = "minor"
-SEVERITY_SERIOUS = "serious"
+# dev_standards Section 19: the five values are normative, and `None` is not
+# permitted. The string literals match `huawei_router_5g` and `zte_router_5g`
+# exactly — a user template comparing against them has to work on all of them,
+# which is the whole reason the vocabulary is shared.
+#
+# Which value a finding reports follows `is_drift`, not how alarming it feels:
+# drift means the data that did arrive may be wrong (`warning`), and a finding
+# that is not drift means something stopped working (`degraded`). The one
+# exception is `interface_missing` — the interface being monitored is gone, so
+# there is no core still working to call degraded.
+SEVERITY_OK = "ok"
+SEVERITY_DEGRADED = "degraded"
+SEVERITY_WARNING = "warning"
+SEVERITY_ERROR = "error"
+SEVERITY_UNKNOWN = "unknown"
+
+# Aggregation ladder, in Section 19's own order. `unknown` is deliberately not
+# on it: it describes having no verdict at all, which cannot be the worst of a
+# set of verdicts. `zte_router_5g` resolves a simultaneous drift and capability
+# finding the same way — drift wins.
+_SEVERITY_RANK: dict[str, int] = {
+    SEVERITY_OK: 0,
+    SEVERITY_DEGRADED: 1,
+    SEVERITY_WARNING: 2,
+    SEVERITY_ERROR: 3,
+}
+
+
+def worst_severity(severities: list[str]) -> str:
+    """Return the highest-ranked severity, or `ok` for an empty set."""
+    return max(severities, key=lambda value: _SEVERITY_RANK[value], default=SEVERITY_OK)
+
 
 # Fraction of APs that must be missing a field before it counts as a
 # whole-payload change rather than a per-AP quirk.
@@ -81,7 +111,7 @@ def check_interface_missing(facts: ScanFacts) -> Finding | None:
     if facts.interface_present is False:
         return Finding(
             key="interface_missing",
-            severity=SEVERITY_SERIOUS,
+            severity=SEVERITY_ERROR,
             message=(
                 f"The configured interface '{facts.interface}' is no longer "
                 "reported by the Supervisor."
@@ -104,7 +134,7 @@ def check_signal_unit_flip(facts: ScanFacts) -> Finding | None:
     return Finding(
         key="signal_format_changed",
         is_drift=True,
-        severity=SEVERITY_SERIOUS,
+        severity=SEVERITY_WARNING,
         message=(
             f"Signal values changed from {facts.baseline_signal_unit} to "
             f"{facts.signal_unit}; check the Proximity Threshold."
@@ -120,7 +150,7 @@ def check_response_shape(facts: ScanFacts) -> Finding | None:
     return Finding(
         key="payload_no_ap_list",
         is_drift=True,
-        severity=SEVERITY_SERIOUS,
+        severity=SEVERITY_WARNING,
         message=(
             "The Supervisor response contained no 'accesspoints' list. The API "
             "contract may have changed; check for an integration update."
@@ -142,7 +172,7 @@ def check_field_absent_everywhere(facts: ScanFacts) -> Finding | None:
     return Finding(
         key="payload_field_missing",
         is_drift=True,
-        severity=SEVERITY_SERIOUS,
+        severity=SEVERITY_WARNING,
         message=(
             f"Expected field(s) {', '.join(absent)} absent from all scanned "
             "networks. The component may be degraded; check for an update."
@@ -159,7 +189,7 @@ def check_band_unresolved(facts: ScanFacts) -> Finding | None:
         return Finding(
             key="band_unresolved_all",
             is_drift=True,
-            severity=SEVERITY_SERIOUS,
+            severity=SEVERITY_WARNING,
             message=(
                 "No scanned network resolved to a band. The frequency field may "
                 "have changed shape; band filtering is unreliable."
@@ -169,7 +199,7 @@ def check_band_unresolved(facts: ScanFacts) -> Finding | None:
         return Finding(
             key="band_unresolved_some",
             is_drift=True,
-            severity=SEVERITY_MINOR,
+            severity=SEVERITY_WARNING,
             message=(
                 f"{int(fraction * 100)}% of networks reported a frequency "
                 "outside the known 2.4/5/6 GHz ranges."
@@ -192,7 +222,7 @@ def check_field_absent_minority(facts: ScanFacts) -> Finding | None:
     return Finding(
         key="payload_field_partial",
         is_drift=True,
-        severity=SEVERITY_MINOR,
+        severity=SEVERITY_WARNING,
         message=f"Field(s) {', '.join(partial)} missing on some networks.",
     )
 
@@ -211,7 +241,7 @@ def check_known_network_canary(facts: ScanFacts) -> Finding | None:
         return None
     return Finding(
         key="no_known_networks",
-        severity=SEVERITY_SERIOUS,
+        severity=SEVERITY_DEGRADED,
         message=(
             f"None of the {len(facts.established_known)} usually-visible known "
             "networks were detected. Check the WiFi interface, the band "
@@ -230,7 +260,7 @@ def check_empty_scan(facts: ScanFacts) -> Finding | None:
         return None
     return Finding(
         key="empty_scan",
-        severity=SEVERITY_MINOR,
+        severity=SEVERITY_DEGRADED,
         message="The scan returned no networks at all.",
     )
 

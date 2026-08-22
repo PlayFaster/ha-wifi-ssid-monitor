@@ -53,10 +53,9 @@ SWITCH_TYPES: Final[tuple[WifiSwitchEntityDescription, ...]] = (
         option_key=CONF_STOP_POLLING,
         option_default=DEFAULT_STOP_POLLING,
         about=(
-            "Pauses scheduled scans. Explicit actions — Scan Now, a control "
-            "change, the scan_now service — still fetch. This is separate from "
-            "Home Assistant's own 'Enable polling for changes' system option, "
-            "which stops the schedule being armed at all."
+            "Temporarily suspends background polling without disabling the "
+            "integration. Entities hold their last values rather than going "
+            "unavailable, and manual refresh actions still reach the device."
         ),
     ),
     WifiSwitchEntityDescription(

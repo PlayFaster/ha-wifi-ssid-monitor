@@ -28,14 +28,16 @@ Declaring the limit next to the sensor keeps it visible where it is read, and me
 
 ## Sensor guard bands
 
-Every sensor carrying a `native_unit_of_measurement` or a `state_class` appears here. Source: `sensor.py` → `SENSOR_TYPES`.
+<!-- GENERATED:start -->
 
-| Sensor | Key | Why it needs bounds | Min | Max | Rationale |
-| :-- | :-- | :-- | --: | --: | :-- |
-| Total SSID Count | `count` | `state_class` | 0 | 256 | A count cannot be negative; 256 is far above any real environment, so anything higher is an artifact. |
-| Unknown SSID Count | `unknown_count` | `state_class` | 0 | 256 | Same reasoning; it is a subset of the above. |
-| New Networks (24h) | `new_24h` | `state_class` | 0 | 4096 | Derived from the persisted first-seen history, which is capped at 2,000 entries — the ceiling sits above that cap so a legitimate value is never discarded. |
-| Strongest Unknown Signal | `strongest_unknown_signal` | unit + `state_class` | 0 | 100 | A percentage. `parse.py` already clamps to 0–100 when converting from dBm; the band is the second line of defense for a value that arrives as a percentage and is out of range. |
+| Sub-device | Sensor key                 | Min |    Max | Unit |
+| :--------- | :------------------------- | --: | -----: | :--- |
+| System     | `count`                    | `0` |  `256` | —    |
+| System     | `new_24h`                  | `0` | `4096` | —    |
+| System     | `strongest_unknown_signal` | `0` |  `100` | %    |
+| System     | `unknown_count`            | `0` |  `256` | —    |
+
+<!-- GENERATED:end -->
 
 ### Sensors that correctly have no bounds
 

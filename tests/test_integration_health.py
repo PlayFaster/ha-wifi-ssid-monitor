@@ -7,8 +7,10 @@ not to fire on a per-AP quirk.
 
 from custom_components.wifi_ssid_monitor import health
 from custom_components.wifi_ssid_monitor.health import (
-    SEVERITY_MINOR,
-    SEVERITY_SERIOUS,
+    SEVERITY_DEGRADED,
+    SEVERITY_ERROR,
+    SEVERITY_OK,
+    SEVERITY_WARNING,
     Finding,
     ScanFacts,
     check_band_unresolved,
@@ -19,6 +21,7 @@ from custom_components.wifi_ssid_monitor.health import (
     check_known_network_canary,
     check_signal_unit_flip,
     run_checks,
+    worst_severity,
 )
 
 
@@ -28,13 +31,18 @@ def _ap(**over):
     return base
 
 
-def test_interface_missing_serious():
-    """A missing interface is a serious, repairable finding."""
+def test_interface_missing_is_an_error():
+    """A missing interface is a total outage, and repairable.
+
+    Section 19 reserves `error` for the device being unreachable. There is no
+    core still working here to call `degraded`: the interface being monitored
+    is the whole job.
+    """
     finding = check_interface_missing(
         ScanFacts(interface="wlan0", interface_present=False)
     )
     assert finding is not None
-    assert finding.severity == SEVERITY_SERIOUS
+    assert finding.severity == SEVERITY_ERROR
     assert finding.repair == "interface_missing"
 
 
@@ -59,11 +67,11 @@ def test_signal_unit_flip_needs_baseline():
 
 
 def test_field_absent_everywhere():
-    """A field absent from every AP is serious."""
+    """A field absent from every AP is drift, so it reports `warning`."""
     facts = ScanFacts(normalized=[_ap(mac=None), _ap(mac=None)], total_aps=2)
     finding = check_field_absent_everywhere(facts)
     assert finding is not None
-    assert finding.severity == SEVERITY_SERIOUS
+    assert finding.severity == SEVERITY_WARNING
 
 
 def test_field_present_somewhere_no_finding():
@@ -72,30 +80,38 @@ def test_field_present_somewhere_no_finding():
     assert check_field_absent_everywhere(facts) is None
 
 
-def test_band_unresolved_all_serious():
-    """No AP resolving to a band is serious."""
+def test_band_unresolved_all_warns():
+    """No AP resolving to a band is drift, so it reports `warning`."""
     facts = ScanFacts(normalized=[_ap(band=None), _ap(band=None)], total_aps=2)
     finding = check_band_unresolved(facts)
     assert finding is not None
-    assert finding.severity == SEVERITY_SERIOUS
+    assert finding.severity == SEVERITY_WARNING
 
 
-def test_band_unresolved_minority_minor():
-    """A minority of unresolved bands is minor."""
+def test_band_unresolved_minority_warns():
+    """A minority of unresolved bands is still drift, so still `warning`.
+
+    Magnitude is not what picks the value: both the majority and the minority
+    case describe data that arrived and may be wrong.
+    """
     facts = ScanFacts(
         normalized=[_ap(band=None)] + [_ap() for _ in range(9)], total_aps=10
     )
     finding = check_band_unresolved(facts)
     assert finding is not None
-    assert finding.severity == SEVERITY_MINOR
+    assert finding.severity == SEVERITY_WARNING
 
 
 def test_canary_fires_when_all_known_vanish():
-    """All established known networks vanishing is serious."""
+    """All known networks vanishing is a lost capability, so `degraded`.
+
+    The scan itself is still working — it is returning networks, just not the
+    expected ones — which is exactly what separates `degraded` from `error`.
+    """
     facts = ScanFacts(established_known={"Home", "Office"}, seen_keys={"Neighbour"})
     finding = check_known_network_canary(facts)
     assert finding is not None
-    assert finding.severity == SEVERITY_SERIOUS
+    assert finding.severity == SEVERITY_DEGRADED
 
 
 def test_canary_silent_when_one_known_present():
@@ -139,7 +155,7 @@ def test_response_shape_no_ap_key():
     finding = check_response_shape(ScanFacts(response_had_ap_key=False))
     assert finding is not None
     assert finding.key == "payload_no_ap_list"
-    assert finding.severity == SEVERITY_SERIOUS
+    assert finding.severity == SEVERITY_WARNING
 
 
 def test_field_absent_minority_fires_when_partial():
@@ -151,7 +167,7 @@ def test_field_absent_minority_fires_when_partial():
     finding = check_field_absent_minority(facts)
     assert finding is not None
     assert finding.key == "payload_field_partial"
-    assert finding.severity == SEVERITY_MINOR
+    assert finding.severity == SEVERITY_WARNING
 
 
 def test_field_absent_minority_no_partial():
@@ -174,7 +190,7 @@ def test_empty_scan_triggers_on_established_known():
     finding = check_empty_scan(facts)
     assert finding is not None
     assert finding.key == "empty_scan"
-    assert finding.severity == SEVERITY_MINOR
+    assert finding.severity == SEVERITY_DEGRADED
 
 
 def test_empty_scan_silent_when_no_known():
@@ -267,6 +283,45 @@ def test_every_check_has_a_firing_fixture():
         )
 
 
+def test_every_finding_sets_a_valid_severity():
+    """No check may publish a severity outside the Section 19 vocabulary.
+
+    Written because a mutation setting `severity=None` on `check_signal_unit_flip`
+    **survived** the 2026-08-06 run: every test asserted the severity of the check
+    it was written for, so nothing noticed when one check stopped setting one.
+    Severity is what the health sensor publishes and what user automations
+    compare against, and `worst_severity` looks the value up in `_SEVERITY_RANK`
+    — a `None` reaching it is a `KeyError` inside a poll, not a wrong string.
+
+    Sweeps `CHECKS` rather than a list, so a check added later is covered without
+    anyone remembering. `unknown` is deliberately excluded: it is the
+    never-reported state, not something a firing check may claim.
+    """
+    from custom_components.wifi_ssid_monitor.health import CHECKS
+
+    # The **published strings**, not the constants. Asserting
+    # `{SEVERITY_OK, ...}` compares the code against itself: renaming a constant
+    # renames both sides and the sweep still passes, while every user automation
+    # matching on `severity` breaks. Section 19 fixes this vocabulary, so it is
+    # spelled out here.
+    allowed = {"ok", "degraded", "warning", "error"}
+    assert {
+        SEVERITY_OK,
+        SEVERITY_DEGRADED,
+        SEVERITY_WARNING,
+        SEVERITY_ERROR,
+    } == allowed, "a severity constant no longer carries its published string"
+
+    for check in CHECKS:
+        finding = check(_FIRING_FACTS[check.__name__])
+        assert finding is not None
+        assert finding.severity in allowed, (
+            f"{check.__name__} published severity {finding.severity!r}, which is "
+            f"not one of {sorted(allowed)}. Section 19 fixes this vocabulary and "
+            f"user automations compare against it."
+        )
+
+
 def test_every_finding_is_classified_exactly_once():
     """Each key a check can produce is either drift or a capability, never both.
 
@@ -318,7 +373,7 @@ def test_drift_default_is_false():
     """
     from custom_components.wifi_ssid_monitor.health import Finding
 
-    assert Finding(key="x", severity=SEVERITY_MINOR, message="m").is_drift is False
+    assert Finding(key="x", severity=SEVERITY_DEGRADED, message="m").is_drift is False
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +402,7 @@ def test_band_unresolved_is_serious_at_exactly_the_majority():
     finding = check_band_unresolved(facts)
     assert finding is not None
     assert finding.key == "band_unresolved_all"
-    assert finding.severity == SEVERITY_SERIOUS
+    assert finding.severity == SEVERITY_WARNING
 
 
 def test_band_unresolved_is_minor_just_below_the_majority():
@@ -359,7 +414,7 @@ def test_band_unresolved_is_minor_just_below_the_majority():
     finding = check_band_unresolved(facts)
     assert finding is not None
     assert finding.key == "band_unresolved_some"
-    assert finding.severity == SEVERITY_MINOR
+    assert finding.severity == SEVERITY_WARNING
 
 
 def test_field_absent_minority_stops_at_the_majority():
@@ -429,7 +484,7 @@ def test_a_raising_check_does_not_stop_the_checks_after_it(monkeypatch):
         raise ValueError("this check is broken")
 
     def always_fires(_facts):
-        return Finding(key="sentinel", severity=SEVERITY_MINOR, message="fired")
+        return Finding(key="sentinel", severity=SEVERITY_DEGRADED, message="fired")
 
     monkeypatch.setattr(health, "CHECKS", (boom, always_fires))
 
@@ -450,7 +505,7 @@ def test_run_checks_collects_findings_and_discards_the_quiet_checks(monkeypatch)
         return None
 
     def loud(_facts):
-        return Finding(key="loud", severity=SEVERITY_SERIOUS, message="x")
+        return Finding(key="loud", severity=SEVERITY_WARNING, message="x")
 
     monkeypatch.setattr(health, "CHECKS", (quiet, loud, quiet))
 
@@ -478,7 +533,7 @@ def test_field_absent_everywhere_is_serious_at_exactly_the_majority():
     facts = ScanFacts(normalized=[_ap(mac=None)] * 9 + [_ap()], total_aps=10)
     finding = check_field_absent_everywhere(facts)
     assert finding is not None
-    assert finding.severity == SEVERITY_SERIOUS
+    assert finding.severity == SEVERITY_WARNING
 
 
 def test_band_unresolved_says_nothing_when_every_band_resolved():
@@ -490,3 +545,122 @@ def test_band_unresolved_says_nothing_when_every_band_resolved():
     """
     facts = ScanFacts(normalized=[_ap(), _ap(), _ap()], total_aps=3)
     assert check_band_unresolved(facts) is None
+
+
+# ---------------------------------------------------------------------------
+# Section 19 aggregation ladder — x_project C-014
+# ---------------------------------------------------------------------------
+
+
+def test_no_findings_aggregates_to_ok():
+    """An empty set is a positive verdict, not an absent one.
+
+    This is the whole point of banning `None`: healthy has to say something.
+    """
+    assert worst_severity([]) == SEVERITY_OK
+
+
+def test_error_beats_everything():
+    """A total outage is not softened by whatever else fired alongside it."""
+    assert worst_severity([SEVERITY_DEGRADED, SEVERITY_ERROR]) == SEVERITY_ERROR
+    assert worst_severity([SEVERITY_WARNING, SEVERITY_ERROR]) == SEVERITY_ERROR
+
+
+def test_drift_outranks_a_lost_capability():
+    """`warning` wins over `degraded`, matching Section 19's own order.
+
+    `zte_router_5g` resolves the same collision the same way. It is not an
+    arbitrary tie-break: data you cannot trust is the harder problem to notice,
+    because unlike a lost capability nothing else about the integration looks
+    wrong.
+    """
+    assert worst_severity([SEVERITY_DEGRADED, SEVERITY_WARNING]) == SEVERITY_WARNING
+    assert worst_severity([SEVERITY_WARNING, SEVERITY_DEGRADED]) == SEVERITY_WARNING
+
+
+def test_every_check_reports_a_value_the_standard_allows():
+    """Sweep, not spot checks — and the value must follow the classification.
+
+    Two things are asserted together because they are one rule: Section 19
+    forbids inventing a sixth word, and it defines which of the five each kind
+    of finding gets. Drift means the data that arrived may be wrong, so it is
+    `warning`; a failed capability means something stopped working, so it is
+    `degraded`. `interface_missing` is the single exception and is named here
+    rather than excused — the interface being monitored is the whole job, so
+    there is no core left working to call degraded.
+
+    Reuses `_FIRING_FACTS` rather than rolling its own fixtures, so a check
+    added without one fails in `test_every_check_has_a_firing_fixture` instead
+    of shrinking this sweep silently.
+    """
+    from custom_components.wifi_ssid_monitor.health import _SEVERITY_RANK, CHECKS
+
+    error_by_design = {"interface_missing"}
+
+    for check in CHECKS:
+        finding = check(_FIRING_FACTS[check.__name__])
+        assert finding is not None
+        assert finding.severity in _SEVERITY_RANK, (
+            f"{finding.key} reports {finding.severity!r}, which is not one of "
+            f"the five Section 19 values"
+        )
+
+        if finding.key in error_by_design:
+            expected = SEVERITY_ERROR
+        elif finding.is_drift:
+            expected = SEVERITY_WARNING
+        else:
+            expected = SEVERITY_DEGRADED
+
+        assert finding.severity == expected, (
+            f"{finding.key} is classified is_drift={finding.is_drift} but "
+            f"reports {finding.severity!r}; expected {expected!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Repairs a check can raise must be registered for removal
+# ---------------------------------------------------------------------------
+#
+# The text side of this contract — that each repair renders a sentence rather
+# than its raw key — is swept in `test_entity_hygiene.py`. This is the other
+# half, and it lives here because it is a property of `CHECKS`.
+
+
+def _registered_issue_keys() -> set[str]:
+    """Return the bare repair keys `async_remove_entry` will delete."""
+    from custom_components.wifi_ssid_monitor.const import all_issue_ids
+
+    sentinel = "sentinel_entry"
+    suffix = f"_{sentinel}"
+    ids = all_issue_ids(sentinel)
+    assert ids, "all_issue_ids() is empty — this sweep would pass vacuously"
+    return {scoped[: -len(suffix)] for scoped in ids}
+
+
+def test_every_check_repair_is_registered_for_removal() -> None:
+    """A check may not declare a repair `all_issue_ids()` does not know about.
+
+    This is the sharp one. `async_remove_entry` deletes exactly the ids
+    `all_issue_ids()` returns, so a repair raised from a check but missing from
+    that list is **never cleaned up**: uninstalling the integration leaves a
+    permanent Repairs card with no UI path to clear it.
+
+    Reuses `_FIRING_FACTS` so a check added without a fixture fails in
+    `test_every_check_has_a_firing_fixture` rather than shrinking this sweep.
+    """
+    from custom_components.wifi_ssid_monitor.health import CHECKS
+
+    declared = set()
+    for check in CHECKS:
+        finding = check(_FIRING_FACTS[check.__name__])
+        assert finding is not None
+        if finding.repair:
+            declared.add(finding.repair)
+
+    unregistered = sorted(declared - _registered_issue_keys())
+    assert not unregistered, (
+        f"checks declare repair(s) {unregistered} that all_issue_ids() does not "
+        f"list. async_remove_entry would leave them raised for ever — add them "
+        f"to all_issue_ids() in const.py."
+    )

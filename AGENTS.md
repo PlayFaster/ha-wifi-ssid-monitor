@@ -3,6 +3,8 @@
 This file provides guidance to AI coding agents when working with code in this repository.
 
 > **Read the shared conventions first:** `.shared/dev_std/agent_conventions.md` — commands (tests, lint, mypy, validation), the Windows-host `docker exec` workflow, devcontainer access, HAB/MCP for interrogating the running HA instance, the post-modification SCOPE table, code conventions, and the markdown/Python rules. That file is the single source of truth for everything shared across the integration projects; this file covers only what is specific to **ha-wifi-ssid-monitor**.
+>
+> **[!] Note:** If you edit files inside directory junctions (`.notes/` or `.shared/`), do not run container validation on them. Validate them on the Windows host from the `shared/` folder.
 
 ---
 
@@ -22,7 +24,7 @@ Standard for all integration projects — see [shared conventions §2](.shared/d
 
 The integration follows the standard HA `DataUpdateCoordinator` pattern, on a **single** device.
 
-> **Entity and service inventory lives in [`docs/all_sensors.md`](docs/all_sensors.md)** — it is authoritative and kept current against live HA by `sensor_review.md`. This block describes the code layout only; it deliberately carries no entity counts or service descriptions.
+> **Entity and service inventory lives in [`docs/all_sensors.md`](docs/all_sensors.md)** — it is authoritative and synchronized from code descriptions via `python .workbench/check_sensor_manifest.py --sync-docs` (and validated against live HA via `--verify-ha`). This block describes the code layout only; it deliberately carries no entity counts or service descriptions.
 
 ```text
 __init__.py         Entry point: sets up coordinator, calls async_initialize(), forwards to
@@ -87,8 +89,21 @@ Shared conventions (ruff/mypy strictness, `PARALLEL_UPDATES`, `translation_key`,
 - **There is not a single `type: ignore` in this project** — zero in `custom_components/`, zero in `tests/`. Strict mypy passes without suppressions, so adding one is a signal that something is wrong with the annotation rather than with the stubs. Justify it in the commit if you add one.
 - The `.comp/` directory contains unrelated scratch/reference files; ignore it.
 - `quality_scale.yaml` tracks compliance with HA Integration Quality Scale (currently Platinum level).
+- **Mutation testing is scoped by `.validate/mutmut_modules.txt`** — currently `parse.py`, `diagnostics.py`, `health.py`. Those three were chosen because their tests exercise real code; `config_flow.py` and `__init__.py` were tried and rejected because their tests mock the thing being mutated, so every mutation of a call into that mock survives and none of them is a findable defect. Run it with the **Tests: Mutation Check** task, or on one function per [`.shared/info/test_better_docs/mutation_testing_setup.md`](.shared/info/test_better_docs/mutation_testing_setup.md) §6.1. Not part of `Validate All` — survivors need judging, not counting. Background: [`.shared/info/test_better_docs/mutation_testing_setup.md`](.shared/info/test_better_docs/mutation_testing_setup.md).
+- **`SLF001` and `RET504` are exempted for `tests/**`, only**. This comes from the **synced** file `pyproject.toml`, do not edit that file, see [shared conventions → Synced Files](.shared/dev_std/agent_conventions.md). Tests must reach private state (asserting on`\_unrecorded_attributes`, driving `coordinator.\_async_update_data()`), so forbidding it would forbid the tests the standards require. Production code is not exempt: a genuine need there gets a `# ruff: noqa` at the site.
 
-### Tests that will stop you, and why they exist
+## Before you write a test for new behaviour
+
+Four questions, because the first six of the ten analysis categories are each scoped to one function and the defects that survive 100% branch coverage are not. All four are drawn from real findings on this project.
+
+- **Does it accumulate?** Anything needing N consecutive cycles — a strike budget, a drift counter — must be driven through N real polls. And ask the killer question: **after the first differing cycle, does the comparison still differ?** If the code adopts the new value, the finding can never confirm. That made one of three repair issues unraisable in every release.
+- **Does it need cleaning up?** For everything created, prove it is destroyed — across **reload and restart**, not only entry removal. Anything tracked in per-instance state that writes to a registry outliving the instance is the shape to watch.
+- **Can the outcome actually happen?** Every declared finding, repair key and enum value needs one test that produces it **end to end**, not by constructing the object by hand. `Tests: Depth Check` sweeps this.
+- **Is the value published?** Assert the string a user template compares against, and prove its translation exists — not just the internal constant.
+
+Long form, all ten categories: [`.shared/dev_std/testing_when_writing.md`](.shared/dev_std/testing_when_writing.md) — these four are **SEQ / LIFE / REACH / PUB**.
+
+## Tests that will stop you, and why they exist
 
 Several standards here are enforced by sweeps over a **set**, not by spot checks, so they fail when the set grows rather than only when a known member breaks. Each was verified by deliberately breaking the thing it guards. If one of these fails, it has found something — do not reach for the allow-list first.
 
@@ -98,14 +113,21 @@ Several standards here are enforced by sweeps over a **set**, not by spot checks
 | Any entity | `test_every_live_entity_has_an_icon_or_a_device_class` | Add an `icons.json` entry **under that entity's own platform**, unless it has a `device_class`. |
 | Any action | `test_every_registered_action_has_an_icon` | Add a `services` entry in the nested `{"service": "mdi:..."}` form. The flat string form is legacy and the test rejects it. |
 | An entity attribute | `test_no_entity_publishes_a_recorded_attribute` | Add the key to that class's `_unrecorded_attributes`. **Repeat `"about"` if the class declares its own set** — HA does not merge this attribute across the class hierarchy, so a subclass assignment shadows the mixin's entirely. |
+| A new `severity` value, or a check whose value disagrees with its `is_drift` flag | `test_every_check_reports_a_value_the_standard_allows`, `test_no_code_path_publishes_a_blank_severity`, `test_every_finding_sets_a_valid_severity` | Use one of `dev_standards` §19's five words — drift is `warning`, a lost capability is `degraded`, and `None` is never permitted. A sixth value is a contract change and belongs in the standard first, because user templates compare against these strings. |
+| A `_LOGGER` call that passes a payload or a network key | `test_the_ap_sample_log_carries_keys_and_never_values`, `test_discarded_timestamps_are_counted_not_named` | Log the **shape** — field names and counts. §20: a log file has no redaction layer and users paste them into public issues, and an SSID is data about someone who never installed this. |
+| A repair issue, or a renamed one | `test_every_repair_issue_has_title_and_description`, `test_no_orphan_issue_translations`, `test_every_check_repair_is_registered_for_removal` | Add `issues.<key>.title` and `.description` to `strings.json` **and** every `translations/*.json`, and add the key to `all_issue_ids()` in `const.py`. That list is what `async_remove_entry` deletes — a repair missing from it outlives the integration with no UI path to clear it. |
 | A health check in `CHECKS` | `test_every_check_has_a_firing_fixture`, `test_every_finding_is_classified_exactly_once` | Add a fixture that makes it fire, and classify it in `_EXPECTED_DRIFT` or `_EXPECTED_CAPABILITY`. `is_drift` defaults to `False`, so a new check is a capability unless it opts in. |
 | A fourth `Store` | `test_async_remove_entry_deletes_every_live_store` | Add the key to `all_storage_keys()` in `const.py`, which both the coordinator and `async_remove_entry` build from. |
 | A condition only ever exercised one way | `Pytest: Check Test Coverage` reports a partial branch (`123->126` in the `Missing` column) | **Write the test.** All twelve found here were missing tests; none was dead code. Delete the guard only where the type system or the immediate caller already prevents the case — never in code consuming held or stored state, where the "impossible" shape arrives exactly when something upstream has already failed. |
-| A test that runs code without checking it | `Tests: Assertion Audit` | Assert the **observable outcome**. Where "this must not raise" is the real contract, assert what that implies — nothing cancelled, no task created, exactly one event on the bus — so the test fails on a behaviour change and not only on a crash. Adding a trivial assertion to clear the count is a defect, not a fix. Last resort: `tests/zero_assertion_allowlist.txt`, with a reason. |
+| A `# type: ignore`, `# noqa` or `# pragma: no cover` anywhere in `custom_components/` or `tests/` | `test_every_suppression_is_on_the_reviewed_allow_list` | Add it to `ALLOWED_SUPPRESSIONS` in `tests/test_entity_hygiene.py` **with a reason**. Ask what the tool would have said and whether that thing is _true_ — a suppression the linters accept can still be hiding a real defect, which is why `RUF100` and `warn_unused_ignores` do not cover this. Removing a suppression alone is not a fix. Removing the code it covered will fail `test_allowed_suppressions_has_no_dead_entries` instead; delete the entry too. |
+| A control that writes an option and then publishes | `test_switch_publishes_the_post_write_state`, `test_number_publishes_the_post_write_value` | Publish **after** the write. These capture what the entity reads at the moment `async_write_ha_state` fires, so a publish carrying the pre-write value fails here and nowhere else — the three older switch tests pass against exactly that defect. Background: `.shared/issues/x_project/stubbed_publish_tests.md`. |
+| A test that runs code without checking it | `Tests: Assertion Audit` | Assert the **observable outcome**. Where "this must not raise" is the real contract, assert what that implies — nothing cancelled, no task created, exactly one event on the bus — so the test fails on a behavior change and not only on a crash. Adding a trivial assertion to clear the count is a defect, not a fix. Last resort: `tests/zero_assertion_allowlist.txt`, with a reason. |
 
-- **Mutation testing is scoped by `.validate/mutmut_modules.txt`** — currently `parse.py`, `diagnostics.py`, `health.py`. Those three were chosen because their tests exercise real code; `config_flow.py` and `__init__.py` were tried and rejected because their tests mock the thing being mutated, so every mutation of a call into that mock survives and none of them is a findable defect. Run it with the **Tests: Mutation Check** task, or on one function via `devcon_coverage` STEP 3c. Not part of `Validate All` — survivors need judging, not counting. Background: [`.shared/info/test_better_docs/mutation_testing_setup.md`](.shared/info/test_better_docs/mutation_testing_setup.md).
+## Remaining Work (Future — Separate Session)
 
-- **`SLF001` and `RET504` are exempted for `tests/**`only.** This comes from the **synced**`pyproject.toml`— do not edit that file, see [shared conventions → Synced Files](.shared/dev_std/agent_conventions.md). Tests must reach private state (asserting on`\_unrecorded_attributes`, driving `coordinator.\_async_update_data()`), so forbidding it would forbid the tests the standards require. Production code is not exempt: a genuine need there gets a `# ruff: noqa` at the site.
+**Forward work lives in [docs/ROADMAP.md](docs/ROADMAP.md)** — refer there for planned items, revisit parameters, and declined design decisions. Keep it there rather than here, so there is one place to look.
+
+---
 
 ## Development Environment
 
@@ -113,4 +135,6 @@ Shared devcontainer, MCP, and post-modification details are in [shared conventio
 
 - The devcontainer runs a **mock Supervisor sidecar** that simulates the WiFi scan API — see `.devcontainer/mock_supervisor.py`. The `SUPERVISOR_TOKEN` env var is set to `mock_dev_token` in the compose file.
 
-`AGENTS.md` revision history: `.notes/agents_md_version_log.md`.
+## Known Open Issues
+
+None currently recorded here. Forward work lives in [docs/ROADMAP.md](docs/ROADMAP.md); chores live in `.shared/issues/x_project/x_proj_chores.md`.

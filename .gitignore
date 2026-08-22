@@ -92,6 +92,7 @@ uv.lock
 loc_only/
 scratch/
 .scratch/
+.scratch_*
 
 # AI
 .aider/

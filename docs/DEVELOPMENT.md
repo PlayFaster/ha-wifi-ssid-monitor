@@ -23,7 +23,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 
 ## 3. Success Patterns (v1.5.0-dev1 additions in this section)
 
-- **High Test Coverage**: 100% line **and 100% branch** coverage across all core modules — 363 tests as of 2026-08-06, with zero partial branches and zero zero-assertion tests. Mutation testing (`mutmut`, scoped by `.validate/mutmut_modules.txt`) checks that the tests actually detect a fault rather than merely executing the line.
+- **High Test Coverage**: 100% line **and 100% branch** coverage across all core modules — **415 tests as of 2026-08-22**, with zero partial branches and zero zero-assertion tests. Mutation testing (`mutmut`, scoped by `.validate/mutmut_modules.txt`) checks that the tests actually detect a fault rather than merely executing the line. Scoped to `parse.py`, `diagnostics.py`, `health.py` and — since 2026-08-22 — `coordinator.py`: **1,307 mutants, 84.3% killed.** Why each module is on or off that list, and what it costs to add one, is recorded in `../.notes/test_pytest_issues/mutation_covered_not_covered.md`.
 
   **Coverage is necessary but not sufficient**, and this project has the evidence twice over. See §3c on the standards sweeps, which exist because the suite hit 100% while four standards had no working guard at all. And every fault fixed on 2026-08-06 — negative 6 GHz channel numbers, a health sensor silent for two polls, repair issues clobbering each other across entries — was found by deepening the tests against code already at 100% line coverage. None came from the field.
 
@@ -112,6 +112,90 @@ Settled positions that were previously implicit — held in the code but written
 
 - **Entity naming carries no doubled group word.** §12/§3.6 of the cross-project checks warn against repeating a sub-device name in an entity name, since HA prefixes the sub-device. Not applicable: there are no sub-devices (see §3a and `docs/all_sensors.md`), so HA prefixes only the device name and no entity name repeats it. Scanned 2026-08-03, no findings.
 
+## 3d. Supervisor payload — observed on real hardware, 2026-08-21
+
+**Recorded so nobody has to re-derive it.** Three diagnostics downloads, kept at `.notes/local_only/diag_dl/` with an index beside them. This continues the hardware findings already in this file — the frequency/percent-signal/`wireless` corrections of 2026-07-22 and the hidden-network confirmation of 2026-08-03 — rather than starting a second record elsewhere.
+
+**These are not HA-core compatibility facts and do not belong in `docs/ha_compatibility.md`.** That document is for Home Assistant core API versions and deprecations; this is the shape of an upstream payload.
+
+**The sample:**
+
+| Box           | Arch    | HA       | Host OS / Supervisor  | Interface |
+| :------------ | :------ | :------- | :-------------------- | :-------- |
+| `bt3_x86`     | x86_64  | 2026.8.2 | HAOS 18.2 / 2026.08.0 | `wlan0`   |
+| `ha_main_x86` | x86_64  | 2026.7.4 | HAOS 18.2             | `wlp2s0`  |
+| `rpi4`        | aarch64 | 2026.8.2 | HAOS 18.2             | `wlan0`   |
+
+**Confirmed, on both architectures:**
+
+- **`signal` is a 0-100 percentage.** `signal_unit` reads `percent` on all three, and `signal == signal_raw` in every record. No capture has ever shown dBm.
+- **`frequency` is present and in MHz**, aarch64 included — bands resolved to 2.4 GHz (ch 11) and 5 GHz (ch 48). This was the largest open assumption and it holds.
+- **`mode` is `"infrastructure"`.** The mock said `"infra"` until 2026-08-21; the value reaches entity attributes and the `get_networks` response, so the container was showing a string the Supervisor never sends.
+- **Interface names vary.** `wlp2s0` — predictable naming — is in the wild alongside `wlan0`.
+
+**Still unconfirmed, and these downloads cannot settle it.** No cloaked network and no zero-width SSID appeared in any capture, so `Hidden-<last4>` and `ssid_anomaly` still rest on the single hand test of 2026-08-03. A capture taken with a hotspot cloaked nearby would close it.
+
+**One live confirmation worth recording.** `rpi4` was running the `2.0.2-dev5` build and reports `severity: "ok"`; the two x86 boxes are on an older build and still report `severity: null`. That is the §19 severity enum working on real hardware, and a reminder those two boxes are behind.
+
+**A hypothesis these captures raise but cannot test.** Real signal values cluster very high — every network in all three captures reads between 82 and 100. **There is not one weak or distant access point anywhere in the sample**, so nothing here says how well the proximity threshold discriminates; the captures hold only one end of the distribution. _If_ street-level networks also read high, `proximity_alert` at its default of 80 would approach being a duplicate of `new_network_alert`, which is simply "any unknown present". Testing that needs a capture from a location with genuinely distant networks in range. **It is not evidence that the default is wrong** — an unknown network at 82% inside the building is exactly what that sensor exists to flag, and the remedy there is the known list.
+
+## 3e. Decisions Recorded 2026-08-21 — mock Supervisor
+
+Four changes to `.devcontainer/mock_supervisor.py`, **decided and implemented the same day.** Prompted by three real diagnostics downloads (`.notes/local_only/diag_dl/`, from two x86_64 HAOS boxes and a Raspberry Pi 4), which showed the mock has drifted from what the Supervisor actually sends.
+
+**(A) Correct the payload to match the real thing.** Two facts, each confirmed on all three systems:
+
+- **`mode` is `"infrastructure"`, not `"infra"`.** The value is passed straight through to entity attributes and the `get_networks` response, so the devcontainer currently shows users a string the Supervisor never sends.
+- **Interface names are not always `wlan0`.** One box reports `wlp2s0` (predictable naming). The mock offers only the easy name.
+
+Also fix a pre-existing internal contradiction: `Neighbors_WiFi_5G` is defined with `frequency: 2412`, which is 2.4 GHz.
+
+**(B) A second WiFi adapter — `wlp2s0`, with `"type": "wireless"`.** Three things follow from two lines:
+
+- **The `"wireless"` branch becomes reachable.** `get_interfaces` matches `("wifi", "wireless")` because a Raspberry Pi reports `wireless`, and that mismatch was a shipped bug that made auto-detection return nothing for every Pi user (see the v1.7.0 entry). The mock has only ever sent `"wifi"`, so the devcontainer cannot exercise the branch that exists because of it.
+- **Multi-entry behaviour becomes visible.** One entry per interface is this project's supported answer to multiple adapters (`ROADMAP.md` declines aggregation on that basis), and nothing in the devcontainer has ever shown two. Two entries exercise the `wifi_ssid_monitor_{interface}` duplicate guard, `_resolve_entries()` fanning actions across entries, two devices with two entity sets, and a config-flow dropdown with an actual choice in it.
+- **Entry-scoped repair ids become observable.** `test_a_repair_id_is_scoped_to_the_entry` exists because a sibling entry could overwrite another's issue — a bug class that only manifests with two entries, and which no one has ever watched not happen.
+
+Give the second adapter its own access-point payload, or the two entries look identical and prove less.
+
+**(C) Variability, on exactly two networks, driven by minute-of-hour.** The payload is static today, so across a whole devcontainer session `new_24h` stays `0`, `visit_counts` never move, `last_seen` never changes, the signal never crosses the proximity threshold and the strike budget never runs.
+
+- **`Neighbors_WiFi_5G`** — signal as a triangle wave between 55 and 95 across the hour, crossing the default threshold of 80 twice. Drives `proximity_alert`, `strongest_unknown_signal`, and gives the hysteresis roadmap item something real to be judged against.
+- **`Unknown_WiFi_6G`** — present for minutes 0-29, absent for 30-59. Drives the `new_network` event, `visit_counts`, `new_24h`, `last_seen` movement and a changing `unknown_count`.
+
+**Minute-of-hour rather than a request counter**, because it is stateless — the mock is a bare `HTTPServer` that loses everything on restart — and reproducible: ":05 looks like this" is a statement someone can check.
+
+**Both `My_WiFi_*` entries, the hidden one and the zero-width one stay fixed.** A flapping known set would trip the canary and raise repairs continuously, and the hidden and anomaly labels must stay reproducible.
+
+**`MOCK_STATIC=1` pins the payload, and is not optional.** `Sensor: Verify HA` audits live entity state in the devcontainer, and any bug reproduction wants a fixed payload. Without the escape hatch this trades one problem for a worse one.
+
+**(D) Fault injection, through a `/mock/fault` control endpoint.** The integration builds its own fixed URL, so there is nowhere to put a query parameter — the switch has to be out of band. An endpoint setting module-level state also allows a fault to be **cleared** mid-session, which is the point: auto-recovery and repair deletion are the least eyeballed behaviour in the health system. An environment variable would need a container restart and could not show recovery at all.
+
+| Fault | Mock does | Reaches |
+| :-- | :-- | :-- |
+| `unknown_interface` | 400 for an interface not in the list | `interface_missing` → repair, `severity: error` |
+| `down` | connection refused / 500 | strike budget → repair `supervisor_unavailable`, `ConfigEntryNotReady` on cold start |
+| `dbm` | signals as negative dBm | `signal_format_changed` → repair |
+| `no_ap_key` | `200` with `data: {}` | `payload_no_ap_list` → drift → `warning` |
+| `empty` | `200` with `accesspoints: []` | `empty_scan`, `no_known_networks` → `degraded` |
+| `no_mac` / `no_freq` | drop the field from all or some APs | `payload_field_missing` / `_partial`, `band_unresolved_all` / `_some` |
+| `html` | HTML body under a JSON content type | the `ContentTypeError` path |
+| `slow` | sleep past `API_TIMEOUT_SECONDS` | the coordinator's `asyncio.timeout` |
+
+That reaches **all eight health checks and all three repair issues**, none of which can currently be seen in the devcontainer UI at all.
+
+**Splitting what is exercised from what is looked at.** Three things are asserted in pytest and need no human: every repair has readable `title` and `description` in `strings.json` **and** every compiled translation; no orphan `issues.*` entry survives a rename; and no check may declare a `repair=` that `all_issue_ids()` omits — that last one matters because `async_remove_entry` deletes exactly that list, so an unregistered repair would outlive the integration itself with no UI path to clear it. Repair create/delete, strike budgets and recovery were already covered.
+
+**What is left is presentation, and it cannot be exercised** — does the card read like a sentence someone can act on, do the right entities hold their values, does the health sensor stay available when everything else has not. That is the `Mock: Fault Drill` task, driving `.devcontainer/fault_drill.sh`. It is attended, standalone, and clears the fault on exit including Ctrl-C: a drill that abandons the mock in a faulted state is worse than one nobody ran, because the next person debugs the fault instead of their own change.
+
+**And a checklist nobody is prompted to run is a file nobody opens**, which is why the drill records its date in `.notes/fault_drill_last.txt` and `Mock: Fault Drill Staleness` sits inside `Validate All`. It compares that date against the last commit touching `health.py`, `coordinator.py`, `const.py`, `strings.json`, `translations/` and `mock_supervisor.py`, and warns — never fails — when the drill predates a change to any of them, or when one has uncommitted edits.
+
+**It prints nothing when the drill is current, and that is the whole design.** A banner on every run is filtered out within a week; one that appears only when something has actually changed still carries information. Relevance-triggered rather than calendar-triggered for the same reason — a fixed cadence cries wolf when nothing has changed and stays silent when you edited `health.py` yesterday.
+
+**One limitation worth knowing:** the check reads `git log`, so an edit only counts once committed. The uncommitted-changes branch covers the gap in the meantime, more loosely.
+
+**Several will not fire on the first poll, and that is correct.** Drift checks wait out `HEALTH_STARTUP_GRACE_SCANS` and `HEALTH_DRIFT_STRIKE_LIMIT`, `signal_format_changed` needs a baseline from a previous scan, and `empty_scan` and the canary need accumulated visit counts. So the endpoint wants an optional auto-clear after N scans, and a short devcontainer scan interval — otherwise the tool is a waiting game. Route `/mock/` **before** the existing 404 fallback.
+
 ## 3c. Standards Sweeps — why 100% coverage was not enough
 
 Added 2026-08-03. The suite was at 100% line coverage and 217 passing, and **four standards had no working guard**. Each was proved by breaking the thing deliberately and watching every test still pass:
@@ -154,6 +238,8 @@ Added 2026-08-03. The suite was at 100% line coverage and 217 passing, and **fou
 - **Native Async API**: The integration uses `aiohttp` for all network communication, aligning with the Home Assistant event loop.
 - **Supervisor API**: This integration requires Home Assistant to be running in an environment with the Supervisor (HA OS or Supervised). It uses the internal `http://supervisor` endpoint and `SUPERVISOR_TOKEN`.
 - **Testing Dependencies**: Robust testing relies on `pytest-homeassistant-custom-component` and `pytest-asyncio`.
+- **Supervisor payload shape**: what the real Supervisor sends is recorded in §3d, from three live systems; the dev-container mock reproduces it and its docstring carries the same table. Check both before assuming a field's type or value.
+- **Mock switches**: `MOCK_STATIC=1` pins the mock payload for reproducible runs; `GET /mock/fault?mode=<name>` injects a failure and `mode=off` clears it. See §3e.
 - **Branding Assets**: Generic branding (WiFi signal + magnifying glass) was generated using Python's `Pillow` library to ensure a clean, modern aesthetic independent of hardware-specific imagery.
 
 ---
@@ -171,4 +257,6 @@ Added 2026-08-03. The suite was at 100% line coverage and 217 passing, and **fou
 - **v1.0.8** (2026-07-02) - Added explicit coordinator `config_entry=entry` pattern (honours the "Enable polling for changes" system option via `pref_disable_polling`; required as HA removes implicit context detection in 2026.8). Minimum HA raised to 2024.8.0 (v1.6.1-dev8).
 - **[2026-07-22]** - **v1.7.0 overhaul.** Payload normalization layer (`parse.py`) fixing the three live-verified bugs (frequency→band, percent signal, `wireless` interface type); `strongest_unknown_signal` sensor replacing the removed dBm `rssi` sensor; BSSID-aware composite history keying + `Hidden-<last4>` naming + `ssid_anomaly`; Integration Health self-diagnosis (`health.py` catalog + snapshot outside `data` + always-available sensor + `interface_missing`/`signal_format_changed` repairs); band/hidden/pause/threshold/interval moved to control entities with a force-refresh flag; `get_networks` action, New Networks (24h) sensor, `new_network` bus event; coalesced store writes + flush-on-unload + shared key helpers; structural diagnostics sanitizer. Plan and decision log: `.notes/roadmap/version2_202607/3_wifi_updates_20260722.md`. Breaking changes documented in the README and CHANGELOG.
 - **[2026-08-03]** - Added §3b (decisions previously held only in code: `PARALLEL_UPDATES`, `scan_now` naming, display scaling, entity naming) and §3c (the standards sweeps and what each rejects). Corrected two stale entries: the claim that this project has no Pause Polling switch, false since v2.0.0, now a table contrasting it with HA's system option; and the hidden-network deduplication pitfall, which described pre-v2.0.0 `[hidden]` collapse in the present tense and pointed at the roadmap for a fix that had already shipped. Coverage figure 99% → 100%. Hidden-network naming confirmed on hardware 2026-08-03.
+- **[2026-08-21]** - Added §3d, the Supervisor payload as observed on three real systems, and §3e, four mock Supervisor changes, implemented the same day after those downloads showed it had drifted from the live payload (`mode`, interface naming). Records the second-adapter reasoning, minute-of-hour variability and out-of-band fault injection, plus the attended drill and the relevance-triggered staleness warning that makes it get run.
 - **[2026-08-06]** - **Corrected one pattern that had become false, and refreshed two facts.** The button error-propagation entry (§3, added v1.5.0-dev3) told a reader to call `async_refresh()` and then check `last_update_success`. Both halves had drifted: the button routes through `async_force_refresh()` → `async_request_refresh()` since 2026-08-03, and that path is debounced — inside the 10-second cooldown `last_update_success` describes the _previous_ run, so a failed scan followed by a quick retry press reported failure again without having retried. The entry now carries the timestamp-comparison pattern and names all three outcomes of a press. **This is the second stale claim found in this file in four days**, and the first that would have propagated a live bug into a sibling project, since §3 exists to be copied. Coverage figure updated to 363 tests at 100% line _and_ branch, with a note that every fault fixed on 2026-08-06 was found by deepening tests against code already at 100% line coverage. Composite history key entry extended to state which radio's measurement survives when several share one SSID — arbitrary until 2026-08-06, now the strongest.
+- **[2026-08-22]** - **Refreshed two facts §3 had outlived.** The test count read "363 tests as of 2026-08-06" and is now 415; the mutation sentence predated `coordinator.py` joining the scoped list and now carries the measured result — 1,307 mutants, 84.3% killed — plus a pointer to `.notes/test_pytest_issues/mutation_covered_not_covered.md`, which records why each module is on or off that list and what adding one costs. No pattern in §3 became false; these were stale numbers, which age quietly and are the reason this section is worth re-reading rather than appending to.

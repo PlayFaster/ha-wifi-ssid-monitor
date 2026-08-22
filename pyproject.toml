@@ -1,13 +1,10 @@
-# ============================================================================
-#  SYNCED FILE — DO NOT EDIT IN A PROJECT.
-#
-#  This file is copied into every project by workbench/sync_shared_files.sh.
-#  A local edit is silently overwritten on the next sync, taking any reasoning
-#  with it. Edit the source instead:
-#      dev-workbench/workbench/python/pyproject.toml
-#  and re-sync. A project-specific exception belongs in the file it applies to
-#  (a `# ruff: noqa: RULE` line), not here.
-# ============================================================================
+# SYNCED FILE — DO NOT EDIT IN A PROJECT.
+# Edit dev-workbench/workbench/python/pyproject.toml and re-sync.
+
+[project]
+name = "custom-component"
+version = "0.1.0"
+requires-python = ">=3.13"
 
 [tool.ruff]
 extend = ".validate/pyproject_common.toml"
@@ -91,6 +88,10 @@ exclude_lines = [
   "if TYPE_CHECKING:",
   "@overload",
 ]
+# Coverage gate: fail task on any drop below the family's 100% standard
+# (applied after exclude_lines/pragmas; task supplies --cov-branch).
+fail_under = 100
+
 
 [tool.codespell]
 skip = ".git,.venv,.ruff_cache,.pytest_cache"

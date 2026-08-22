@@ -1,13 +1,5 @@
-# ============================================================================
-#  SYNCED FILE — DO NOT EDIT IN A PROJECT.
-#
-#  This file is copied into every project by workbench/sync_shared_files.sh.
-#  A local edit is silently overwritten on the next sync, taking any reasoning
-#  with it. Edit the source instead:
-#      dev-workbench/workbench/python/pyproject_common.toml
-#  and re-sync. A project-specific exception belongs in the file it applies to
-#  (a `# ruff: noqa: RULE` line), not here.
-# ============================================================================
+# SYNCED FILE — DO NOT EDIT IN A PROJECT.
+# Edit dev-workbench/workbench/python/pyproject_common.toml and re-sync.
 
 target-version = "py313"
 line-length = 88

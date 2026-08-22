@@ -63,10 +63,7 @@ NUMBER_TYPES: Final[tuple[WifiNumberEntityDescription, ...]] = (
         option_key=CONF_SCAN_INTERVAL,
         option_default=DEFAULT_SCAN_INTERVAL,
         scale=60,
-        about=(
-            "How often a scheduled scan runs. This is the only place the scan "
-            "interval is set — it is no longer in the Configure dialog."
-        ),
+        about="How often a scheduled scan runs.",
     ),
     WifiNumberEntityDescription(
         key="proximity_signal_threshold",
