@@ -95,7 +95,7 @@
       "type": "shell"
     },
     {
-      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { python3 .workbench/check_sensor_manifest.py --verify-ha; }",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && python3 .workbench/check_sensor_manifest.py --verify-ha | tee .reports/sensor_ha_verify.txt; echo \"\"; if grep -q \"\\[FAIL\\]\" .reports/sensor_ha_verify.txt 2>/dev/null; then echo -e \"\\033[1;31m✖  Sensor Verify HA: FAILED\\033[0m\"; else echo -e \"\\033[1;32m✔  Sensor Verify HA: PASSED\\033[0m\"; fi; }",
       "label": "Sensor: Verify HA",
       "presentation": {
         "clear": true,
@@ -107,7 +107,7 @@
       "type": "shell"
     },
     {
-      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { python3 .workbench/check_sensor_manifest.py --sync-docs; }",
+      "command": "[ \"${config:project.category}\" = \"theme\" ] && echo \"[Skipped: integration only]\" || { mkdir -p .reports && python3 .workbench/check_sensor_manifest.py --sync-docs | tee .reports/sensor_sync_docs.txt; echo \"\"; if grep -q \"\\[FAIL\\]\" .reports/sensor_sync_docs.txt 2>/dev/null; then echo -e \"\\033[1;31m✖  Sensor Sync Docs: FAILED\\033[0m\"; else echo -e \"\\033[1;32m✔  Sensor Sync Docs: PASSED\\033[0m\"; fi; }",
       "label": "Sensor: Sync Docs",
       "presentation": {
         "clear": true,

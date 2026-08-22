@@ -110,8 +110,7 @@ SENSOR_TYPES: Final[tuple[WifiSensorEntityDescription, ...]] = (
         max_limit=100,
         value_fn=lambda data: data.get("strongest_unknown_signal"),
         about=(
-            "Signal quality of the closest unknown network, 0-100%. Higher is "
-            "closer. Replaces the old dBm 'RSSI' sensor."
+            "Signal quality of the closest unknown network, 0-100%. Higher is closer."
         ),
     ),
 )

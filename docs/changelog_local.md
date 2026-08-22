@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.2-dev10\] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned](#202-dev10---2026-08-22---about-notes-review-historical-clutter-pruned-pause-polling-aligned)
   - [\[2.0.2-dev9\] - 2026-08-22 - Depth findings closed; the coverage-context trap](#202-dev9---2026-08-22---depth-findings-closed-the-coverage-context-trap)
   - [\[2.0.2-dev8\] - 2026-08-22 - Test depth check; the real-transport test pattern](#202-dev8---2026-08-22---test-depth-check-the-real-transport-test-pattern)
   - [\[2.0.2-dev7\] - 2026-08-22 - Three health defects found by the fault drill](#202-dev7---2026-08-22---three-health-defects-found-by-the-fault-drill)
@@ -101,6 +102,24 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.2\] - 2026-04-02 - Branding and Mock Supervisor](#102---2026-04-02---branding-and-mock-supervisor)
   - [\[1.0.1\] - 2026-04-02 - Test Coverage to 99%](#101---2026-04-02---test-coverage-to-99)
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
+
+---
+
+## [2.0.2-dev10] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned
+
+Executed `about_notes_review.md` audit across all entity descriptions in `custom_components/wifi_ssid_monitor/`. Cleaned up entity `about:` attribute notes displayed to end users in Home Assistant UI modals per `doc_style.md` and `dev_standards.md` §14, and re-synchronized documentation.
+
+### Changed — Entity About Descriptions
+
+- **`number.py` (`scan_interval`):** Pruned historical migration commentary (*" — it is no longer in the Configure dialog."*). Note now reads cleanly: `"How often a scheduled scan runs."`
+- **`sensor.py` (`strongest_unknown_signal`):** Pruned retired sensor reference (*" Replaces the old dBm 'RSSI' sensor."*). Note now reads: `"Signal quality of the closest unknown network, 0-100%. Higher is closer."`
+- **`switch.py` (`stop_polling`):** Adopted canonical cross-project wording registered in `about_notes_alignment.md` for `system_pause_polling`, trimming developer-level architectural comparison with Home Assistant's internal system options. Note now reads: `"Temporarily suspends background polling without disabling the integration. Entities hold their last values rather than going unavailable, and manual refresh actions still reach the device."`
+
+### Changed — Documentation
+
+- **`docs/about_attribute_list.md`:** Re-synchronized generated table via `check_sensor_manifest.py --sync-docs wifi`. Verified 18 entities match code manifest cleanly with `check_sensor_manifest.py --check wifi`.
+- **`prompt_use_log.md`:** Appended log entry for `about_notes_review` run on `ha-wifi-ssid-monitor`.
+- **`about_notes_review_20260822_1154.md`:** Generated complete findings audit report in `.notes/sensors_states/`.
 
 ---
 
