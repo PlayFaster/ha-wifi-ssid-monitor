@@ -76,7 +76,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
   - [📋 Configuration](#-configuration)
   - [🔩 Under the Hood - Technical Architecture](#-under-the-hood---technical-architecture)
   - [❓ FAQ \& Troubleshooting](#-faq--troubleshooting)
-  - [❗ Known Limitations /❔ What's Missing?](#-known-limitations--whats-missing)
+  - [❗ Known Limitations / ❔ What's Missing?](#-known-limitations---whats-missing)
   - [❌ Removal](#-removal)
   - [📝 Maintenance Status](#-maintenance-status)
   - [🤝 Contributors \& Acknowledgements](#-contributors--acknowledgements)
@@ -1860,7 +1860,7 @@ Also note: an entity ID is reused unless a **different, still-existing** entity 
 
 <br>
 
-## ❗ Known Limitations /❔ What's Missing?
+## ❗ Known Limitations / ❔ What's Missing?
 
 <details>
 
