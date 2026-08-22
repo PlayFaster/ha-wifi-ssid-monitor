@@ -73,13 +73,14 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
   - [🧹 Actions (Services)](#-actions-services)
   - [💡 Example Automations](#-example-automations)
   - [📥 Installation](#-installation)
-  - [🔧 Configuration](#-configuration)
+  - [📋 Configuration](#-configuration)
   - [🔩 Under the Hood - Technical Architecture](#-under-the-hood---technical-architecture)
   - [❓ FAQ \& Troubleshooting](#-faq--troubleshooting)
   - [❗ Known Limitations /❔ What's Missing?](#-known-limitations--whats-missing)
   - [❌ Removal](#-removal)
   - [📝 Maintenance Status](#-maintenance-status)
   - [🤝 Contributors \& Acknowledgements](#-contributors--acknowledgements)
+  - [🔀 Other Options](#-other-options)
   - [📄 License](#-license)
 
 ## 🔧 Compatibility & Requirements
@@ -166,7 +167,18 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 ## 🔍 What You Get
 
-This integration provides its 18 entities under a single **WiFi SSID Monitor** device - sensors, binary sensors, numbers, switches, and a button, all enabled by default.
+This integration provides its **18 entities** organized under a single **WiFi SSID Monitor** device — sensors, binary sensors, numbers, switches, and a button, all enabled by default.
+
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
+</summary><br>
+
+| Device / Category | Entities | Entity Types | Key Metrics | Disabled by Default |
+| :-- | --: | :-- | :-- | :-- |
+| 📡 **WiFi SSID Monitor** | 18 | 7 Sensors, 3 Binary Sensors, 2 Numbers, 5 Switches, 1 Button | Total/Unknown SSID counts, New 24h, Signal Quality (0–100%), Interface, Last Updated, New Network/Proximity alerts, Scan Interval, Hidden/Band toggles, Scan Now | 0 |
+| 🛠️ **Actions** | 6 | — | Add, remove, or replace known/denylist SSIDs; query live networks (`get_networks`); trigger scan; clear history | — |
 
 | Category / Entity Type | Enabled / Total | Description & Key Metrics |
 | :-- | :-: | :-- |
@@ -179,11 +191,7 @@ This integration provides its 18 entities under a single **WiFi SSID Monitor** d
 
 There are also six actions (services) and one event - details > [Actions & Events](#-actions-services)
 
-<details>
-
-<summary>
-&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand Entity Screenshots:
-</summary><br>
+---
 
 | Controls and Sensors | Configuration and Diagnostics |
 | :-: | :-: |
@@ -195,17 +203,11 @@ There are also six actions (services) and one event - details > [Actions & Event
 
 ---
 
-</details>
-
-<br>
-
 <details>
 
 <summary>
 &nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for the full entity breakdown:
 </summary><br>
-
----
 
 ### 📊 Sensors
 
@@ -219,7 +221,7 @@ There are also six actions (services) and one event - details > [Actions & Event
 | `sensor.wifi_ssid_monitor_strongest_unknown_ssid` | Diagnostic | SSID name of the closest unknown network (highest signal); reads `None Detected` when no unknown networks are visible. Carries the per-network detail attributes |
 | `sensor.wifi_ssid_monitor_strongest_unknown_signal` | Measurement | Signal quality of the closest unknown network (0–100%, higher is closer); `unknown` when no unknown networks are visible |
 
-**Attributes:** The detail for each unknown network lives on **Strongest Unknown SSID**, as a `networks` list capped at the 25 strongest (with `networks_truncated: true` when more exist - use the `get_networks` action for the full set). Each entry carries `ssid`, `bssid`, `signal`, `channel`, `band`, `hidden`, `ssid_anomaly`, `first_seen`, `last_seen` and `visit_count`. The count sensors additionally expose a plain `ssids` list. All of these attributes are excluded from the recorder.
+**Attributes:** The detail for each unknown network lives on **Strongest Unknown SSID**, as a `networks` list capped at the 25 strongest (with `networks_truncated: true` when more exist — use the `get_networks` action for the full set). Each entry carries `ssid`, `bssid`, `signal`, `channel`, `band`, `hidden`, `ssid_anomaly`, `first_seen`, `last_seen` and `visit_count`. The count sensors additionally expose a plain `ssids` list. All of these attributes are excluded from the recorder.
 
 ### 🔐 Binary Sensors
 
@@ -227,7 +229,7 @@ There are also six actions (services) and one event - details > [Actions & Event
 | :-- | :-- |
 | `binary_sensor.wifi_ssid_monitor_new_network_alert` | On when unknown networks are detected; Off when all detected networks are known. See the [Rogue Network Detection Alert](#-rogue-network-detection-alert) and [Smart Device Setup Detection](#-smart-device-setup-detection) examples |
 | `binary_sensor.wifi_ssid_monitor_proximity_alert` | On when an unknown network's signal meets or exceeds the configured threshold. See the [Proximity Alert Notification](#-proximity-alert-notification) example |
-| `binary_sensor.wifi_ssid_monitor_integration_health` | On when the integration detects a problem with its own data - an unreachable Supervisor, a changed payload, or all known networks vanishing at once. Always available, even during an outage; detail is in the `issues`, `degraded_capabilities` and `drift` attributes. See the [Integration Health Problem Alert](#-integration-health-problem-alert) example |
+| `binary_sensor.wifi_ssid_monitor_integration_health` | On when the integration detects a problem with its own data — an unreachable Supervisor, a changed payload, or all known networks vanishing at once. Always available, even during an outage; detail is in the `issues`, `degraded_capabilities` and `drift` attributes. See the [Integration Health Problem Alert](#-integration-health-problem-alert) example |
 
 The `proximity_alert` sensor exposes `strongest_unknown_signal` (0–100% of the closest unknown network) and `threshold` (the configured limit) as state attributes.
 
@@ -266,32 +268,32 @@ The `proximity_alert` sensor exposes `strongest_unknown_signal` (0–100% of the
 
 > [!TIP]
 >
-> **Not sure what a sensor does?** Many entities carry a short built-in **About** note. Click the entity, open the **⋮ (three-dots) menu → Details** (More Info), and look for the **`about`** attribute - a one-line explanation of that entity.
+> **Not sure what a sensor does?** Many entities carry a short built-in **About** note. Click the entity, open the **⋮ (three-dots) menu → Details** (More Info), and look for the **`about`** attribute — a one-line explanation of that entity.
 >
 > ![About Attribute Example](.github/images/wifi_ssid_mon_about_attrib.png)
 >
-> These **About** notes - and the bulky per-network detail on **Strongest Unknown SSID** - are set **unrecorded**. Home Assistant still shows them live in the entity's details, but **never writes them to the history/recorder database**. That keeps informational or high-churn values from bloating your database, with no downside to what you see day-to-day.
+> These **About** notes — and the bulky per-network detail on **Strongest Unknown SSID** — are set **unrecorded**. Home Assistant still shows them live in the entity's details, but **never writes them to the history/recorder database**. That keeps informational or high-churn values from bloating your database, with no downside to what you see day-to-day.
 
 ### 📊 Long Term Statistics (LTS)
 
-Home Assistant records Long Term Statistics for a numeric sensor **only when it declares a `state_class`**. Sensors without one still show a live value and short-term history, but are not rolled up into LTS (no hourly min/mean/max, and they can't be used in the Statistics graph). Text, IP, version, mode and timestamp sensors are never LTS candidates.
+Home Assistant records Long Term Statistics for a numeric sensor **only when it declares a `state_class`**. Sensors without one still show a live value and short-term history, but are not rolled up into LTS (no hourly min/mean/max, and they can't be used in the Statistics graph). Text, timestamp, binary and control entities are never LTS candidates.
 
-**All numeric sensors here are in LTS** - Total and unknown SSID count; Strongest unknown signal quality and new networks in the last 24 hours.
-
-<details>
-
-<summary>
-&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
-</summary><br>
+**All 4 numeric measurement sensors are in LTS:**
 
 | Sensors with LTS enabled | Why |
 | :-- | :-- |
-| `sensor.wifi_ssid_monitor_total_ssid_count` | Track WiFi network density trends over time |
-| `sensor.wifi_ssid_monitor_unknown_ssid_count` | Monitor for unrecognized network spikes in your environment |
-| `sensor.wifi_ssid_monitor_strongest_unknown_signal` | Monitor signal-quality trends of nearby unknown networks |
-| `sensor.wifi_ssid_monitor_new_networks_24h` | Track the rate at which new networks appear |
+| Total SSID Count (`sensor.wifi_ssid_monitor_total_ssid_count`) | Track WiFi network density trends over time |
+| Unknown SSID Count (`sensor.wifi_ssid_monitor_unknown_ssid_count`) | Monitor for unrecognized network spikes in your environment |
+| Strongest Unknown Signal (`sensor.wifi_ssid_monitor_strongest_unknown_signal`) | Monitor signal-quality trends of nearby unknown networks |
+| New Networks (24h) (`sensor.wifi_ssid_monitor_new_networks_24h`) | Track the rate at which new networks appear |
 
-The remaining sensors (text, timestamp, non-measurement, binary and control) do not get added to LTS based on Home Assistant design.
+The following sensors have **no LTS** to avoid unnecessary database growth:
+
+| Sensor | Reason |
+| :-- | :-- |
+| Interface (`sensor.wifi_ssid_monitor_interface`) | Diagnostic string — hardware adapter name does not change |
+| Last Updated (`sensor.wifi_ssid_monitor_last_updated`) | Timestamp entity — marks scan time, not a numeric trend |
+| Strongest Unknown SSID (`sensor.wifi_ssid_monitor_strongest_unknown_ssid`) | Diagnostic string / text label — carries per-network attribute lists |
 
 > [!TIP]
 >
@@ -308,7 +310,7 @@ The remaining sensors (text, timestamp, non-measurement, binary and control) do 
 >
 > Restart Home Assistant after saving. The sensor will stop accumulating LTS from that point forward.
 >
-> This is a legitimate tactic, if you want to see a sensors value for this week (default retention), but not for this year.
+> This is a legitimate tactic, if you want to see a sensor's value for this week (default retention), but not for this year.
 >
 > If you want to see the current value, but have no interest in short or long term history, you can [exclude a value from the Recorder](https://www.home-assistant.io/integrations/recorder/#configure-filter).
 >
@@ -1379,9 +1381,9 @@ Use the **shortcut badge** above, then proceed to Step 3 - or just …
 </summary><br>
 
 1. Download the [latest release](https://github.com/PlayFaster/ha-wifi-ssid-monitor/releases).
-2. Copy the `custom_components/wifi_ssid_monitor` folder to your Home Assistant `custom_components` directory
-3. Restart Home Assistant
-4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor"
+2. Copy the `custom_components/wifi_ssid_monitor` folder to your Home Assistant `custom_components` directory.
+3. Restart Home Assistant.
+4. Go to **Settings > Devices & Services > Add Integration** and search for "WiFi SSID Monitor".
 
 ---
 
@@ -1412,9 +1414,9 @@ Standard HACS custom-repository integration update behavior:
 </details>
 <br>
 
-## 🔧 Configuration
+## 📋 Configuration
 
-### 🚀 Initial Setup
+### 🔧 Initial Setup
 
 Setup is handled entirely via the UI under **Settings > Devices & Services > Add Integration**.
 
@@ -1496,7 +1498,9 @@ After initial setup, settings can be updated by clicking the **Gear icon** ( ⚙
 
 ## 🔩 Under the Hood - Technical Architecture
 
-Details on how this custom component is structured - the Supervisor API and payload normalization, actions and events, self-diagnosis, data polling and resilience, entity identity, and the files it writes.
+### 🔄 Data Polling & 3-Strike Resilience
+
+The integration utilizes a custom polling mechanism designed to interact with the Home Assistant Supervisor Network API:
 
 <details>
 
@@ -1504,70 +1508,135 @@ Details on how this custom component is structured - the Supervisor API and payl
 &nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
 </summary><br>
 
-### 🎬 Actions & Events (for automations)
-
-Beyond passive entities, the integration exposes an on-demand **action** and a fire-and-forget **event**:
-
-- **Action** (`get_networks`) is a response service - it performs its own fresh read of the current scan and returns data, so it works even when the passive sensors are unavailable, filtered, or capped. See [Actions](#-actions-services).
-- **Event** (`wifi_ssid_monitor_new_network`) fires once per newly-seen network. It records the existing set silently on startup or after a history reset (no replay), and is rate-limited so a busy location cannot flood your automations. See [Events](#-events).
-
-### 🩺 Self-diagnosis (Integration Health)
-
-Some failures are **silent** - a scan succeeds but the data is wrong (e.g. a Supervisor update renames a field, or reports signal in a different unit). The **Integration Health** sensor (a `problem` binary sensor, always available even during an outage) watches for these:
-
-- **`on`** when the integration detects a problem with its own data - an unreachable Supervisor, a payload that parsed to nothing, an interface that vanished, a signal-unit change, or every known network disappearing at once.
-- **Repair issues** are raised for the few conditions you can act on: **`interface_missing`** (the monitored interface is no longer reported - reconfigure to pick the right one), **`signal_format_changed`** (the Supervisor changed how it reports signal - review the Proximity Threshold), and **`supervisor_unavailable`** (repeated fetch failures).
-
-It's deliberately cautious: it gives startup grace before judging drift, requires a condition to persist over several cycles before flipping, and auto-recovers on the next clean scan. Details live in the sensor's attributes: `issues`, `severity`, `signal_unit`, `last_good_update`, and two that are deliberately separate - **`degraded_capabilities`** (something stopped working) and **`drift`** (the data changed shape underneath a successful scan). Put it on a dashboard or alert on it to catch breakage early instead of later - see the [Integration Health Problem Alert](#-integration-health-problem-alert) example.
-
-**`severity` is always one of five words**, never blank, so a template can compare against it safely. The same five are used by the other PlayFaster router and network integrations, so an automation written for one works against all of them:
-
-| Value | Meaning |
-| :-- | :-- |
-| `ok` | Nothing wrong. |
-| `degraded` | Something stopped working, but scanning itself is fine - no known network was seen, or the scan came back empty. |
-| `warning` | The scan worked, but the data it returned may be wrong - a field vanished, the signal unit changed, or a frequency no longer maps to a band. |
-| `error` | The Supervisor is unreachable, or the monitored interface is gone. |
-| `unknown` | Nothing has been fetched yet. You see this only in the moments after a restart, before the first scan completes. |
-
-> [!NOTE]
->
-> **If you have an automation testing for `serious` or `minor`, update it.** Those were this integration's own earlier words for the same idea and were replaced in `2.0.2-dev4` by the five shared ones above. `serious` is now `warning` or `error` depending on the cause, and `minor` is now `warning` or `degraded`. A healthy integration previously left `severity` blank and now says `ok`.
-
-### 🔄 Data Polling & 3-Strike Resilience
-
-The integration utilizes a custom polling mechanism designed to interact with the Home Assistant Supervisor Network API:
-
-- **Supervisor Endpoint**: Polls the endpoint `/network/interface/{interface}/accesspoints` to gather access point configurations.
-- **3-Strike Logic**: To prevent entities flickering to `Unavailable` due to temporary network congestion or Supervisor latency, the integration holds its last known values for up to 3 consecutive failures. If the 4th consecutive poll fails, the entities are marked `Unavailable` and an issue is raised in the Home Assistant repairs center.
-- **Immediate Refresh**: Updating filter or pattern lists triggers an immediate background scan. You can also trigger an immediate scan at any time by pressing the **Scan Now** button entity or by calling the `wifi_ssid_monitor.scan_now` service. (Changing the scan interval updates the timer without forcing an immediate fetch; Pause Polling halts polling without forcing a fetch.) See the [Security Scan on Arrival](#-security-scan-on-arrival) example.
-
-### 🆔 Stable Entities & Interface Identity
-
-- **Interface-Based Identity**: The integration registers its unique ID based on `wifi_ssid_monitor_{interface}`. This prevents duplicate configurations for the same interface and ensures entity history remains stable. It also means **one adapter per entry, and more than one adapter is supported** - add the integration again and choose the other interface.
-- **Data Validation & Normalization Boundary**: Values retrieved from the Supervisor API pass through a single parsing boundary (`parse.py`). Signal is normalized to a 0–100% quality scale, frequencies are mapped to channels and 2.4/5/6 GHz bands, and out-of-bounds metrics are safely clamped.
-
-### 💾 Files Written to `config/.storage`
-
-The integration persists three history stores across restarts using `homeassistant.helpers.storage`. All three are written per config entry, so a setup monitoring two interfaces has two sets. Writes are coalesced (not one write per scan) to spare SD cards.
-
-| File | Holds | Classification | Cost of deletion |
-| :-- | :-- | :-- | :-- |
-| `wifi_ssid_monitor.<entry_id>.last_seen` | When each network was last detected | **Derived cache** | None - repopulates on the next scan |
-| `wifi_ssid_monitor.<entry_id>.first_seen` | When each network was first detected | **User history** | Permanent - first-seen dates are lost |
-| `wifi_ssid_monitor.<entry_id>.visit_counts` | How many scans each network has appeared in | **User history** | Permanent - appearance counts reset; **New Networks (24h)** re-baselines |
-
-Entries older than the **Last Seen History TTL** (default 90 days) are pruned automatically, and a hard cap of 2,000 entries bounds total growth in a busy location. Set TTL to `0` to retain indefinitely. All three are **deleted automatically** when the integration is removed - see [Removal](#-removal).
-
-> 💡 To clear history deliberately, use the **`wifi_ssid_monitor.clear_last_seen`** action rather than deleting a file by hand - it does the same job cleanly while Home Assistant is running. See the [Weekly History Cleanup](#-weekly-history-cleanup) example. Editing or deleting anything in `.storage` is a bad idea and not recommended.
-
-### 🔄 Dynamic Polling & Standard System Options
-
-- **Both Available**: The integration provides dynamic polling controls, to change the scan interval or trigger an on-demand scan. It also functions normally with the standard Home Assistant **System options** > **Enable polling for changes** toggle.
+- **Supervisor Endpoint**: Polls `/network/interface/{interface}/accesspoints` to gather access point configurations.
+- **3-Strike Logic**: To prevent entities flickering to `Unavailable` during momentary Supervisor latency or network congestion:
+  1. **First failure** — logs a warning and holds the last known values until the next scheduled scan.
+  2. **Second failure** — keeps holding last-known values, logged at debug so transient blips do not flood the log.
+  3. **Third failure** — **Integration Health** turns on, one cycle before anything disappears.
+  4. **Fourth failure** — entities are marked `Unavailable` and an issue is raised in the Home Assistant Repairs center.
+- **Immediate Refresh**: Updating filter or pattern lists triggers an immediate background scan. Pressing **Scan Now** or calling `wifi_ssid_monitor.scan_now` forces a fresh scan immediately **even while Pause Polling is on**. (Changing the scan interval updates the timer without forcing an immediate fetch; Pause Polling halts polling without forcing a fetch.) See the [Security Scan on Arrival](#-security-scan-on-arrival) example.
 
 ---
 
 </details>
+
+### 🩺 Self-Diagnosis
+
+Connection failures are visible already: entities go `Unavailable`. The gap this fills is the failure Home Assistant **cannot** see — a scan that _succeeds_ while the data underneath has changed shape or meaning (e.g. when the Supervisor payload moved from `channel` to `frequency`).
+
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
+</summary><br>
+
+The **Integration Health** binary sensor reports:
+
+- **Total outage** — Supervisor unreachable or interface missing. Flagged immediately on cold start (where no baseline exists), or on the third consecutive failed poll at runtime.
+- **Degraded capability** — e.g. empty scan results or all established known networks disappearing at once.
+- **Contract & semantic drift** — a successful response containing missing fields, unresolved frequency bands, or an unexpected change in signal units.
+
+It is deliberately **available at all times**, including when every other entity has gone unavailable — a health sensor that disappears during an outage cannot explain the silence. Details live in attributes: `issues`, `severity`, `signal_unit`, `last_good_update`, `degraded_capabilities`, and `drift`. See the [Integration Health Problem Alert](#-integration-health-problem-alert) example.
+
+**`severity` is always one of five words**, never blank, matching all PlayFaster integrations:
+
+| Value | Meaning |
+| :-- | :-- |
+| `ok` | Nothing wrong. |
+| `degraded` | Something stopped working, but scanning itself is fine — no known network was seen, or the scan came back empty. |
+| `warning` | The scan worked, but data may be wrong — a field vanished, signal unit changed, or a frequency no longer maps to a band. |
+| `error` | The Supervisor is unreachable, or the monitored interface is gone. |
+| `unknown` | Nothing has been fetched yet (seen only in the moments after restart before the first scan). |
+
+---
+
+</details>
+
+### 🔨 Repairs
+
+Some problems require user attention, so they are raised in Home Assistant's **Repairs** panel in addition to the Integration Health sensor. All clear themselves automatically once the condition resolves:
+
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
+</summary><br>
+
+| Repair | Raised when | Why it is a Repair |
+| :-- | :-- | :-- |
+| **`interface_missing`** | The configured interface is no longer reported by the Supervisor | The network interface was removed or renamed in host settings; requires reconfiguring the integration. |
+| **`signal_format_changed`** | Signal unit flipped from baseline (e.g. dBm vs %) | An underlying Supervisor change inverted signal metrics; requires reviewing the Proximity Threshold. |
+| **`supervisor_unavailable`** | 4 consecutive failed polls | The Supervisor API stopped responding; requires checking host system health. |
+
+> [!NOTE]
+>
+> A brief glitch does **not** raise a Repair. Integration Health turns on after three failed polls and entities go unavailable after four, keeping the Repairs panel quiet until a problem clearly persists.
+
+---
+
+</details>
+
+### 🎬 Actions & Events
+
+Beyond passive entities, the integration exposes an on-demand response **action** and a fire-and-forget **event**:
+
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
+</summary><br>
+
+- **Action** (`get_networks`) is a response service — it performs its own fresh read of current scan data and returns results, working even when passive sensors are unavailable, filtered, or capped. See [Actions](#-actions-services).
+- **Event** (`wifi_ssid_monitor_new_network`) fires once per newly-seen network. It records the existing set silently on startup or after a history reset (no replay), and is rate-limited so a busy location cannot flood your automations. See [Events](#-events).
+
+---
+
+</details>
+
+### 🆔 Stable Entities & Interface Identity
+
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
+</summary><br>
+
+- **Interface-Based Identity**: The integration registers its unique ID based on `wifi_ssid_monitor_{interface}`. This prevents duplicate configurations for the same interface and ensures entity history remains stable. **One adapter per entry, and multiple adapters are supported** — add the integration again and choose the other interface.
+- **Data Validation & Normalization Boundary**: Values retrieved from the Supervisor API pass through a single parsing boundary (`parse.py`). Signal is normalized to a 0–100% quality scale, frequencies are mapped to channels and 2.4/5/6 GHz bands, and out-of-bounds metrics are safely clamped.
+
+---
+
+</details>
+
+### 💾 Files Written to `config/.storage`
+
+The integration persists three history stores across restarts using `homeassistant.helpers.storage`. All three are written per config entry, so a setup monitoring two interfaces has two sets. Writes are coalesced to spare SD cards:
+
+<details>
+
+<summary>
+&nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
+</summary><br>
+
+| File | Holds | Classification | Cost of deletion |
+| :-- | :-- | :-- | :-- |
+| `wifi_ssid_monitor.<entry_id>.last_seen` | When each network was last detected | **Derived cache** | None — repopulates on next scan |
+| `wifi_ssid_monitor.<entry_id>.first_seen` | When each network was first detected | **User history** | Permanent — first-seen dates are lost |
+| `wifi_ssid_monitor.<entry_id>.visit_counts` | How many scans each network has appeared in | **User history** | Permanent — appearance counts reset; **New Networks (24h)** re-baselines |
+
+Entries older than the **Last Seen History TTL** (default 90 days) are pruned automatically, and a hard cap of 2,000 entries bounds total growth in a busy location. Set TTL to `0` to retain indefinitely. All three are **deleted automatically** when the integration is removed — see [Removal](#-removal).
+
+> [!TIP]
+>
+> To clear history deliberately, use the **`wifi_ssid_monitor.clear_last_seen`** action rather than deleting a file by hand — it does the same job cleanly while Home Assistant is running. See the [Weekly History Cleanup](#-weekly-history-cleanup) example.
+
+---
+
+</details>
+
+### 🔄 Dynamic Polling & Standard System Options
+
+- **Both Available**: The integration provides dynamic polling controls to change the scan interval or trigger an on-demand scan. It also functions normally with the standard Home Assistant **System options** > **Enable polling for changes** toggle.
 
 <br>
 
@@ -1577,7 +1646,7 @@ Entries older than the **Last Seen History TTL** (default 90 days) are pruned au
 >
 > The entries below cover the problems that come up most often. If you are working through one and not getting to a resolution, remember that "turning it off and on again" is a cliche for a reason.
 >
-> **Restart Home Assistant, and maybe Reboot the HA system, before declaring failure or seeking help.** Neither is guaranteed to fix your issue, and both are surprisingly effective.
+> **Restart Home Assistant, and maybe Reboot the HA system, before declaring failure or seeking help.** While neither is guaranteed to fix your issue, they can be surprisingly effective.
 
 ### 🔌 Setup & Connectivity
 
@@ -1718,17 +1787,17 @@ The `first_seen` / `last_seen` / `visit_count` fields (on **Strongest Unknown SS
 
 This is the most useful file to attach to a GitHub issue. It captures your options, the current scan data, and the network history in one JSON file.
 
-**It is sanitized before it is written**, so it is safe to share:
+**It is redacted before it is written**, across multiple layers:
 
-- **Your own lists are redacted outright** - the Known SSIDs and Always-Unknown (denylist) values.
-- **Everything identifying about nearby networks is pseudonymized**, not blanked. Each SSID becomes `ssid-1`, `ssid-2`… and each BSSID becomes `bssid-1`, `bssid-2`… The same network keeps the same token everywhere it appears - including where an SSID is used as a dictionary key - so the file still reads sensibly.
-- **What deliberately stays:** signal quality, channel, band, counts, timestamps, and health flags - the non-identifying substance a maintainer needs.
+- **Redacted outright** — Your own configured lists (Known SSIDs and Always-Unknown denylist values).
+- **Pseudonymized** — Everything identifying about nearby third-party networks is tokenized rather than blanked. Each SSID becomes `ssid-1`, `ssid-2`… and each BSSID becomes `bssid-1`, `bssid-2`… The same network keeps the same token everywhere it appears (including dictionary keys), so the file still cross-references cleanly without exposing real MAC addresses or network names.
+- **Retained as live metrics** — Signal quality, channel, band, counts, timestamps, and health flags — the non-identifying technical data needed for diagnosis.
 
-Nearby-network detections describe **other people's** equipment, which is why the SSID is tokenized and the BSSID redacted.
+Nearby-network detections describe **other people's** equipment, which is why SSIDs and BSSIDs are tokenized and redacted.
 
 ---
 
-**If setup itself is failing**, there is no config entry yet, so there are no diagnostics to download. In that case capture a log instead - add this to `configuration.yaml` and restart:
+**If setup itself is failing**, there is no config entry yet, so there are no diagnostics to download. Capture a log instead — add this to `configuration.yaml` and restart:
 
 ```yaml
 logger:
@@ -1741,13 +1810,15 @@ Logs are then visible under **Settings > System > Logs** (click **Load Full Logs
 
 > [!IMPORTANT]
 >
-> **Log files have NO redaction of any kind** - unlike the diagnostics file above, nothing is stripped or pseudonymized. Review a log before pasting it anywhere. The integration itself does not log nearby SSIDs or BSSIDs at any level - debug lines carry counts and field names rather than network identifiers - but Home Assistant core and other integrations write to the same file.
+> **Log files have NO redaction of any kind.** Nothing is stripped or pseudonymized, unlike the diagnostics file above. Review a log before pasting it anywhere.
+>
+> The integration itself does not log nearby SSIDs or BSSIDs at any level — debug lines carry counts and field names rather than network identifiers — but Home Assistant core and other integrations write to the same file.
 
 ---
 
 </details>
 
-#### 🔄 **I deleted and re-added the integration - why did my settings and history come back?**
+#### 🔄 **I deleted and re-added the integration for a fresh start — why did my settings and history come back?**
 
 <details>
 
@@ -1755,22 +1826,22 @@ Logs are then visible under **Settings > System > Logs** (click **Load Full Logs
 &nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
 </summary><br>
 
-Because Home Assistant keeps most of it on purpose. This is **Home Assistant behavior, not something this integration controls**, and for most people it's the desirable outcome - re-add the same interface and things carry on where they left off.
+Because Home Assistant keeps most of it on purpose. This is **Home Assistant behavior, not something this integration controls**, and for most people it's the desirable outcome — re-add the same interface and things carry on where they left off.
 
 | What | How long Home Assistant keeps it | On re-add |
 | :-- | :-- | :-- |
-| **Long-term statistics** (long-range graphs) | Indefinitely - never deleted | Continue unbroken |
+| **Long-term statistics** (long-range graphs) | Indefinitely — never deleted | Continue unbroken |
 | **Recent detailed history** | Recorder retention (10 days by default) | Continues |
-| **Entity IDs** (`sensor.…`) | Reused as long as nothing else took the name | Dashboards & automations keep working |
+| **Entity IDs** (`sensor.…`) | Reused as long as nothing else has taken the name | Dashboards & automations keep working |
 | Renames, icons, areas, labels, enabled/disabled state | **30 days**, in the entity registry | Restored |
-| **Network history** (this integration's `.storage` files) | Not kept - deleted with the integration | Starts fresh |
+| **Network history** (this integration's `.storage` files) | Not kept — deleted with the integration | Starts fresh |
 
-The **30 days** applies only to that fourth row - the entity-registry customizations. Statistics aren't on a timer at all, and your entity IDs come back either way. So re-adding after a year still reconnects your graphs; you would just need to redo any renames. Restarting Home Assistant in between makes no difference to any of this. Only this integration's own `first_seen` / `visit_count` history is genuinely lost - **New Networks (24h)** starts from scratch.
+The **30 days** applies only to that fourth row — the entity-registry customizations. Statistics aren't on a timer at all, and your entity IDs come back either way. So re-adding after a year still reconnects your graphs; you would just need to redo any renames. Restarting Home Assistant in between makes no difference to any of this. Only this integration's own `first_seen` / `visit_count` history is genuinely lost — **New Networks (24h)** starts from scratch.
 
-**If you actually wanted a clean slate**, Home Assistant doesn't really offer one - and in practice you rarely need it. Two supported options exist:
+**If you actually wanted a clean slate**, Home Assistant doesn't really offer one — and in practice you rarely need it. Two supported options exist:
 
 - **Tools > Statistics** lists statistics whose entity no longer exists as _"There is no state available for this entity"_, and lets you delete them individually. Supported, immediate, no restart required.
-- The **`recorder.purge_entities`** action drops recent history for entities you name. (It does not touch long-term statistics - use the screen above for those.)
+- The **`recorder.purge_entities`** action drops recent history for entities you name. (It does not touch long-term statistics — use the screen above for those.)
 
 Clearing the retained _entity-registry_ customizations is a different matter: it means hand-editing `.storage/core.entity_registry` with Home Assistant stopped. **Don't.** That single file holds the settings for every entity from every integration you run, and the risk of unintended damage far outweighs re-doing a few renames. Nothing about this integration needs it.
 
@@ -1778,7 +1849,7 @@ Clearing the retained _entity-registry_ customizations is a different matter: it
 >
 > If you're re-adding to fix a problem rather than to reset data, try **⋮ > Reload** on the integration first. It re-reads everything and re-applies your settings without removing anything.
 
-Also note: an entity ID is reused unless a **different, still-existing** entity has since taken that name, in which case the new one is created as `…_2` and the old statistics stay attached to the original ID. That's uncommon and generally the result of manual renaming elsewhere - it isn't something a normal remove-and-re-add causes.
+Also note: an entity ID is reused unless a **different, still-existing** entity has since taken that name, in which case the new one is created as `…_2` and the old statistics stay attached to the original ID. That's uncommon and generally the result of manual renaming elsewhere — it isn't something a normal remove-and-re-add causes.
 
 ---
 
@@ -1795,8 +1866,8 @@ Also note: an entity ID is reused unless a **different, still-existing** entity 
 </summary><br>
 
 - **Hidden Networks (No Broadcasted SSID)**: hidden APs are identified individually as `Hidden-<last 4 of BSSID>` where the Supervisor reports a BSSID, so multiple hidden networks in range are counted and tracked separately. Only an AP that reports no BSSID at all falls back to a shared `[hidden]` label. Disable hidden tracking entirely with the **Include Hidden Networks** switch. Note that phones and laptops using randomized MAC addresses can cause hidden entries to churn.
-- **Strongest Unknown Signal Returns "unknown" When No Unknown Networks Visible**: `sensor.wifi_ssid_monitor_strongest_unknown_signal` returns `unknown` when nothing unknown is in range - normal and expected, not a fault (a fault shows as `unavailable`). The companion **Strongest Unknown SSID** reads `None Detected` in the same situation, which is the "all clear" state, not an error.
-- **Pattern Matching is Case-Sensitive**: Known SSID patterns (including wildcards like `Guest_*`) are matched case-sensitively. `homewifi` and `HomeWiFi` are treated as different networks - make sure your patterns match the exact casing of the SSIDs you want to filter.
+- **Strongest Unknown Signal Returns "unknown" When No Unknown Networks Visible**: `sensor.wifi_ssid_monitor_strongest_unknown_signal` returns `unknown` when nothing unknown is in range — normal and expected, not a fault (a fault shows as `unavailable`). The companion **Strongest Unknown SSID** reads `None Detected` in the same situation, which is the "all clear" state, not an error.
+- **Pattern Matching is Case-Sensitive**: Known SSID patterns (including wildcards like `Guest_*`) are matched case-sensitively. `homewifi` and `HomeWiFi` are treated as different networks — make sure your patterns match the exact casing of the SSIDs you want to filter.
 
 ---
 
@@ -1821,7 +1892,7 @@ To remove the integration from Home Assistant:
 
 > [!NOTE]
 >
-> This integration's entities and devices are removed, along with the three [`config/.storage` files](#-files-written-to-configstorage) it created - which means your SSID history is discarded.
+> This integration's entities and devices are removed, along with the three [`config/.storage` files](#-files-written-to-configstorage) it created — which means your SSID history is discarded.
 >
 > Home Assistant keeps your recorded history and entity customizations independently, so re-adding later picks up much where it left off. If that matters to you, see [why settings and history come back](#-i-deleted-and-re-added-the-integration---why-did-my-settings-and-history-come-back).
 
@@ -1865,6 +1936,15 @@ This is a **personal project**. Support and updates are provided on a **"best-ef
 - **Personal prior work**: The structure and integration architecture draw on my own custom components [ZTE Router 5G](https://github.com/PlayFaster/ha-zte-router-5g-monitor) and [Huawei Router 5G](https://github.com/PlayFaster/ha-huawei-router-5g-monitor) Monitors.
 
 - 🤖 This project was developed with the assistance of AI to ensure code quality and adherence to best practices.
+
+---
+
+## 🔀 Other Options
+
+- **Ubiquiti UniFi Networks**: If you run a Ubiquiti UniFi network anchored by a UDM Gateway and UniFi Access Points, see **[UniFi Network Monitor](https://github.com/PlayFaster/ha-unifi-network-monitor)** (`ha-unifi-network-monitor`) which provides distributed Rogue Access Point detection across all of your APs simultaneously.
+- **Official Home Assistant Integrations**: For managing connections or standard network interfaces without rogue SSID tracking, standard core networking options are available in Home Assistant.
+
+---
 
 ## 📄 License
 
