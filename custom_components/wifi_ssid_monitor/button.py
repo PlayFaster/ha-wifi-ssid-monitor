@@ -12,6 +12,8 @@ from .const import DOMAIN
 from .coordinator import WifiScanCoordinator
 from .entity import WifiScanEntity
 
+# Section 22. `0` (unlimited) — button triggers coordinator refresh directly;
+# there is no independent polling or state to serialize.
 PARALLEL_UPDATES = 0
 
 SCAN_NOW_DESCRIPTION = ButtonEntityDescription(

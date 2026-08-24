@@ -5,6 +5,8 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.4-dev4\] - 2026-08-24 - Cross-Project Chores Settled: PARALLEL_UPDATES Rationale, US Spelling, and Review Closures](#204-dev4---2026-08-24---cross-project-chores-settled-parallel_updates-rationale-us-spelling-and-review-closures)
+  - [\[2.0.4-dev3\] - 2026-08-24 - CI Bump mypy PHACC](#204-dev3---2026-08-24---ci-bump-mypy-phacc)
   - [\[2.0.4-dev2\] - 2026-08-24 - Notes: The Superseded v2.0.0 Planning Folder Archived](#204-dev2---2026-08-24---notes-the-superseded-v200-planning-folder-archived)
   - [\[2.0.4-dev1\] - 2026-08-24 - Notes Queue: `.notes/tasks/` Created; The Trigger Duplicate Archived](#204-dev1---2026-08-24---notes-queue-notestasks-created-the-trigger-duplicate-archived)
   - [\[2.0.3\] - 2026-08-22 - Release - Integration Health Severity Standardization \& Repair Fixes](#203---2026-08-22---release---integration-health-severity-standardization--repair-fixes)
@@ -16,7 +18,7 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.3-dev7\] - 2026-08-22 - Three health defects found by the fault drill](#203-dev7---2026-08-22---three-health-defects-found-by-the-fault-drill)
   - [\[2.0.3-dev6\] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill](#203-dev6---2026-08-21---mock-supervisor-rebuilt-against-real-hardware-repair-text-sweep-fault-drill)
   - [\[2.0.3-dev5\] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes](#203-dev5---2026-08-21---section-19-severity-enum-section-20-logging-fixes)
-  - [\[2.0.3-dev4\] - 2026-08-21 - x\_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked\_errors audit](#203-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
+  - [\[2.0.3-dev4\] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit](#203-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
   - [\[2.0.3-dev3\] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep](#203-dev3---2026-08-21---ci-bumps-github-ruff-phacc-sensor-manifest-process-hacsjson-ha-min-ver-mutation-testing-prep)
   - [\[2.0.3-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#203-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
   - [\[2.0.3-dev1\] - 2026-08-07 - Bump Ruff to 0.16.1](#203-dev1---2026-08-07---bump-ruff-to-0161)
@@ -36,9 +38,9 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.1-dev15\] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken](#201-dev15---2026-08-05---branch-coverage-to-100-eight-tests-for-paths-never-taken)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - §14 Enforcement Test](#201-dev8---2026-07-27---14-enforcement-test)
   - [\[2.0.1-dev7\] - 2026-07-27 - §19 `drift` Attribute](#201-dev7---2026-07-27---19-drift-attribute)
@@ -109,6 +111,31 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.4-dev4] - 2026-08-24 - Cross-Project Chores Settled: PARALLEL_UPDATES Rationale, US Spelling, and Review Closures
+
+### Code Improvements
+
+- **PARALLEL_UPDATES Rationale (`C-027`)**: Added Section 22 concurrency rationale comments across all five platform modules (`binary_sensor.py`, `button.py`, `number.py`, `sensor.py`, `switch.py`). Read-only platforms and direct in-memory option-backed entities specify `PARALLEL_UPDATES = 0` (unlimited) with no blocking hardware I/O.
+- **US Spelling Sweep (`C-028`)**: Corrected `Cancelling` → `Canceling` in `number.py:148` docstring per `doc_style.md` v1.1.0. All component text, strings, translations, and docstrings re-scanned 100% compliant.
+
+### Issue Register & Chores
+
+- **Cross-Project Chores Verified and Closed (`x_proj_chores.md`)**:
+  - **C-024 (Guard-band coverage test)**: Verified existing coverage in `tests/test_sensor.py` (`test_every_numeric_sensor_has_a_guard_band` and `test_unguarded_allowlist_has_no_dead_entries`).
+  - **C-025 (Live-entity icon sweep)**: Verified runtime sweep coverage in `tests/test_entity_hygiene.py` (`test_every_live_entity_has_an_icon_or_a_device_class` and `test_every_registered_action_has_an_icon`).
+  - **C-027 (PARALLEL_UPDATES decision)**: Implemented rationale comments across all 5 platforms and marked DONE.
+  - **C-028 (US spelling sweep)**: Swept component, fixed remaining hit in `number.py`, and marked DONE.
+  - **C-029 (README conventions)**: Verified clean via `readme_review` (Full mode) and `readme_automation_validate` (0 `U+FE0F`, callouts compliant, 100% automation schema fidelity).
+  - **C-030 (Entity naming)**: Scanned all 18 entities; confirmed single flat device per config entry, no sub-devices, 0 doubled entity names.
+- **Issue Queue Status Report**: Cleaned queue in `.reports/issue_queue_status.md` — 0 open chores, 0 open tasks, leaving only active cross-project issue "Repair set alignment".
+
+## [2.0.4-dev3] - 2026-08-24 - CI Bump mypy PHACC
+
+### Bumps
+
+- **Validate Bump**: Bumped `mypy` from 2.3.0 to 2.3.1
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.356 to 0.13.357
 
 ## [2.0.4-dev2] - 2026-08-24 - Notes: The Superseded v2.0.0 Planning Folder Archived
 
