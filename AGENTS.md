@@ -137,4 +137,10 @@ Shared devcontainer, MCP, and post-modification details are in [shared conventio
 
 ## Known Open Issues
 
-None currently recorded here. Forward work lives in [docs/ROADMAP.md](docs/ROADMAP.md); chores live in `.shared/issues/x_project/x_proj_chores.md`.
+**Nothing is recorded here, and nothing should be.** This project's open work lives in `.notes/todo.md`, `.notes/tasks/`, the cross-project chore register, the cross-project queue and [`docs/ROADMAP.md`](docs/ROADMAP.md). One command reads all of them, from `dev-workbench/`:
+
+```bash
+uv run python scripts/check_queue_format.py --open ha-wifi-ssid-monitor
+```
+
+**Which one a new item belongs in, and how to add, check and close it, is [`issue_tracking_workflow.md`](.shared/issues/issue_tracking_workflow.md)** — authoritative, with the summary at [shared conventions §8](.shared/dev_std/agent_conventions.md).

@@ -5,6 +5,9 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.4-dev2\] - 2026-08-24 - Notes: The Superseded v2.0.0 Planning Folder Archived](#204-dev2---2026-08-24---notes-the-superseded-v200-planning-folder-archived)
+  - [\[2.0.4-dev1\] - 2026-08-24 - Notes Queue: `.notes/tasks/` Created; The Trigger Duplicate Archived](#204-dev1---2026-08-24---notes-queue-notestasks-created-the-trigger-duplicate-archived)
+  - [\[2.0.3\] - 2026-08-22 - Release - Integration Health Severity Standardization \& Repair Fixes](#203---2026-08-22---release---integration-health-severity-standardization--repair-fixes)
   - [\[2.0.3-dev12\] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap](#203-dev12---2026-08-22---mutation-cadence-closed-843-kill-the-failed-fetch-gap)
   - [\[2.0.3-dev11\] - 2026-08-22 - coordinator.py enters mutation testing; nine tests from the survivor list](#203-dev11---2026-08-22---coordinatorpy-enters-mutation-testing-nine-tests-from-the-survivor-list)
   - [\[2.0.3-dev10\] - 2026-08-22 - About notes review; historical clutter pruned; Pause Polling aligned](#203-dev10---2026-08-22---about-notes-review-historical-clutter-pruned-pause-polling-aligned)
@@ -13,7 +16,7 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.3-dev7\] - 2026-08-22 - Three health defects found by the fault drill](#203-dev7---2026-08-22---three-health-defects-found-by-the-fault-drill)
   - [\[2.0.3-dev6\] - 2026-08-21 - Mock Supervisor rebuilt against real hardware; repair-text sweep; fault drill](#203-dev6---2026-08-21---mock-supervisor-rebuilt-against-real-hardware-repair-text-sweep-fault-drill)
   - [\[2.0.3-dev5\] - 2026-08-21 - Section 19 severity enum; Section 20 logging fixes](#203-dev5---2026-08-21---section-19-severity-enum-section-20-logging-fixes)
-  - [\[2.0.3-dev4\] - 2026-08-21 - x_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked_errors audit](#203-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
+  - [\[2.0.3-dev4\] - 2026-08-21 - x\_project WiFi chore sweep: suppression allow-list, publish-moment tests, masked\_errors audit](#203-dev4---2026-08-21---x_project-wifi-chore-sweep-suppression-allow-list-publish-moment-tests-masked_errors-audit)
   - [\[2.0.3-dev3\] - 2026-08-21 - CI Bumps .github ruff PHACC; Sensor Manifest Process; hacs.json HA min ver; Mutation Testing prep](#203-dev3---2026-08-21---ci-bumps-github-ruff-phacc-sensor-manifest-process-hacsjson-ha-min-ver-mutation-testing-prep)
   - [\[2.0.3-dev2\] - 2026-08-14 - CI Bumps Zizmor MyPy JSONSchema PHACC; AGENTS.md; CHANGELOG.md](#203-dev2---2026-08-14---ci-bumps-zizmor-mypy-jsonschema-phacc-agentsmd-changelogmd)
   - [\[2.0.3-dev1\] - 2026-08-07 - Bump Ruff to 0.16.1](#203-dev1---2026-08-07---bump-ruff-to-0161)
@@ -33,9 +36,9 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.1-dev15\] - 2026-08-05 - Branch Coverage to 100%; Eight Tests for Paths Never Taken](#201-dev15---2026-08-05---branch-coverage-to-100-eight-tests-for-paths-never-taken)
   - [\[2.0.1-dev14\] - 2026-08-03 - Doc Updates](#201-dev14---2026-08-03---doc-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage Recorded](#201-dev9---2026-07-27---standards-test-coverage-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - §14 Enforcement Test](#201-dev8---2026-07-27---14-enforcement-test)
   - [\[2.0.1-dev7\] - 2026-07-27 - §19 `drift` Attribute](#201-dev7---2026-07-27---19-drift-attribute)
@@ -106,6 +109,58 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.4-dev2] - 2026-08-24 - Notes: The Superseded v2.0.0 Planning Folder Archived
+
+Documentation only. A second sweep over the `.notes/` folders the first migration run never enumerated — it read `issues/` and `info/` only, and this project keeps material in several other folders.
+
+### Changed
+
+- **`roadmap/version2_202607/` moved to `tasks/closed/`**, leaving `roadmap/` empty. Its own `README.md` was already a closure stamp in all but name: "These three files are history. Do not work from them", reconciled against `docs/ROADMAP.md` on 2026-08-03. The one verification that did not happen — how a hidden network appears in the Supervisor payload — is a **Blocked** entry there and blocks nothing, because the code falls back to the shared `[hidden]` label.
+- **`.notes/proj_structure.md` corrected.** It described `.notes/roadmap/` as live and `issues/` as the issue tracker, and named neither `tasks/` nor `info/`. Six folders were confirmed prompt-owned and left alone; `todo.md` and the root reference files stay where they are.
+
+## [2.0.4-dev1] - 2026-08-24 - Notes Queue: `.notes/tasks/` Created; The Trigger Duplicate Archived
+
+Documentation only. `tasks_folder_migrate` run against this project.
+
+### Changed
+
+- **Six entries classified out of `.notes/issues/`:** 2 to `tasks/closed/`, 1 to `info/`, and 3 left where they are — `masked_errors/` and `testing_deeper/`, both of which a shared prompt writes to, and an empty directory. **`info/` did not exist on this project and was created.** `check_queue_format.py --project ha-wifi-ssid-monitor` reports `PASSED`, and there are **no open local tasks**.
+- **`changes_20260803/` archived.** A consolidated work list from four sources — the first `dev_std_review` here, an `iqs_next_steps` at `SCAN=Full`, the cross-project checks, and a validation pass — with all four priority groups marked complete and all 22 items ticked.
+- **`custom_trigger_condition/wifi_trigger_options.md` archived, which resolves an open item in the cross-project queue.** `.shared/issues/x_project/custom_trigger_options.md` §9 was headed "the duplicate that remains" and named this file by path, as a second copy of a decision maintained in one place. The local file is stamped with a pointer to the family record and a line saying to read that instead; §9 now records the duplicate as resolved. Nothing was deleted — what this project assessed on 2026-07-27 is intact and cannot be mistaken for current.
+- **`wifi_signal_quality_info.md` moved to `info/`** as verified reference: the signal-percentage pipeline, checked against Home Assistant source and multi-system measurement.
+
+---
+
+## [2.0.3] - 2026-08-22 - Release - Integration Health Severity Standardization & Repair Fixes
+
+### Summary
+
+Maintenance and reliability update standardizing the **Integration Health** sensor's `severity` attribute to consistent status values, fixing three edge-case defects in health and Repair issue handling, and preventing raw WiFi access point credentials from appearing in debug logs.
+
+If you have automations that inspect `state_attr('binary_sensor.wifi_ssid_monitor_integration_health', 'severity')`, see the **Breaking** section below for the standardized vocabulary.
+
+### Breaking
+
+- **Integration Health `severity` attribute standardized:** The `severity` attribute on `binary_sensor.wifi_ssid_monitor_integration_health` now uses standard status values: `ok`, `degraded`, `warning`, `error`, and `unknown` (during initial startup).
+  - A healthy integration now explicitly reports `ok` instead of `None` (which previously rendered as "Unknown" in Home Assistant).
+  - The previous informal strings `minor` and `serious` are replaced: operational faults report `error`, drift warnings report `warning`, and degraded scans report `degraded`.
+  - Update any template or automation matching on `severity`.
+
+### Fixed
+
+- **Persistent Repair issue cleanup:** Repair notifications now clear automatically when the underlying issue resolves across Home Assistant restarts or integration reloads, rather than remaining stuck in the Repairs panel.
+- **Immediate missing-adapter reporting:** A missing or detached WiFi interface now immediately reports `error` outage status on the health sensor instead of delaying behind drift budgets while reporting `ok`.
+- **Signal format change detection:** Corrected an issue where a signal unit change from Supervisor was cleared after one poll instead of being held to raise a Repair notification.
+- **Privacy in debug logs:** Debug logs no longer print raw neighboring SSIDs and BSSIDs verbatim, logging payload field names and discarded record counts instead.
+
+### Changed
+
+- **Entity information notes cleaned up:** Pruned outdated migration notes from the `about` attributes on Scan Interval, Strongest Unknown Signal, and Pause Polling entities.
+
+### Under the hood
+
+- Expanded the test suite with end-to-end outcome reachability verification and mutation testing coverage.
 
 ## [2.0.3-dev12] - 2026-08-22 - Mutation cadence closed: 84.3% kill, the failed-fetch gap
 

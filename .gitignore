@@ -85,6 +85,7 @@ uv.lock
 .notes
 .shared
 .workbench
+.mdbase/
 .obsidian/
 .notes/
 .shared/
