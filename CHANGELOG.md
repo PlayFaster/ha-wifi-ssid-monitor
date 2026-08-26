@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [2.0.3] - 2026-08-22 - Release - Integration Health Severity Standardization & Repair Fixes
+## [2.0.3] - 2026-08-22 - Release: Integration Health Severity Standardization and Repair Fixes
 
 ### Summary
 
@@ -36,7 +36,7 @@ If you have automations that inspect `state_attr('binary_sensor.wifi_ssid_monito
 
 ---
 
-## [2.0.1] - 2026-08-06 - Release
+## [2.0.1] - 2026-08-06 - Release: Multi-AP Strongest Signal Tracking and 6 GHz Channel Fixes
 
 ### Summary
 
@@ -58,7 +58,7 @@ Maintenance update mostly focused on internal test coverage expansion, with some
 
 ---
 
-## [2.0.0] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames
+## [2.0.0] - 2026-07-25 - Release: Signal Quality Percentage, Integration Health Sensor, and Service Actions
 
 > **This release has breaking changes - see the Breaking section.**
 
@@ -125,7 +125,7 @@ Major release correcting signal calculations to a **0–100% quality scale**, in
 
 ---
 
-## [1.6.1] - 2026-07-04 - Release - Reconfigure Shows All Settings; Polling Toggle
+## [1.6.1] - 2026-07-04 - Release: Full Reconfigure Screen and Polling Toggle
 
 ### Summary
 
@@ -142,7 +142,7 @@ Major release correcting signal calculations to a **0–100% quality scale**, in
 
 ---
 
-## [1.6.0] - 2026-06-12 - Proximity Alert, Persistent History and Denylist
+## [1.6.0] - 2026-06-12 - Release: Proximity Alert, Persistent History, and Denylist Matching
 
 ### Summary
 
@@ -181,7 +181,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 ---
 
-## [1.4.3] - 2026-05-10 - README Overhaul and Internal Alignment
+## [1.4.3] - 2026-05-10 - Maintenance: README Overhaul and Standards Alignment
 
 ### Changed
 
@@ -189,7 +189,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 - **Under the Hood**: Several internal code changes to improve maintainability and alignment with Home Assistant development standards (no functional breaking changes).
 - **Validations**: Improved local and automated remote testing to ensure code remains secure and follows best practices.
 
-## [1.4.2] - 2026-05-02 - Scan Interval Minimum Aligned to 60 Seconds
+## [1.4.2] - 2026-05-02 - Controls: Scan Interval Minimum Enforcement
 
 ### Fixed
 
@@ -203,7 +203,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 - **Known Limitations**: Added a Known Limitations section to the README documenting that multiple hidden (non-broadcasting) WiFi networks are reported as a single `[hidden]` entry in SSID counts. This is expected behavior - hidden networks cannot be individually identified without SSID data.
 
-## [1.4.1] - 2026-04-18 - Last Updated Sensor; Custom Naming; Guard Bands
+## [1.4.1] - 2026-04-18 - Telemetry: Last Updated Sensor, Custom Naming, and Guard Bands
 
 ### Added
 
@@ -216,7 +216,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 - **Non-blocking startup:** Integration startup handles unavailable WiFi adapters without blocking Home Assistant initialization.
 - **Enhanced Resilience**: The integration now holds last known values for up to 3 failures, preventing sensors from showing as "Unavailable" during brief network or Supervisor API hiccups.
 
-## [1.4.0] - 2026-04-05 - WiFi Interface Auto-Discovery
+## [1.4.0] - 2026-04-05 - Features: WiFi Interface Auto-Discovery and Resilient Polling
 
 ### Added
 
@@ -233,20 +233,20 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 - **Entity naming:** Default entity names omit the interface prefix for cleaner names on single-adapter setups; multi-instance setups append the interface name automatically.
 - **Logging**: Improved exception logging so that if there is a problem, it should appear in the Home Assistant log.
 
-## [1.3.1] - 2026-04-02 - Structured Network Data Model
+## [1.3.1] - 2026-04-02 - Architecture: Structured Network Data Model
 
 ### Changed
 
 - **Architecture**: Refactored the internal data model to use a structured mapping for networks. This change is non-breaking but provides the necessary foundation for future features like per-network signal strength (RSSI) and channel tracking without requiring further structural rewrites.
 
-## [1.3.0] - 2026-04-02 - Renamed to WiFi SSID Monitor
+## [1.3.0] - 2026-04-02 - Integration Hygiene: Renamed to WiFi SSID Monitor
 
 ### Changed
 
 - **Project Rename**: Formally renamed the integration from "WiFi Scan SSID" to **WiFi SSID Monitor** to better distinguish it from device tracking integrations and highlight its monitoring purpose.
 - **Domain Update**: Changed the internal domain from `wifi_scan_ssid` to `wifi_ssid_monitor` for consistency.
 
-## [1.2.0] - 2026-04-02 - Scan Interval Slider
+## [1.2.0] - 2026-04-02 - Controls: Scan Interval Number Entity
 
 ### Added
 
@@ -256,7 +256,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 
 - **Tests**: Expanded the test suite to include full coverage for the new number platform and debouncing logic.
 
-## [1.1.0] - 2026-04-02 - New Network Alert and Interface Sensor
+## [1.1.0] - 2026-04-02 - Telemetry: New Network Alert Binary Sensor and Interface Sensor
 
 ### Added
 
@@ -264,13 +264,13 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 - **Interface Sensor**: Added a diagnostic sensor to show the active WiFi adapter being scanned.
 - **Setup Validation**: Enhanced the configuration flow to validate connectivity and the presence of the Supervisor token before setup completes.
 
-## [1.0.2] - 2026-04-02 - Branding and Mock Supervisor
+## [1.0.2] - 2026-04-02 - Testing: Branding Assets and Mock Supervisor
 
 ### Added
 
 - **Branding**: Created new, generic WiFi scanning icons and logos.
 
-## [1.0.1] - 2026-04-02 - Test Coverage to 99%
+## [1.0.1] - 2026-04-02 - Test Suite: Branch Coverage Expansion and Lint Compliance
 
 ### Changed
 
@@ -281,7 +281,7 @@ Version 1.6.0 is a major feature release focusing on security monitoring, scanni
 - **Code Quality**: Fixed file formatting and line length issues to comply with Ruff standards.
 - **Documentation**: Added missing docstrings across modules and tests.
 
-## [1.0.0] - 2026-04-01 - Initial Release
+## [1.0.0] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring
 
 ### Added
 
@@ -302,21 +302,21 @@ Entry structure — headers, titles, category headings and the split between thi
 ---
 
 - [Changelog: WiFi SSID Monitor](#changelog-wifi-ssid-monitor)
-  - [\[2.0.3\] - 2026-08-22 - Release - Integration Health Severity Standardization \& Repair Fixes](#203---2026-08-22---release---integration-health-severity-standardization--repair-fixes)
-  - [\[2.0.1\] - 2026-08-06 - Release](#201---2026-08-06---release)
-  - [\[2.0.0\] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames](#200---2026-07-25---signal-as-a-percentage-health-sensor-breaking-renames)
-  - [\[1.6.1\] - 2026-07-04 - Release - Reconfigure Shows All Settings; Polling Toggle](#161---2026-07-04---release---reconfigure-shows-all-settings-polling-toggle)
-  - [\[1.6.0\] - 2026-06-12 - Proximity Alert, Persistent History and Denylist](#160---2026-06-12---proximity-alert-persistent-history-and-denylist)
-  - [\[1.4.3\] - 2026-05-10 - README Overhaul and Internal Alignment](#143---2026-05-10---readme-overhaul-and-internal-alignment)
-  - [\[1.4.2\] - 2026-05-02 - Scan Interval Minimum Aligned to 60 Seconds](#142---2026-05-02---scan-interval-minimum-aligned-to-60-seconds)
-  - [\[1.4.1\] - 2026-04-18 - Last Updated Sensor; Custom Naming; Guard Bands](#141---2026-04-18---last-updated-sensor-custom-naming-guard-bands)
-  - [\[1.4.0\] - 2026-04-05 - WiFi Interface Auto-Discovery](#140---2026-04-05---wifi-interface-auto-discovery)
-  - [\[1.3.1\] - 2026-04-02 - Structured Network Data Model](#131---2026-04-02---structured-network-data-model)
-  - [\[1.3.0\] - 2026-04-02 - Renamed to WiFi SSID Monitor](#130---2026-04-02---renamed-to-wifi-ssid-monitor)
-  - [\[1.2.0\] - 2026-04-02 - Scan Interval Slider](#120---2026-04-02---scan-interval-slider)
-  - [\[1.1.0\] - 2026-04-02 - New Network Alert and Interface Sensor](#110---2026-04-02---new-network-alert-and-interface-sensor)
-  - [\[1.0.2\] - 2026-04-02 - Branding and Mock Supervisor](#102---2026-04-02---branding-and-mock-supervisor)
-  - [\[1.0.1\] - 2026-04-02 - Test Coverage to 99%](#101---2026-04-02---test-coverage-to-99)
-  - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
+  - [\[2.0.3\] - 2026-08-22 - Release: Integration Health Severity Standardization and Repair Fixes](#203---2026-08-22---release-integration-health-severity-standardization-and-repair-fixes)
+  - [\[2.0.1\] - 2026-08-06 - Release: Multi-AP Strongest Signal Tracking and 6 GHz Channel Fixes](#201---2026-08-06---release-multi-ap-strongest-signal-tracking-and-6-ghz-channel-fixes)
+  - [\[2.0.0\] - 2026-07-25 - Release: Signal Quality Percentage, Integration Health Sensor, and Service Actions](#200---2026-07-25---release-signal-quality-percentage-integration-health-sensor-and-service-actions)
+  - [\[1.6.1\] - 2026-07-04 - Release: Full Reconfigure Screen and Polling Toggle](#161---2026-07-04---release-full-reconfigure-screen-and-polling-toggle)
+  - [\[1.6.0\] - 2026-06-12 - Release: Proximity Alert, Persistent History, and Denylist Matching](#160---2026-06-12---release-proximity-alert-persistent-history-and-denylist-matching)
+  - [\[1.4.3\] - 2026-05-10 - Maintenance: README Overhaul and Standards Alignment](#143---2026-05-10---maintenance-readme-overhaul-and-standards-alignment)
+  - [\[1.4.2\] - 2026-05-02 - Controls: Scan Interval Minimum Enforcement](#142---2026-05-02---controls-scan-interval-minimum-enforcement)
+  - [\[1.4.1\] - 2026-04-18 - Telemetry: Last Updated Sensor, Custom Naming, and Guard Bands](#141---2026-04-18---telemetry-last-updated-sensor-custom-naming-and-guard-bands)
+  - [\[1.4.0\] - 2026-04-05 - Features: WiFi Interface Auto-Discovery and Resilient Polling](#140---2026-04-05---features-wifi-interface-auto-discovery-and-resilient-polling)
+  - [\[1.3.1\] - 2026-04-02 - Architecture: Structured Network Data Model](#131---2026-04-02---architecture-structured-network-data-model)
+  - [\[1.3.0\] - 2026-04-02 - Integration Hygiene: Renamed to WiFi SSID Monitor](#130---2026-04-02---integration-hygiene-renamed-to-wifi-ssid-monitor)
+  - [\[1.2.0\] - 2026-04-02 - Controls: Scan Interval Number Entity](#120---2026-04-02---controls-scan-interval-number-entity)
+  - [\[1.1.0\] - 2026-04-02 - Telemetry: New Network Alert Binary Sensor and Interface Sensor](#110---2026-04-02---telemetry-new-network-alert-binary-sensor-and-interface-sensor)
+  - [\[1.0.2\] - 2026-04-02 - Testing: Branding Assets and Mock Supervisor](#102---2026-04-02---testing-branding-assets-and-mock-supervisor)
+  - [\[1.0.1\] - 2026-04-02 - Test Suite: Branch Coverage Expansion and Lint Compliance](#101---2026-04-02---test-suite-branch-coverage-expansion-and-lint-compliance)
+  - [\[1.0.0\] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring](#100---2026-04-01---initial-release-custom-component-for-wifi-ssid-monitoring)
 
 ---
