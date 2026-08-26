@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.5-dev2\] - 2026-08-26 - Linting: Issue Registry Alias Normalization and Test Import Exclusions](#205-dev2---2026-08-26---linting-issue-registry-alias-normalization-and-test-import-exclusions)
   - [\[2.0.5-dev1\] - 2026-08-26 - AGENTS.md Alignment](#205-dev1---2026-08-26---agentsmd-alignment)
   - [\[2.0.4\] - 2026-08-26 - Release: Repair Issue Consolidation and Removal Cleanup](#204---2026-08-26---release-repair-issue-consolidation-and-removal-cleanup)
   - [\[2.0.4-dev8\] - 2026-08-26 - Documentation: Prose Density and Readability Improvements](#204-dev8---2026-08-26---documentation-prose-density-and-readability-improvements)
@@ -116,6 +117,17 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.5-dev2] - 2026-08-26 - Linting: Issue Registry Alias Normalization and Test Import Exclusions
+
+### Summary
+
+Reconciled test suite import conventions against newly adopted Home Assistant Core Ruff lint rules (`ICN001` and `TID251`).
+
+### Changed
+
+- **Issue Registry Import Alias (`ICN001`)**: Normalized `from homeassistant.helpers import issue_registry as issue_reg` to canonical `as ir` in `tests/test_coordinator.py`.
+- **Test Internal Import Exclusion (`TID251`)**: Added `TID251` to `per-file-ignores` for `tests/**` in synced `pyproject.toml`, allowing test suites to import shared fixtures and helpers (`from .conftest import MockResponse`, `from tests.conftest import MockConfigEntry`) while maintaining the strict ban on production code (`custom_components/`) importing test packages.
 
 ## [2.0.5-dev1] - 2026-08-26 - AGENTS.md Alignment
 

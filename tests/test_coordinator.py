@@ -2500,6 +2500,6 @@ async def test_the_outage_repair_is_raised_at_error_severity(
         with pytest.raises(UpdateFailed):
             await coordinator._async_update_data()
 
-    from homeassistant.helpers import issue_registry as issue_reg
+    from homeassistant.helpers import issue_registry as ir
 
-    assert mock_create.call_args.kwargs["severity"] is issue_reg.IssueSeverity.ERROR
+    assert mock_create.call_args.kwargs["severity"] is ir.IssueSeverity.ERROR
