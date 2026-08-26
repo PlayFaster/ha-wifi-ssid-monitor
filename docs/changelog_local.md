@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.5-dev1\] - 2026-08-26 - AGENTS.md Alignment](#205-dev1---2026-08-26---agentsmd-alignment)
   - [\[2.0.4\] - 2026-08-26 - Release: Repair Issue Consolidation and Removal Cleanup](#204---2026-08-26---release-repair-issue-consolidation-and-removal-cleanup)
   - [\[2.0.4-dev8\] - 2026-08-26 - Documentation: Prose Density and Readability Improvements](#204-dev8---2026-08-26---documentation-prose-density-and-readability-improvements)
   - [\[2.0.4-dev7\] - 2026-08-26 - Improve Changelog Readability](#204-dev7---2026-08-26---improve-changelog-readability)
@@ -113,6 +114,14 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.2\] - 2026-04-02 - Test Infrastructure: Mock Supervisor and Branding](#102---2026-04-02---test-infrastructure-mock-supervisor-and-branding)
   - [\[1.0.1\] - 2026-04-02 - Test Suite: Test Coverage to 99%](#101---2026-04-02---test-suite-test-coverage-to-99)
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
+
+---
+
+## [2.0.5-dev1] - 2026-08-26 - AGENTS.md Alignment
+
+### Changed
+
+- **`AGENTS.md`**: Updated to align with other group `AGENTS.md` files.
 
 ---
 
