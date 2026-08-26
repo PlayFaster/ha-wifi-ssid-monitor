@@ -33,6 +33,8 @@ from .entity import WifiScanEntity
 
 _LOGGER = logging.getLogger(__name__)
 
+# Section 22. `0` (unlimited) — option-backed numbers update config entry options
+# in memory and debounce coordinator refresh; there is no blocking hardware I/O.
 PARALLEL_UPDATES = 0
 
 _DEBOUNCE_SECONDS = 2
@@ -145,7 +147,7 @@ class WifiOptionNumber(WifiScanEntity, NumberEntity):
     async def async_will_remove_from_hass(self) -> None:
         """Flush any pending debounced update, then cancel it.
 
-        Cancelling alone loses the value: a slider moved and then followed
+        Canceling alone loses the value: a slider moved and then followed
         within the debounce window by anything that reloads the entry — an
         options change is enough — snaps back with no explanation. The user
         saw it accepted, because the optimistic write already told them so.

@@ -25,7 +25,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 
 - **High Test Coverage**: 100% line **and 100% branch** coverage across all core modules — **415 tests as of 2026-08-22**, with zero partial branches and zero zero-assertion tests. Mutation testing (`mutmut`, scoped by `.validate/mutmut_modules.txt`) checks that the tests actually detect a fault rather than merely executing the line. Scoped to `parse.py`, `diagnostics.py`, `health.py` and — since 2026-08-22 — `coordinator.py`: **1,307 mutants, 84.3% killed.** Why each module is on or off that list, and what it costs to add one, is recorded in `../.notes/test_pytest_issues/mutation_covered_not_covered.md`.
 
-  **Coverage is necessary but not sufficient**, and this project has the evidence twice over. See §3c on the standards sweeps, which exist because the suite hit 100% while four standards had no working guard at all. And every fault fixed on 2026-08-06 — negative 6 GHz channel numbers, a health sensor silent for two polls, repair issues clobbering each other across entries — was found by deepening the tests against code already at 100% line coverage. None came from the field.
+  **Coverage is necessary but not sufficient**: standards sweeps (§3c) and mutation testing exist because unit suites at 100% line coverage can still miss edge cases (such as negative 6 GHz channels, health sensor delays, or cross-entry repair issue collisions). Deepened assertion sweeps and vacuity floors guard against these regressions.
 
 - **Coordinator Logic**: Centralizing SSID deduplication and filtering in the `DataUpdateCoordinator` ensures that all entities share a consistent and optimized data set.
 - **Retry Resilience**: The coordinator holds last known values for up to 3 consecutive fetch failures before marking entities unavailable. This handles transient Supervisor API restarts or brief network outages without entities toggling to "Unavailable". On the 4th consecutive failure, `UpdateFailed` is raised and HA marks entities unavailable as normal.
@@ -54,7 +54,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 
   The switch is the one to reach for: it is discoverable, scriptable, and honors explicit requests by design. The system option remains the harder stop, and is what `config_entry=entry` above exists to make work. Full write-up: `.shared/info/sys_options_enable_polling.md`.
 
-- **Repair Issues (v1.4.4-dev2)**: Persistent API failures surface in the HA Repairs panel via `ir.async_create_issue(hass, DOMAIN, "supervisor_unavailable", ...)`. The issue is cleared with `ir.async_delete_issue()` on the next successful scan. Issue title/description strings live under the `"issues"` key in `strings.json` and `translations/en.json`, keyed by the issue id (`supervisor_unavailable`).
+- **Repair Issues (v1.4.4-dev2)**: Persistent API failures surface in the HA Repairs panel via `ir.async_create_issue(hass, DOMAIN, "conn_error", ...)`. The issue is cleared with `ir.async_delete_issue()` on the next successful scan. Issue title/description strings live under the `"issues"` key in `strings.json` and `translations/en.json`, keyed by the issue id (`conn_error`).
 - **Button Platform (v1.5.0-dev1)**: The `button` entity has no state value - it exists solely for its `async_press()` action. The implementation simply calls `await self._coordinator.async_refresh()`. No `CoordinatorEntity` inheritance is needed because buttons don't display coordinator data; they just trigger it. This is the lightest possible HA entity pattern.
 - **`fnmatch` Pattern Matching (v1.5.0-dev1)**: Replaced exact-string known SSID comparisons with `fnmatch.fnmatch(ssid, pattern)`. This is backward-compatible - existing strings without wildcards behave as exact matches. Case-sensitive by design (SSIDs are case-sensitive byte strings). The check is a simple `any(fnmatch.fnmatch(ssid, p) for p in known_patterns)` per SSID.
 - **Channel-to-Band Helper (v1.5.0-dev1)**: `_channel_to_band(channel)` maps channel integers to band strings (`"2.4 GHz"`, `"5 GHz"`). Channel data comes from the Supervisor API's `channel` field on each access point. Channels 1–14 = 2.4 GHz; 36–177 = 5 GHz. Returns `None` for out-of-range values or missing channel data. Band is stored in `network_map` alongside `rssi` and `channel`.
@@ -153,7 +153,7 @@ Also fix a pre-existing internal contradiction: `Neighbors_WiFi_5G` is defined w
 **(B) A second WiFi adapter — `wlp2s0`, with `"type": "wireless"`.** Three things follow from two lines:
 
 - **The `"wireless"` branch becomes reachable.** `get_interfaces` matches `("wifi", "wireless")` because a Raspberry Pi reports `wireless`, and that mismatch was a shipped bug that made auto-detection return nothing for every Pi user (see the v1.7.0 entry). The mock has only ever sent `"wifi"`, so the devcontainer cannot exercise the branch that exists because of it.
-- **Multi-entry behaviour becomes visible.** One entry per interface is this project's supported answer to multiple adapters (`ROADMAP.md` declines aggregation on that basis), and nothing in the devcontainer has ever shown two. Two entries exercise the `wifi_ssid_monitor_{interface}` duplicate guard, `_resolve_entries()` fanning actions across entries, two devices with two entity sets, and a config-flow dropdown with an actual choice in it.
+- **Multi-entry behavior becomes visible.** One entry per interface is this project's supported answer to multiple adapters (`ROADMAP.md` declines aggregation on that basis), and nothing in the devcontainer has ever shown two. Two entries exercise the `wifi_ssid_monitor_{interface}` duplicate guard, `_resolve_entries()` fanning actions across entries, two devices with two entity sets, and a config-flow dropdown with an actual choice in it.
 - **Entry-scoped repair ids become observable.** `test_a_repair_id_is_scoped_to_the_entry` exists because a sibling entry could overwrite another's issue — a bug class that only manifests with two entries, and which no one has ever watched not happen.
 
 Give the second adapter its own access-point payload, or the two entries look identical and prove less.
@@ -169,13 +169,13 @@ Give the second adapter its own access-point payload, or the two entries look id
 
 **`MOCK_STATIC=1` pins the payload, and is not optional.** `Sensor: Verify HA` audits live entity state in the devcontainer, and any bug reproduction wants a fixed payload. Without the escape hatch this trades one problem for a worse one.
 
-**(D) Fault injection, through a `/mock/fault` control endpoint.** The integration builds its own fixed URL, so there is nowhere to put a query parameter — the switch has to be out of band. An endpoint setting module-level state also allows a fault to be **cleared** mid-session, which is the point: auto-recovery and repair deletion are the least eyeballed behaviour in the health system. An environment variable would need a container restart and could not show recovery at all.
+**(D) Fault injection, through a `/mock/fault` control endpoint.** The integration builds its own fixed URL, so there is nowhere to put a query parameter — the switch has to be out of band. An endpoint setting module-level state also allows a fault to be **cleared** mid-session, which is the point: auto-recovery and repair deletion are the least eyeballed behavior in the health system. An environment variable would need a container restart and could not show recovery at all.
 
 | Fault | Mock does | Reaches |
 | :-- | :-- | :-- |
-| `unknown_interface` | 400 for an interface not in the list | `interface_missing` → repair, `severity: error` |
-| `down` | connection refused / 500 | strike budget → repair `supervisor_unavailable`, `ConfigEntryNotReady` on cold start |
-| `dbm` | signals as negative dBm | `signal_format_changed` → repair |
+| `unknown_interface` | 400 for an interface not in the list | `interface_missing` → health finding, `severity: error` |
+| `down` | connection refused / 500 | strike budget → repair `conn_error`, `ConfigEntryNotReady` on cold start |
+| `dbm` | signals as negative dBm | `signal_format_changed` → drift on health |
 | `no_ap_key` | `200` with `data: {}` | `payload_no_ap_list` → drift → `warning` |
 | `empty` | `200` with `accesspoints: []` | `empty_scan`, `no_known_networks` → `degraded` |
 | `no_mac` / `no_freq` | drop the field from all or some APs | `payload_field_missing` / `_partial`, `band_unresolved_all` / `_some` |
@@ -190,9 +190,7 @@ That reaches **all eight health checks and all three repair issues**, none of wh
 
 **And a checklist nobody is prompted to run is a file nobody opens**, which is why the drill records its date in `.notes/fault_drill_last.txt` and `Mock: Fault Drill Staleness` sits inside `Validate All`. It compares that date against the last commit touching `health.py`, `coordinator.py`, `const.py`, `strings.json`, `translations/` and `mock_supervisor.py`, and warns — never fails — when the drill predates a change to any of them, or when one has uncommitted edits.
 
-**It prints nothing when the drill is current, and that is the whole design.** A banner on every run is filtered out within a week; one that appears only when something has actually changed still carries information. Relevance-triggered rather than calendar-triggered for the same reason — a fixed cadence cries wolf when nothing has changed and stays silent when you edited `health.py` yesterday.
-
-**One limitation worth knowing:** the check reads `git log`, so an edit only counts once committed. The uncommitted-changes branch covers the gap in the meantime, more loosely.
+**Relevance-Triggered Staleness**: The drill verification task prints output only when changes to monitored files post-date `.notes/fault_drill_last.txt` or when uncommitted working-tree edits exist.
 
 **Several will not fire on the first poll, and that is correct.** Drift checks wait out `HEALTH_STARTUP_GRACE_SCANS` and `HEALTH_DRIFT_STRIKE_LIMIT`, `signal_format_changed` needs a baseline from a previous scan, and `empty_scan` and the canary need accumulated visit counts. So the endpoint wants an optional auto-clear after N scans, and a short devcontainer scan interval — otherwise the tool is a waiting game. Route `/mock/` **before** the existing 404 fallback.
 
@@ -260,3 +258,13 @@ Added 2026-08-03. The suite was at 100% line coverage and 217 passing, and **fou
 - **[2026-08-21]** - Added §3d, the Supervisor payload as observed on three real systems, and §3e, four mock Supervisor changes, implemented the same day after those downloads showed it had drifted from the live payload (`mode`, interface naming). Records the second-adapter reasoning, minute-of-hour variability and out-of-band fault injection, plus the attended drill and the relevance-triggered staleness warning that makes it get run.
 - **[2026-08-06]** - **Corrected one pattern that had become false, and refreshed two facts.** The button error-propagation entry (§3, added v1.5.0-dev3) told a reader to call `async_refresh()` and then check `last_update_success`. Both halves had drifted: the button routes through `async_force_refresh()` → `async_request_refresh()` since 2026-08-03, and that path is debounced — inside the 10-second cooldown `last_update_success` describes the _previous_ run, so a failed scan followed by a quick retry press reported failure again without having retried. The entry now carries the timestamp-comparison pattern and names all three outcomes of a press. **This is the second stale claim found in this file in four days**, and the first that would have propagated a live bug into a sibling project, since §3 exists to be copied. Coverage figure updated to 363 tests at 100% line _and_ branch, with a note that every fault fixed on 2026-08-06 was found by deepening tests against code already at 100% line coverage. Composite history key entry extended to state which radio's measurement survives when several share one SSID — arbitrary until 2026-08-06, now the strongest.
 - **[2026-08-22]** - **Refreshed two facts §3 had outlived.** The test count read "363 tests as of 2026-08-06" and is now 415; the mutation sentence predated `coordinator.py` joining the scoped list and now carries the measured result — 1,307 mutants, 84.3% killed — plus a pointer to `.notes/test_pytest_issues/mutation_covered_not_covered.md`, which records why each module is on or off that list and what adding one costs. No pattern in §3 became false; these were stale numbers, which age quietly and are the reason this section is worth re-reading rather than appending to.
+
+## Repair Issue Conditions
+
+Only `conn_error` raises a Repair issue, triggered after the consecutive fetch failure budget is spent. Non-actionable anomalies report on the Integration Health sensor.
+
+`interface_missing` and `signal_format_changed` raised cards until 2026-08-26. They remain health findings — the first at `severity: error` in `degraded_capabilities`, the second as drift at `warning` — and their `Finding.repair` is simply `None`. Because repairs were derived from findings, retiring them removed the card and nothing else.
+
+**`RETIRED_REPAIR_KEYS` is not dead code.** `ir.async_delete_issue` looks up by id, so a card still showing under a retired key has no code left that can clear it and no UI path out; every repair here is `is_fixable=False`. The keys are swept at setup and on removal, which is what makes retiring one safe.
+
+**`_sync_repairs` was removed with them.** No finding carries a repair any more, so its raise loop could never execute — `conn_error` is raised and cleared on the fetch path, in one place, as on the sibling projects.

@@ -424,7 +424,7 @@ async def test_an_unforeseen_error_is_wrapped_and_keeps_its_cause(
 # Section 20 — a log line is not a diagnostics download
 # ---------------------------------------------------------------------------
 #
-# x_project chore C-020. A diagnostics file has a redaction layer; a log file
+# A diagnostics file has a redaction layer; a log file
 # has none, and users are routinely asked to paste one into a public issue. So
 # the shape of a payload may be logged and the payload itself may not — a
 # neighbouring network's SSID and BSSID are personal data about someone who

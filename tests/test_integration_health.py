@@ -10,6 +10,7 @@ from custom_components.wifi_ssid_monitor.health import (
     SEVERITY_DEGRADED,
     SEVERITY_ERROR,
     SEVERITY_OK,
+    SEVERITY_UNKNOWN,
     SEVERITY_WARNING,
     Finding,
     ScanFacts,
@@ -43,7 +44,6 @@ def test_interface_missing_is_an_error():
     )
     assert finding is not None
     assert finding.severity == SEVERITY_ERROR
-    assert finding.repair == "interface_missing"
 
 
 def test_interface_present_no_finding():
@@ -57,7 +57,6 @@ def test_signal_unit_flip():
         ScanFacts(signal_unit="dBm", baseline_signal_unit="percent")
     )
     assert finding is not None
-    assert finding.repair == "signal_format_changed"
 
 
 def test_signal_unit_flip_needs_baseline():
@@ -137,7 +136,7 @@ def test_run_checks_survives_a_broken_check(monkeypatch):
     monkeypatch.setattr(health, "CHECKS", (boom, check_interface_missing))
     findings = run_checks(ScanFacts(interface_present=False))
     # The good check still ran.
-    assert any(f.repair == "interface_missing" for f in findings)
+    assert any(f.key == "interface_missing" for f in findings)
 
 
 def test_empty_normalized_fraction_missing_returns_zero():
@@ -283,7 +282,7 @@ def test_every_check_has_a_firing_fixture():
         )
 
 
-def test_every_finding_sets_a_valid_severity():
+def test_every_published_severity_is_in_the_section_19_vocabulary():
     """No check may publish a severity outside the Section 19 vocabulary.
 
     Written because a mutation setting `severity=None` on `check_signal_unit_flip`
@@ -548,7 +547,7 @@ def test_band_unresolved_says_nothing_when_every_band_resolved():
 
 
 # ---------------------------------------------------------------------------
-# Section 19 aggregation ladder — x_project C-014
+# Section 19 aggregation ladder
 # ---------------------------------------------------------------------------
 
 
@@ -638,29 +637,92 @@ def _registered_issue_keys() -> set[str]:
     return {scoped[: -len(suffix)] for scoped in ids}
 
 
-def test_every_check_repair_is_registered_for_removal() -> None:
-    """A check may not declare a repair `all_issue_ids()` does not know about.
+async def test_every_repair_the_code_raises_is_registered_for_removal(
+    hass, mock_config_entry
+) -> None:
+    """The sharp one: a repair omitted here outlives the integration.
 
-    This is the sharp one. `async_remove_entry` deletes exactly the ids
-    `all_issue_ids()` returns, so a repair raised from a check but missing from
-    that list is **never cleaned up**: uninstalling the integration leaves a
-    permanent Repairs card with no UI path to clear it.
+    `async_remove_entry` deletes exactly the ids `all_issue_ids()` returns, so
+    a card raised under an id that list omits sits in the Repairs panel for
+    ever — `is_fixable=False`, no UI path out, and no integration left that
+    could clear it.
 
-    Reuses `_FIRING_FACTS` so a check added without a fixture fails in
-    `test_every_check_has_a_firing_fixture` rather than shrinking this sweep.
+    Driven rather than read out of `CHECKS`: no check declares a repair any
+    more, so a sweep over their declarations would inspect an empty set and
+    pass for the wrong reason. Raising a card under every id the code knows
+    about and asserting the registry empties cannot.
+    """
+    from homeassistant.helpers import issue_registry as ir
+
+    from custom_components.wifi_ssid_monitor import async_remove_entry
+    from custom_components.wifi_ssid_monitor.const import (
+        ALL_REPAIR_KEYS,
+        DOMAIN,
+        RETIRED_REPAIR_KEYS,
+        issue_id,
+    )
+
+    mock_config_entry.add_to_hass(hass)
+    names = (*ALL_REPAIR_KEYS, *RETIRED_REPAIR_KEYS)
+
+    for name in names:
+        for scoped in (issue_id(name, mock_config_entry.entry_id), name):
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                scoped,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=name,
+            )
+
+    registry = ir.async_get(hass)
+    assert len([k for k in registry.issues if k[0] == DOMAIN]) == len(names) * 2
+
+    await async_remove_entry(hass, mock_config_entry)
+
+    left = [k[1] for k in registry.issues if k[0] == DOMAIN]
+    assert not left, f"repairs left with no integration to clear them: {left}"
+
+
+# ------------------------------------------------- the sweeps must sweep something
+
+
+def test_the_repair_text_sweep_is_not_vacuous() -> None:
+    """The text sweeps pass trivially if the key set is empty.
+
+    Pins the count and the membership as well as the property, so a rename that
+    empties `ALL_REPAIR_KEYS` fails here rather than turning the text sweeps
+    green. Named rather than folded into either, because one guard has to cover
+    both and anything written over the same set later.
+    """
+    from custom_components.wifi_ssid_monitor.const import (
+        ALL_REPAIR_KEYS,
+        RETIRED_REPAIR_KEYS,
+    )
+
+    assert set(ALL_REPAIR_KEYS) == {"conn_error"}
+    assert len(set(RETIRED_REPAIR_KEYS)) >= 3
+
+
+def test_the_severity_sweep_still_sweeps_something() -> None:
+    """The guard cannot quietly shrink to a set of one.
+
+    The Section 19 vocabulary is fixed at five, and the check list has to stay
+    large enough that a sweep over it means something.
     """
     from custom_components.wifi_ssid_monitor.health import CHECKS
 
-    declared = set()
-    for check in CHECKS:
-        finding = check(_FIRING_FACTS[check.__name__])
-        assert finding is not None
-        if finding.repair:
-            declared.add(finding.repair)
-
-    unregistered = sorted(declared - _registered_issue_keys())
-    assert not unregistered, (
-        f"checks declare repair(s) {unregistered} that all_issue_ids() does not "
-        f"list. async_remove_entry would leave them raised for ever — add them "
-        f"to all_issue_ids() in const.py."
+    assert (
+        len(
+            {
+                SEVERITY_OK,
+                SEVERITY_DEGRADED,
+                SEVERITY_WARNING,
+                SEVERITY_ERROR,
+                SEVERITY_UNKNOWN,
+            }
+        )
+        == 5
     )
+    assert len(CHECKS) >= 5

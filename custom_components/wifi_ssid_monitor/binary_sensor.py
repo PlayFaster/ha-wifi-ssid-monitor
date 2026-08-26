@@ -22,6 +22,8 @@ from .coordinator import WifiScanCoordinator
 from .entity import WifiScanEntity
 from .health import SEVERITY_UNKNOWN
 
+# Section 22. `0` (unlimited) — read-only coordinator-driven platform; entities
+# do not poll independently and there is no state serialization needed.
 PARALLEL_UPDATES = 0
 
 NEW_NETWORK_DESCRIPTION = BinarySensorEntityDescription(

@@ -281,7 +281,7 @@ async def test_every_registered_action_has_an_icon(
 # Suppressed static-analysis directives — every one is a reviewed decision
 # ---------------------------------------------------------------------------
 #
-# `masked_errors_check` Class D, and x_project chore C-004. Ported from
+# `masked_errors_check` Class D. Ported from
 # `ha-huawei-router-5g-monitor`, where an audit on 2026-08-14 found five
 # suppressions of which **three were wrong and two were hiding live defects**:
 # two calls behind a `type: ignore` were to library methods that did not
@@ -474,18 +474,26 @@ _ISSUE_SENTINEL = "sentinel_entry"
 
 
 def _issue_keys() -> set[str]:
-    """Return the bare repair keys, unscoped from their entry id."""
-    from custom_components.wifi_ssid_monitor.const import all_issue_ids
+    """Return the repair keys the code can raise.
 
-    suffix = f"_{_ISSUE_SENTINEL}"
-    ids = all_issue_ids(_ISSUE_SENTINEL)
-    assert ids, "all_issue_ids() is empty — this sweep would pass vacuously"
-    for scoped in ids:
-        assert scoped.endswith(suffix), (
-            f"{scoped!r} is not entry-scoped; issue_id() has changed shape and "
-            f"this helper no longer knows how to unscope it"
+    Read from `ALL_REPAIR_KEYS` rather than `all_issue_ids`, which also carries
+    the retired keys so removal can sweep them. A retired key must have **no**
+    translation text — that is what the orphan sweep asserts — so deriving this
+    set from the removal list would make the two sweeps contradict each other.
+    """
+    from custom_components.wifi_ssid_monitor.const import ALL_REPAIR_KEYS
+
+    keys = set(ALL_REPAIR_KEYS)
+    assert keys, "ALL_REPAIR_KEYS is empty — this sweep would pass vacuously"
+
+    from custom_components.wifi_ssid_monitor.const import issue_id
+
+    for key in keys:
+        scoped = issue_id(key, _ISSUE_SENTINEL)
+        assert scoped.endswith(f"_{_ISSUE_SENTINEL}"), (
+            f"{scoped!r} is not entry-scoped; issue_id() has changed shape"
         )
-    return {scoped[: -len(suffix)] for scoped in ids}
+    return keys
 
 
 def _translation_files() -> list:
@@ -497,7 +505,7 @@ def _translation_files() -> list:
     ]
 
 
-def test_every_repair_issue_has_title_and_description() -> None:
+def test_every_repair_issue_has_title_and_rendered_text() -> None:
     """A raised repair must render a sentence, not its translation key.
 
     Sweeps every translation file, not just `strings.json`: the compiled
@@ -516,11 +524,27 @@ def test_every_repair_issue_has_title_and_description() -> None:
             if not isinstance(entry, dict):
                 missing.append(f"{path.name}: issues.{key} absent")
                 continue
-            missing.extend(
-                f"{path.name}: issues.{key}.{field} empty or absent"
-                for field in ("title", "description")
-                if not str(entry.get(field, "")).strip()
-            )
+            if not str(entry.get("title", "")).strip():
+                missing.append(f"{path.name}: issues.{key}.title empty or absent")
+
+            # `description` and `fix_flow` are mutually exclusive in hassfest's
+            # issues schema: a fixable issue renders its prose in the flow's
+            # step, a plain one on the card. Exactly one, never both.
+            has_description = bool(str(entry.get("description", "")).strip())
+            has_fix_flow = bool(entry.get("fix_flow"))
+            if has_description == has_fix_flow:
+                missing.append(
+                    f"{path.name}: issues.{key} needs exactly one of "
+                    "'description' or 'fix_flow'"
+                )
+            for step_name, step in (
+                (entry.get("fix_flow") or {}).get("step", {}).items()
+            ):
+                if not str(step.get("description", "")).strip():
+                    missing.append(
+                        f"{path.name}: issues.{key} fix_flow step {step_name!r} "
+                        "has no description"
+                    )
 
     assert not missing, (
         "repair issues with no readable text:\n"

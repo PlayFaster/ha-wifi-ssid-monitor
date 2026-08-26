@@ -119,9 +119,7 @@ TARGET_OPTION_KEYS = {
 }
 
 # Repair issue keys.
-ISSUE_SUPERVISOR_UNAVAILABLE = "supervisor_unavailable"
-ISSUE_INTERFACE_MISSING = "interface_missing"
-ISSUE_SIGNAL_FORMAT_CHANGED = "signal_format_changed"
+ISSUE_CONN_ERROR = "conn_error"
 
 
 def last_seen_storage_key(entry_id: str) -> str:
@@ -150,12 +148,25 @@ def issue_id(key: str, entry_id: str) -> str:
 
 
 # Every repair key this integration can raise, unscoped. One source of truth:
-# `all_issue_ids` scopes it for removal, and the coordinator sweeps it when
-# clearing, so neither side can drift from the raise side.
-ALL_REPAIR_KEYS: tuple[str, ...] = (
-    ISSUE_SUPERVISOR_UNAVAILABLE,
-    ISSUE_INTERFACE_MISSING,
-    ISSUE_SIGNAL_FORMAT_CHANGED,
+# `all_issue_ids` scopes it for removal, so the delete side cannot drift from
+# the raise side.
+#
+# The Repairs panel carries only conditions that require the user to act and
+# will not clear themselves. Everything else this integration detects — a
+# missing interface, a signal-unit flip — is reported on the Integration Health
+# sensor, where it can be automated on but does not ask for an action the panel
+# cannot deliver.
+ALL_REPAIR_KEYS: tuple[str, ...] = (ISSUE_CONN_ERROR,)
+
+# Repair keys this integration used to raise and no longer does. Kept because
+# `ir.async_delete_issue` looks up by id: a card still live under a retired id
+# has no code left that can clear it and no UI path either, every repair here
+# having been `is_fixable=False`. Swept at setup and on removal, which is what
+# makes retiring one safe. Deleting an entry strands any card still under it.
+RETIRED_REPAIR_KEYS: tuple[str, ...] = (
+    "supervisor_unavailable",
+    "interface_missing",
+    "signal_format_changed",
 )
 
 
@@ -165,7 +176,9 @@ def all_issue_ids(entry_id: str) -> tuple[str, ...]:
     Used by ``async_remove_entry`` so the delete side cannot drift from the
     raise side, the same way ``all_storage_keys`` works below.
     """
-    return tuple(issue_id(key, entry_id) for key in ALL_REPAIR_KEYS)
+    return tuple(
+        issue_id(key, entry_id) for key in (*ALL_REPAIR_KEYS, *RETIRED_REPAIR_KEYS)
+    )
 
 
 def all_storage_keys(entry_id: str) -> tuple[str, ...]:

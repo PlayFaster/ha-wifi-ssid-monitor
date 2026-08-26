@@ -29,6 +29,8 @@ from .const import (
 from .coordinator import WifiScanCoordinator
 from .entity import WifiScanEntity
 
+# Section 22. `0` (unlimited) — option-backed switches update config entry options
+# in memory directly; there is no blocking hardware I/O.
 PARALLEL_UPDATES = 0
 
 _BANDS_OFF_NOTE = (

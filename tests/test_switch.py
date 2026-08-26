@@ -100,10 +100,9 @@ def test_device_info(mock_config_entry, mock_coordinator):
 
 
 # ---------------------------------------------------------------------------
-# Publish-moment capture — x_project C-019
+# Publish-moment capture
 # ---------------------------------------------------------------------------
 #
-# Spec: `.shared/issues/x_project/stubbed_publish_tests.md` §2.
 #
 # The tests above stub `async_write_ha_state` with a bare `MagicMock()` and
 # assert the option afterwards. Both halves pass even if the publish carried
@@ -116,7 +115,7 @@ def test_device_info(mock_config_entry, mock_coordinator):
 #
 # `wifi_ssid_monitor` is not affected — every switch is option-backed and
 # reads `entry.options` rather than a coordinator payload, so there is no
-# stale-payload window to begin with. The tests are added anyway, per C-019
+# stale-payload window to begin with. The tests are added anyway,
 # part 2: a project that is not affected still has nothing proving it, and
 # the next regression would otherwise arrive uncovered.
 

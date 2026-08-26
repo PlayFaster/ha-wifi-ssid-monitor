@@ -1446,7 +1446,11 @@ async def test_removing_the_entry_clears_its_repair_issues(
     Repairs panel permanently. Nothing in teardown touched the issue registry.
     """
     from custom_components.wifi_ssid_monitor import async_remove_entry
-    from custom_components.wifi_ssid_monitor.const import all_issue_ids
+    from custom_components.wifi_ssid_monitor.const import (
+        ALL_REPAIR_KEYS,
+        RETIRED_REPAIR_KEYS,
+        all_issue_ids,
+    )
 
     mock_config_entry.add_to_hass(hass)
 
@@ -1456,4 +1460,43 @@ async def test_removing_the_entry_clears_its_repair_issues(
         await async_remove_entry(hass, mock_config_entry)
 
     deleted = {call.args[2] for call in mock_delete.call_args_list}
-    assert deleted == set(all_issue_ids(mock_config_entry.entry_id))
+    # Both spellings: the entry-scoped ids, and the bare keys a card raised
+    # before ids carried the entry would still be sitting under.
+    expected = set(all_issue_ids(mock_config_entry.entry_id))
+    expected |= set(ALL_REPAIR_KEYS) | set(RETIRED_REPAIR_KEYS)
+    assert deleted == expected
+
+
+async def test_setup_clears_repairs_raised_under_retired_keys(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """A card raised before a key was retired must not outlive the code.
+
+    `ir.async_delete_issue` looks up by id, so once nothing raises
+    `interface_missing` any card still showing under that id has no route out —
+    it is `is_fixable=False`, so the user cannot dismiss it either. The sweep
+    runs at every setup, which is what makes retiring a key safe.
+    """
+    from custom_components.wifi_ssid_monitor.const import (
+        RETIRED_REPAIR_KEYS,
+        issue_id,
+    )
+
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+            return_value=[],
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.ir.async_delete_issue"
+        ) as mock_delete,
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    deleted = {call.args[2] for call in mock_delete.call_args_list}
+    for key in RETIRED_REPAIR_KEYS:
+        assert issue_id(key, mock_config_entry.entry_id) in deleted
+        assert key in deleted

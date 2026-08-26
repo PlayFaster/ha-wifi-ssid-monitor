@@ -18,7 +18,6 @@ from homeassistant.util import dt as dt_util
 
 from .api import WifiScanAPI
 from .const import (
-    ALL_REPAIR_KEYS,
     BAND_5,
     BAND_6,
     BAND_24,
@@ -44,7 +43,7 @@ from .const import (
     HEALTH_DRIFT_STRIKE_LIMIT,
     HEALTH_STARTUP_GRACE_SCANS,
     HISTORY_MAX_ENTRIES,
-    ISSUE_SUPERVISOR_UNAVAILABLE,
+    ISSUE_CONN_ERROR,
     NEW_NETWORK_EVENT_MAX_PER_CYCLE,
     STORAGE_VERSION,
     first_seen_storage_key,
@@ -144,7 +143,6 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         # the mismatch recurs on every scan until the entry is reloaded.
         self._signal_flip_logged = False
         self._scans_completed = 0
-        self._active_repairs: set[str] = set()
 
         # New-network events are baselined on the first poll so a restart never
         # replays the existing backlog into a user's automations.
@@ -406,7 +404,6 @@ class WifiScanCoordinator(DataUpdateCoordinator):
                 "drift": [],
                 "cold_start": True,
             }
-            self._sync_repairs(missing)
             return
 
         # The fetch failed past its budget, so this is an outage either way.
@@ -479,7 +476,6 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             ),
             "networks_scanned": facts.total_aps,
         }
-        self._sync_repairs(confirmed)
 
     def _issue_id(self, key: str) -> str:
         """Scope a repair issue to this config entry.
@@ -493,39 +489,6 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         identity, not a message.
         """
         return f"{key}_{self.entry.entry_id}"
-
-    def _sync_repairs(self, findings: list[Finding]) -> None:
-        """Raise and clear the repair issues, keeping them to the actionable few."""
-        wanted = {f.repair: f for f in findings if f.repair}
-
-        for key, finding in wanted.items():
-            if key in self._active_repairs:
-                continue
-            ir.async_create_issue(
-                self.hass,
-                DOMAIN,
-                self._issue_id(key),
-                is_fixable=False,
-                severity=ir.IssueSeverity.WARNING,
-                translation_key=key,
-                translation_placeholders={
-                    "detail": finding.message,
-                    "entry": self.entry.title,
-                },
-            )
-            self._active_repairs.add(key)
-
-        # Deletion sweeps every repair this integration can raise, NOT just the
-        # ones this coordinator remembers raising. `_active_repairs` is
-        # per-instance, and the issue registry outlives the instance: after a
-        # reload or a Home Assistant restart the set is empty, so a set-driven
-        # delete could never clear a card raised before it. These issues are
-        # `is_fixable=False`, so that card had no UI path out and sat in the
-        # Repairs panel for ever. `async_delete_issue` is a no-op for an issue
-        # that is not there, which is what makes the stateless sweep cheap.
-        for key in set(ALL_REPAIR_KEYS) - set(wanted):
-            ir.async_delete_issue(self.hass, DOMAIN, self._issue_id(key))
-            self._active_repairs.discard(key)
 
     # ------------------------------------------------------------------ fetch
 
@@ -561,10 +524,10 @@ class WifiScanCoordinator(DataUpdateCoordinator):
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
-                self._issue_id(ISSUE_SUPERVISOR_UNAVAILABLE),
+                self._issue_id(ISSUE_CONN_ERROR),
                 is_fixable=False,
-                severity=ir.IssueSeverity.WARNING,
-                translation_key=ISSUE_SUPERVISOR_UNAVAILABLE,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key=ISSUE_CONN_ERROR,
                 translation_placeholders={"entry": self.entry.title},
             )
             if not self.data:
@@ -577,9 +540,7 @@ class WifiScanCoordinator(DataUpdateCoordinator):
         self._failure_count = 0
         now = dt_util.now()
         self.last_update_success_time = now
-        ir.async_delete_issue(
-            self.hass, DOMAIN, self._issue_id(ISSUE_SUPERVISOR_UNAVAILABLE)
-        )
+        ir.async_delete_issue(self.hass, DOMAIN, self._issue_id(ISSUE_CONN_ERROR))
 
         return self._process_scan(access_points, now)
 

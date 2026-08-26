@@ -24,6 +24,8 @@ from .entity import WifiScanEntity
 
 _LOGGER = logging.getLogger(__name__)
 
+# Section 22. `0` (unlimited) — read-only coordinator-driven platform; entities
+# do not poll independently and there is no state serialization needed.
 PARALLEL_UPDATES = 0
 
 

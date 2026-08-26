@@ -59,7 +59,7 @@ The following entities expose additional data in their extra state attributes:
   - Excluded from recorder database history via `_unrecorded_attributes`.
 
 - **Integration Health (`integration_health`)**:
-  - `issues`: List of active health issues (`supervisor_unavailable`, `interface_missing`, `signal_format_changed`).
+  - `issues`: List of active health issues (`conn_error`, `interface_missing`, `signal_format_changed`).
   - `severity`: `minor` or `serious`, or `None` when healthy.
   - `degraded_capabilities`: capabilities currently failing, by key.
   - `drift`: contract/semantic drift findings — a payload that parsed but changed shape.
