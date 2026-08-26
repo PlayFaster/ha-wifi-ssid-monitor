@@ -25,6 +25,7 @@ htmlcov/
 *cache/
 coverage.xml
 .coverage
+.coverage.*
 .reports/
 mutants/
 
