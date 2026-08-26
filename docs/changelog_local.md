@@ -5,6 +5,8 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.4-dev7\] - 2026-08-26 - Improve Changelog Readability](#204-dev7---2026-08-26---improve-changelog-readability)
+  - [\[2.0.4-dev6\] - 2026-08-26 - Repair Set Reduced To One; Contract Sweeps Aligned](#204-dev6---2026-08-26---repair-set-reduced-to-one-contract-sweeps-aligned)
   - [\[2.0.4-dev5\] - 2026-08-26 - Documentation: Comprehensive Changelog Readability and Header Standardization](#204-dev5---2026-08-26---documentation-comprehensive-changelog-readability-and-header-standardization)
   - [\[2.0.4-dev4\] - 2026-08-24 - Cross-Project Chores Settled: PARALLEL_UPDATES Rationale, US Spelling, and Review Closures](#204-dev4---2026-08-24---cross-project-chores-settled-parallel_updates-rationale-us-spelling-and-review-closures)
   - [\[2.0.4-dev3\] - 2026-08-24 - CI Bumps: MyPy and PHACC Tooling Updates](#204-dev3---2026-08-24---ci-bumps-mypy-and-phacc-tooling-updates)
@@ -111,6 +113,12 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.4-dev7] - 2026-08-26 - Improve Changelog Readability
+
+### Changed
+
+-**Changelog**: Updated main `CHANGELOG.md` to improve readability.
 
 ## [2.0.4-dev6] - 2026-08-26 - Repair Set Reduced To One; Contract Sweeps Aligned
 
