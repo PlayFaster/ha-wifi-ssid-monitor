@@ -255,18 +255,13 @@ class Drill:
             "the missing interface is named, not just `supervisor_unreachable`",
             str(snap.get("degraded_capabilities")),
         )
-        # Wait on the REPAIR, not on the attributes. They move on deliberately
-        # different clocks: the outage snapshot names the probable cause as
-        # soon as the fetch budget is spent, while the repair waits out the
-        # drift budget for corroboration. Polling `degraded_capabilities` here
-        # passed on the first scan and then read the repairs list two polls
-        # too early, reporting a defect that was not there.
-        raised = await self.drive_until_repair(
-            "interface_missing", "an `interface_missing` repair is raised"
-        )
+        # No repair is raised for this any more: a missing interface is
+        # reported on the health sensor, where it can be automated on, and the
+        # Repairs panel is kept for the one condition asking the user to act.
+        raised = await self.repairs()
         self.check(
-            any("interface_missing" in i for i in raised),
-            "an `interface_missing` repair is raised",
+            not any("interface_missing" in i for i in raised),
+            "a missing interface raises no repair card",
             str(sorted(raised)),
         )
 
@@ -307,6 +302,17 @@ class Drill:
             "Integration Health stays available during the outage (S19)",
             f"state={health['state']!r}",
         )
+        # The one condition that still earns a card. Waits on the repair rather
+        # than the attributes: the snapshot names the outage as soon as the
+        # fetch budget is spent, while the card waits for the strike budget.
+        raised = await self.drive_until_repair(
+            "conn_error", "a `conn_error` repair is raised"
+        )
+        self.check(
+            any("conn_error" in i for i in raised),
+            "a `conn_error` repair is raised",
+            str(sorted(raised)),
+        )
 
     async def scenario_signal_flip(self, entity_id: str) -> None:
         """Assert a unit flip confirms as drift and raises its repair."""
@@ -325,8 +331,8 @@ class Drill:
         )
         raised = await self.repairs()
         self.check(
-            any("signal_format_changed" in i for i in raised),
-            "a `signal_format_changed` repair is raised",
+            not any("signal_format_changed" in i for i in raised),
+            "a signal-unit flip raises no repair card; it is drift on health",
             str(sorted(raised)),
         )
         # The baseline is held deliberately, so this one does NOT self-clear.
@@ -352,7 +358,7 @@ class Drill:
         )
         raised = await self.repairs()
         self.check(
-            not any("interface_missing" in i or "supervisor" in i for i in raised),
+            not any("interface_missing" in i or "conn_error" in i for i in raised),
             "no actionable repair is raised for drift alone",
             str(sorted(raised)),
         )

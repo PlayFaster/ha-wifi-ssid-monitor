@@ -1557,7 +1557,7 @@ It is deliberately **available at all times**, including when every other entity
 
 ### 🔨 Repairs
 
-Some problems need you to do something, so they are also raised in Home Assistant's **Repairs** panel in addition to the Integration Health sensor. All clear themselves automatically once the condition resolves.
+One condition raises a card in Home Assistant's **Repairs** panel, and it needs you to do something before it clears: the Supervisor **not responding** over a sustained period.
 
 <details>
 
@@ -1567,9 +1567,13 @@ Some problems need you to do something, so they are also raised in Home Assistan
 
 | Repair | Raised when | Why it is a Repair |
 | :-- | :-- | :-- |
-| **`interface_missing`** | The configured interface is no longer reported by the Supervisor | The network interface was removed or renamed in host settings; requires reconfiguring the integration. |
-| **`signal_format_changed`** | Signal unit flipped from baseline (e.g. dBm vs %) | An underlying Supervisor change inverted signal metrics; requires reviewing the Proximity Threshold. |
-| **`supervisor_unavailable`** | 4 consecutive failed polls | The Supervisor API stopped responding; requires checking host system health. |
+| **WiFi scanning is unavailable** | 4 consecutive failed polls | Four failures in a row means the problem is not clearing on its own. The Supervisor API has stopped responding, which needs the host system checked. Clears itself once scanning resumes. |
+
+**What earns a Repair.** Two things together: the condition has stopped resolving itself, **and** there is something you can do about it. A reading you cannot influence fails the second test however persistent it is.
+
+**What does not, and where to find it instead.** A configured interface that the Supervisor no longer reports shows in `degraded_capabilities` at `severity: error`. A signal unit that flips between dBm and percentage shows as `severity: warning`, with the detail in the `drift` attribute. Both are real and worth automating on — neither is something the Repairs panel can resolve.
+
+**A Repair also turns the Integration Health sensor on**, so an automation watching that sensor sees this one as well, without watching the panel. See [Self-Diagnosis](#-self-diagnosis).
 
 > [!NOTE]
 >

@@ -54,7 +54,7 @@ The integration follows the standard Home Assistant Custom Component pattern, op
 
   The switch is the one to reach for: it is discoverable, scriptable, and honors explicit requests by design. The system option remains the harder stop, and is what `config_entry=entry` above exists to make work. Full write-up: `.shared/info/sys_options_enable_polling.md`.
 
-- **Repair Issues (v1.4.4-dev2)**: Persistent API failures surface in the HA Repairs panel via `ir.async_create_issue(hass, DOMAIN, "supervisor_unavailable", ...)`. The issue is cleared with `ir.async_delete_issue()` on the next successful scan. Issue title/description strings live under the `"issues"` key in `strings.json` and `translations/en.json`, keyed by the issue id (`supervisor_unavailable`).
+- **Repair Issues (v1.4.4-dev2)**: Persistent API failures surface in the HA Repairs panel via `ir.async_create_issue(hass, DOMAIN, "conn_error", ...)`. The issue is cleared with `ir.async_delete_issue()` on the next successful scan. Issue title/description strings live under the `"issues"` key in `strings.json` and `translations/en.json`, keyed by the issue id (`conn_error`).
 - **Button Platform (v1.5.0-dev1)**: The `button` entity has no state value - it exists solely for its `async_press()` action. The implementation simply calls `await self._coordinator.async_refresh()`. No `CoordinatorEntity` inheritance is needed because buttons don't display coordinator data; they just trigger it. This is the lightest possible HA entity pattern.
 - **`fnmatch` Pattern Matching (v1.5.0-dev1)**: Replaced exact-string known SSID comparisons with `fnmatch.fnmatch(ssid, pattern)`. This is backward-compatible - existing strings without wildcards behave as exact matches. Case-sensitive by design (SSIDs are case-sensitive byte strings). The check is a simple `any(fnmatch.fnmatch(ssid, p) for p in known_patterns)` per SSID.
 - **Channel-to-Band Helper (v1.5.0-dev1)**: `_channel_to_band(channel)` maps channel integers to band strings (`"2.4 GHz"`, `"5 GHz"`). Channel data comes from the Supervisor API's `channel` field on each access point. Channels 1–14 = 2.4 GHz; 36–177 = 5 GHz. Returns `None` for out-of-range values or missing channel data. Band is stored in `network_map` alongside `rssi` and `channel`.
@@ -173,9 +173,9 @@ Give the second adapter its own access-point payload, or the two entries look id
 
 | Fault | Mock does | Reaches |
 | :-- | :-- | :-- |
-| `unknown_interface` | 400 for an interface not in the list | `interface_missing` → repair, `severity: error` |
-| `down` | connection refused / 500 | strike budget → repair `supervisor_unavailable`, `ConfigEntryNotReady` on cold start |
-| `dbm` | signals as negative dBm | `signal_format_changed` → repair |
+| `unknown_interface` | 400 for an interface not in the list | `interface_missing` → health finding, `severity: error` |
+| `down` | connection refused / 500 | strike budget → repair `conn_error`, `ConfigEntryNotReady` on cold start |
+| `dbm` | signals as negative dBm | `signal_format_changed` → drift on health |
 | `no_ap_key` | `200` with `data: {}` | `payload_no_ap_list` → drift → `warning` |
 | `empty` | `200` with `accesspoints: []` | `empty_scan`, `no_known_networks` → `degraded` |
 | `no_mac` / `no_freq` | drop the field from all or some APs | `payload_field_missing` / `_partial`, `band_unresolved_all` / `_some` |
@@ -260,3 +260,14 @@ Added 2026-08-03. The suite was at 100% line coverage and 217 passing, and **fou
 - **[2026-08-21]** - Added §3d, the Supervisor payload as observed on three real systems, and §3e, four mock Supervisor changes, implemented the same day after those downloads showed it had drifted from the live payload (`mode`, interface naming). Records the second-adapter reasoning, minute-of-hour variability and out-of-band fault injection, plus the attended drill and the relevance-triggered staleness warning that makes it get run.
 - **[2026-08-06]** - **Corrected one pattern that had become false, and refreshed two facts.** The button error-propagation entry (§3, added v1.5.0-dev3) told a reader to call `async_refresh()` and then check `last_update_success`. Both halves had drifted: the button routes through `async_force_refresh()` → `async_request_refresh()` since 2026-08-03, and that path is debounced — inside the 10-second cooldown `last_update_success` describes the _previous_ run, so a failed scan followed by a quick retry press reported failure again without having retried. The entry now carries the timestamp-comparison pattern and names all three outcomes of a press. **This is the second stale claim found in this file in four days**, and the first that would have propagated a live bug into a sibling project, since §3 exists to be copied. Coverage figure updated to 363 tests at 100% line _and_ branch, with a note that every fault fixed on 2026-08-06 was found by deepening tests against code already at 100% line coverage. Composite history key entry extended to state which radio's measurement survives when several share one SSID — arbitrary until 2026-08-06, now the strongest.
 - **[2026-08-22]** - **Refreshed two facts §3 had outlived.** The test count read "363 tests as of 2026-08-06" and is now 415; the mutation sentence predated `coordinator.py` joining the scoped list and now carries the measured result — 1,307 mutants, 84.3% killed — plus a pointer to `.notes/test_pytest_issues/mutation_covered_not_covered.md`, which records why each module is on or off that list and what adding one costs. No pattern in §3 became false; these were stale numbers, which age quietly and are the reason this section is worth re-reading rather than appending to.
+
+
+## Which conditions earn a Repair
+
+Only one: `conn_error`, raised after the fetch strike budget is spent. The Repairs panel is for conditions that have stopped resolving themselves **and** that the user can act on; anything else is reported on the Integration Health sensor, where it can be automated on without asking for an action the panel cannot deliver.
+
+`interface_missing` and `signal_format_changed` raised cards until 2026-08-26. They remain health findings — the first at `severity: error` in `degraded_capabilities`, the second as drift at `warning` — and their `Finding.repair` is simply `None`. Because repairs were derived from findings, retiring them removed the card and nothing else.
+
+**`RETIRED_REPAIR_KEYS` is not dead code.** `ir.async_delete_issue` looks up by id, so a card still showing under a retired key has no code left that can clear it and no UI path out; every repair here is `is_fixable=False`. The keys are swept at setup and on removal, which is what makes retiring one safe.
+
+**`_sync_repairs` was removed with them.** No finding carries a repair any more, so its raise loop could never execute — `conn_error` is raised and cleared on the fetch path, in one place, as on the sibling projects.

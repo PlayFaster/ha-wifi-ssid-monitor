@@ -17,6 +17,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .api import WifiScanAPI
 from .const import (
+    ALL_REPAIR_KEYS,
     CONF_DENYLIST_SSIDS,
     CONF_INCLUDE_HIDDEN,
     CONF_INTERFACE,
@@ -33,10 +34,12 @@ from .const import (
     LEGACY_CONF_PROXIMITY_RSSI_THRESHOLD,
     LEGACY_CONF_SCAN_BANDS,
     LIVE_OPTION_KEYS,
+    RETIRED_REPAIR_KEYS,
     STORAGE_VERSION,
     VERSION,
     all_issue_ids,
     all_storage_keys,
+    issue_id,
 )
 from .coordinator import WifiScanCoordinator
 from .parse import dbm_to_pct
@@ -110,6 +113,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if migrated != dict(entry.options) or entry.data:
         hass.config_entries.async_update_entry(entry, data={}, options=migrated)
 
+    # Clear repairs raised under ids this integration no longer uses. Every
+    # retired repair was `is_fixable=False`, so a card still showing under one
+    # has no code left that can clear it and no UI path out. Deleting an issue
+    # that does not exist is a no-op, which is what makes the sweep cheap
+    # enough to run at every setup.
+    for key in RETIRED_REPAIR_KEYS:
+        ir.async_delete_issue(hass, DOMAIN, issue_id(key, entry.entry_id))
+        # The unscoped spelling, for a card raised before ids carried the entry.
+        ir.async_delete_issue(hass, DOMAIN, key)
+
     interface = entry.options.get(CONF_INTERFACE, "wlan0")
 
     # Migrate the single-entry legacy title.
@@ -164,6 +177,9 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """
     for issue in all_issue_ids(entry.entry_id):
         ir.async_delete_issue(hass, DOMAIN, issue)
+    # The unscoped spelling, for a card raised before ids carried the entry id.
+    for key in (*ALL_REPAIR_KEYS, *RETIRED_REPAIR_KEYS):
+        ir.async_delete_issue(hass, DOMAIN, key)
 
     await asyncio.gather(
         *(

@@ -6,14 +6,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from custom_components.wifi_ssid_monitor import coordinator as coordinator_module
 from custom_components.wifi_ssid_monitor.api import WifiScanError
 from custom_components.wifi_ssid_monitor.const import (
-    ALL_REPAIR_KEYS,
     CANARY_MIN_VISITS,
     CONF_DENYLIST_SSIDS,
     CONF_INCLUDE_HIDDEN,
@@ -22,13 +20,12 @@ from custom_components.wifi_ssid_monitor.const import (
     CONF_SHOW_5GHZ,
     CONF_SHOW_24GHZ,
     CONF_STOP_POLLING,
-    DOMAIN,
     EVENT_NEW_NETWORK,
     FETCH_STRIKE_LIMIT,
     HEALTH_DRIFT_STRIKE_LIMIT,
     HEALTH_STARTUP_GRACE_SCANS,
     HISTORY_MAX_ENTRIES,
-    ISSUE_SUPERVISOR_UNAVAILABLE,
+    ISSUE_CONN_ERROR,
     NEW_NETWORK_EVENT_MAX_PER_CYCLE,
 )
 from custom_components.wifi_ssid_monitor.coordinator import WifiScanCoordinator
@@ -37,7 +34,6 @@ from custom_components.wifi_ssid_monitor.health import (
     SEVERITY_ERROR,
     SEVERITY_OK,
     SEVERITY_UNKNOWN,
-    Finding,
 )
 
 # Frequencies for the two bands, so fixtures don't rely on a channel field.
@@ -336,7 +332,7 @@ async def test_resilience_resets_on_success(hass, mock_config_entry, mock_wifi_a
     assert coordinator._failure_count == 0
     assert coordinator.last_update_success_time is not None
     assert any(
-        call.args[-1] == coordinator._issue_id(ISSUE_SUPERVISOR_UNAVAILABLE)
+        call.args[-1] == coordinator._issue_id(ISSUE_CONN_ERROR)
         for call in mock_delete.call_args_list
     ), "recovery must clear the outage repair issue, on its entry-scoped id"
 
@@ -577,50 +573,6 @@ async def test_prune_history_ttl_zero_keeps_everything(
 
 
 @pytest.mark.asyncio
-async def test_health_drift_strikes_repair_lifecycle_and_exception(
-    hass, mock_config_entry, mock_wifi_api
-):
-    """Health drift strike accumulation creates and resolves repair issues."""
-    from unittest.mock import patch
-
-    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
-    mock_config_entry.add_to_hass(hass)
-
-    # 1. First scan with interface missing -> strike 1
-    mock_wifi_api.last_interface_present = False
-    mock_wifi_api.get_access_points.return_value = []
-    await coordinator._async_update_data()
-    assert coordinator.health_snapshot["problem"] is False
-
-    # 2. Second scan -> strike 2 (limit is 3)
-    await coordinator._async_update_data()
-    assert coordinator.health_snapshot["problem"] is False
-
-    # 3. Third scan -> strike 3 -> repair created
-    await coordinator._async_update_data()
-    assert coordinator.health_snapshot["problem"] is True
-    assert "interface_missing" in coordinator._active_repairs
-
-    # 4. Fourth scan with repair already active -> hits continue on line 365
-    await coordinator._async_update_data()
-    assert "interface_missing" in coordinator._active_repairs
-
-    # 5. Fifth scan with interface restored -> strikes reset -> repair deleted
-    mock_wifi_api.last_interface_present = True
-    await coordinator._async_update_data()
-    assert coordinator.health_snapshot["problem"] is False
-    assert "interface_missing" not in coordinator._active_repairs
-
-    # 6. Diagnosis exception handling (line 518-519)
-    with patch(
-        "custom_components.wifi_ssid_monitor.coordinator.run_checks",
-        side_effect=RuntimeError("Diagnosis failure"),
-    ):
-        data = await coordinator._async_update_data()
-        assert data is not None
-
-
-@pytest.mark.asyncio
 async def test_signal_unit_change_and_event_suppression(
     hass, mock_config_entry, mock_wifi_api
 ):
@@ -740,44 +692,6 @@ async def test_event_fire_missing_key_in_network_map(
     assert received[0]["ssid"] == "NetA"
     assert received[0]["bssid"] == "AA:11"
     assert received[0]["entry_id"] == mock_config_entry.entry_id
-
-
-@pytest.mark.asyncio
-async def test_fetch_failure_interface_missing_repair(
-    hass, mock_config_entry, mock_wifi_api
-):
-    """Fetch failure with interface missing creates interface_missing repair issue."""
-    from unittest.mock import patch
-
-    from homeassistant.exceptions import ConfigEntryNotReady
-
-    from custom_components.wifi_ssid_monitor.api import WifiScanError
-
-    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
-    mock_config_entry.add_to_hass(hass)
-
-    mock_wifi_api.last_interface_present = False
-    mock_wifi_api.get_access_points.side_effect = WifiScanError(
-        "API returned status 400"
-    )
-
-    # Test run_checks exception handling in fetch failure (lines 312-313)
-    with (
-        patch(
-            "custom_components.wifi_ssid_monitor.coordinator.run_checks",
-            side_effect=RuntimeError("Diagnosis failure"),
-        ),
-        pytest.raises(ConfigEntryNotReady),
-    ):
-        await coordinator._async_update_data()
-
-    # Call _async_update_data 3 more times to exceed fetch strike budget (3)
-    for _ in range(3):
-        with pytest.raises(ConfigEntryNotReady):
-            await coordinator._async_update_data()
-
-    assert coordinator.health_snapshot["problem"] is True
-    assert "interface_missing" in coordinator._active_repairs
 
 
 @pytest.mark.asyncio
@@ -1415,79 +1329,6 @@ async def test_new_24h_reflects_the_pruned_first_seen_map(
 
 
 @pytest.mark.asyncio
-async def test_repair_issue_ids_are_scoped_to_the_config_entry(
-    hass, mock_config_entry, mock_wifi_api
-):
-    """Two entries must not share one repair slot.
-
-    Covers finding M2 from code_review_20260806_2140.md.
-
-    The issue registry keys on (domain, issue_id). With a bare key, every
-    config entry shares one slot: a healthy adapter's successful poll deletes
-    a failing adapter's repair on every cycle, and the Repairs card flickers
-    once per scan interval with no indication which adapter is affected.
-    Multiple entries are explicit here — one per interface.
-    """
-    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
-    mock_config_entry.add_to_hass(hass)
-
-    with patch.object(coordinator_module.ir, "async_create_issue") as mock_create:
-        coordinator._sync_repairs(
-            [
-                Finding(
-                    key="interface_missing",
-                    severity=SEVERITY_ERROR,
-                    message="gone",
-                    repair="interface_missing",
-                )
-            ]
-        )
-
-    issue_id = mock_create.call_args.args[2]
-    assert mock_config_entry.entry_id in issue_id, (
-        "the issue id must carry the entry id, or a sibling entry overwrites it"
-    )
-    assert mock_create.call_args.kwargs["translation_key"] == "interface_missing", (
-        "the translation stays keyed on the issue type, not the scoped id"
-    )
-
-
-@pytest.mark.asyncio
-async def test_a_cleared_repair_deletes_the_entry_scoped_id(
-    hass, mock_config_entry, mock_wifi_api
-):
-    """The delete must use the same scoped id the create used.
-
-    Covers finding M2 from code_review_20260806_2140.md.
-
-    `ir.async_delete_issue` looks up by id. A create and a delete that
-    disagree leaves the repair raised forever with no UI path to clear it.
-    """
-    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
-    mock_config_entry.add_to_hass(hass)
-
-    finding = Finding(
-        key="interface_missing",
-        severity=SEVERITY_ERROR,
-        message="gone",
-        repair="interface_missing",
-    )
-    with patch.object(coordinator_module.ir, "async_create_issue") as mock_create:
-        coordinator._sync_repairs([finding])
-    created_id = mock_create.call_args.args[2]
-
-    with patch.object(coordinator_module.ir, "async_delete_issue") as mock_delete:
-        coordinator._sync_repairs([])
-
-    # The sweep now covers every repair key, not just the one raised, so the
-    # created id must be *among* the deletions rather than the last of them —
-    # see `test_a_repair_raised_before_a_reload_is_still_cleared_after_one`
-    # for why the stateless sweep is what makes a reload survivable.
-    deleted = {call.args[2] for call in mock_delete.call_args_list}
-    assert created_id in deleted, deleted
-
-
-@pytest.mark.asyncio
 async def test_the_outage_repair_is_also_entry_scoped(
     hass, mock_config_entry, mock_wifi_api
 ):
@@ -1783,7 +1624,7 @@ async def test_a_raising_health_pass_does_not_replace_the_fetch_error(
 
 
 # ---------------------------------------------------------------------------
-# Section 19 severity vocabulary — x_project C-014
+# Section 19 severity vocabulary
 # ---------------------------------------------------------------------------
 #
 # The values are a published contract: users write templates against them, and
@@ -1862,7 +1703,7 @@ async def test_no_code_path_publishes_a_blank_severity(
 async def test_discarded_timestamps_are_counted_not_named(caplog):
     """A corrupt stored row is logged as a count, never as its network key.
 
-    Section 20, and x_project chore C-020. The key here is a neighbouring
+    Section 20. The key here is a neighbouring
     network's SSID or its Hidden-<last4> label — third-party data, in a file
     with nothing stripping it.
     """
@@ -1979,50 +1820,6 @@ async def test_a_signal_unit_flip_can_actually_be_confirmed(
     assert coordinator._drift_strikes.get("signal_format_changed", 0) >= (
         HEALTH_DRIFT_STRIKE_LIMIT
     ), "the strike count was reset before it could confirm"
-
-
-@pytest.mark.asyncio
-async def test_a_repair_raised_before_a_reload_is_still_cleared_after_one(
-    hass, mock_config_entry, mock_wifi_api
-):
-    """A reload must not orphan a repair the previous coordinator raised.
-
-    `_active_repairs` is per-coordinator state, and the delete loop only ever
-    walked that set — so a reload or a Home Assistant restart gave the new
-    coordinator an empty set and no memory of what was raised. The issue
-    registry persists across both, and these repairs are `is_fixable=False`,
-    so the card sat in the Repairs panel for ever with no UI path to clear it,
-    long after the condition had resolved.
-
-    Found by the fault drill on 2026-08-22: two `signal_format_changed` cards
-    survived a reload and a clean scan.
-    """
-    mock_config_entry.add_to_hass(hass)
-
-    raised = _coord(hass, mock_config_entry, mock_wifi_api)
-    raised._sync_repairs(
-        [
-            Finding(
-                key="interface_missing",
-                severity=SEVERITY_ERROR,
-                message="gone",
-                repair="interface_missing",
-            )
-        ]
-    )
-    issue_id = raised._issue_id("interface_missing")
-    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
-
-    # The reload: a brand-new coordinator over the same entry, with no memory
-    # of what its predecessor raised.
-    reloaded = _coord(hass, mock_config_entry, mock_wifi_api)
-    assert not reloaded._active_repairs
-    reloaded._sync_repairs([])
-
-    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None, (
-        "the repair outlived the coordinator that raised it, and nothing left "
-        "in the integration can ever delete it"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -2457,72 +2254,6 @@ async def test_a_filtered_network_does_not_stop_the_events_after_it(
 
 
 @pytest.mark.asyncio
-async def test_an_already_active_repair_does_not_stop_the_ones_after_it(
-    hass, mock_config_entry, mock_wifi_api
-):
-    """M3, second half. `continue` becoming `break` in `_sync_repairs` survived.
-
-    The loop skips a repair already raised. A `break` there abandons every
-    later finding, so one already-active repair suppresses the rest — and the
-    loop was only ever driven with a single finding.
-    """
-    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
-    keys = sorted(ALL_REPAIR_KEYS)
-    assert len(keys) >= 3, "this test needs three repair keys to order"
-
-    # The middle one is already raised, so it takes the `continue`.
-    coordinator._active_repairs = {keys[1]}
-
-    findings = [
-        Finding(key=k, severity=SEVERITY_ERROR, message=f"{k} detail", repair=k)
-        for k in keys
-    ]
-
-    created: list[str] = []
-    with patch.object(
-        ir, "async_create_issue", side_effect=lambda *a, **kw: created.append(a[2])
-    ):
-        coordinator._sync_repairs(findings)
-
-    assert coordinator._active_repairs == set(keys), (
-        "an already-active repair must not stop the ones after it"
-    )
-    assert len(created) == len(keys) - 1
-
-
-@pytest.mark.asyncio
-async def test_every_raised_repair_carries_its_severity_and_fixability(
-    hass, mock_config_entry, mock_wifi_api
-):
-    """M5. Both repair-issue properties survived being nulled.
-
-    `severity=ir.IssueSeverity.WARNING` to `None`, and `is_fixable=False` to
-    `None`.
-
-    Severity decides how prominently Home Assistant presents the card;
-    `is_fixable` decides whether the user is offered a flow at all. Existing
-    tests assert an issue was created and with which id, never with what
-    properties. Swept over `ALL_REPAIR_KEYS` so a repair added later is covered.
-    """
-    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
-    findings = [
-        Finding(key=k, severity=SEVERITY_ERROR, message=f"{k} detail", repair=k)
-        for k in ALL_REPAIR_KEYS
-    ]
-
-    calls: list[dict] = []
-    with patch.object(
-        ir, "async_create_issue", side_effect=lambda *a, **kw: calls.append(kw)
-    ):
-        coordinator._sync_repairs(findings)
-
-    assert len(calls) == len(ALL_REPAIR_KEYS)
-    for kw in calls:
-        assert kw["severity"] is ir.IssueSeverity.WARNING, kw
-        assert kw["is_fixable"] is False, kw
-
-
-@pytest.mark.asyncio
 async def test_forcing_a_refresh_bypasses_the_pause_exactly_once(
     hass, mock_config_entry, mock_wifi_api
 ):
@@ -2706,3 +2437,69 @@ async def test_a_failed_fetch_survives_an_entry_with_no_known_ssids_option(
     # would leave the snapshot at its cold-start values instead.
     assert coordinator.health_snapshot["problem"] is True
     assert coordinator.health_snapshot["severity"] == SEVERITY_ERROR
+
+
+async def test_a_broken_check_leaves_the_outage_verdict_standing(
+    mock_coordinator,
+) -> None:
+    """A failing health check must not take the fetch-failure path with it.
+
+    `run_checks` is wrapped because a check that raises would otherwise
+    propagate out of a failure handler and turn a recoverable outage into an
+    unhandled exception. The findings degrade to empty; the outage is still
+    recorded.
+    """
+    mock_coordinator._failure_count = FETCH_STRIKE_LIMIT + 1
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.coordinator.run_checks",
+        side_effect=RuntimeError("check exploded"),
+    ):
+        mock_coordinator._record_fetch_failure_health("supervisor down")
+
+    assert mock_coordinator.health_snapshot["problem"] is True
+
+
+async def test_a_broken_check_never_crashes_the_poll_it_diagnoses(
+    mock_coordinator,
+) -> None:
+    """The success path is wrapped for the same reason, and degrades to healthy.
+
+    A health verdict that crashes the update it exists to diagnose is worse
+    than no verdict, so the computation is contained and the poll completes.
+    """
+    before = mock_coordinator._scans_completed
+
+    with patch(
+        "custom_components.wifi_ssid_monitor.coordinator.run_checks",
+        side_effect=RuntimeError("check exploded"),
+    ):
+        mock_coordinator._process_scan([], dt_util.now())
+
+    assert mock_coordinator._scans_completed == before + 1
+
+
+async def test_the_outage_repair_is_raised_at_error_severity(
+    hass, mock_config_entry, mock_wifi_api
+) -> None:
+    """`conn_error` is an outage, and the family raises it at `error`.
+
+    The severity is what a user automation reads off the card and off the
+    health sensor, so it is part of the contract rather than presentation.
+    `zte_router_5g` and `huawei_router_5g` raise the same condition at the same
+    level.
+    """
+    coordinator = _coord(hass, mock_config_entry, mock_wifi_api)
+    mock_config_entry.add_to_hass(hass)
+    coordinator.data = {"count": 0, "ssids": [], "unknown_ssids": [], "networks": {}}
+    mock_wifi_api.get_access_points.side_effect = WifiScanError("down")
+
+    with patch.object(coordinator_module.ir, "async_create_issue") as mock_create:
+        for _ in range(FETCH_STRIKE_LIMIT):
+            await coordinator._async_update_data()
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+
+    from homeassistant.helpers import issue_registry as issue_reg
+
+    assert mock_create.call_args.kwargs["severity"] is issue_reg.IssueSeverity.ERROR

@@ -288,10 +288,10 @@ async def test_removal_with_a_pending_task_but_no_optimistic_value(
 
 
 # ---------------------------------------------------------------------------
-# Publish-moment capture — x_project C-019
+# Publish-moment capture
 # ---------------------------------------------------------------------------
 #
-# Spec: `.shared/issues/x_project/stubbed_publish_tests.md` §2. The switch
+# The switch
 # platform carries the same pair; see the note there for the defect shape.
 #
 # A number here publishes **twice** per change and the two publishes read
@@ -340,6 +340,6 @@ async def test_number_publishes_the_post_write_value(
 
     # Second publish, with `_optimistic` cleared, so `native_value` is now
     # reading the stored option back through the scale conversion. Both must
-    # be the new value; either carrying the old one is the C-019 defect.
+    # be the new value; either carrying the old one is the defect.
     assert published == [displayed, displayed]
     assert number._optimistic is None

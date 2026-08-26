@@ -112,6 +112,62 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.4-dev6] - 2026-08-26 - Repair Set Reduced To One; Contract Sweeps Aligned
+
+### Summary
+
+The Repairs panel now carries one card, `conn_error`, raised at `ERROR`. The two conditions that used to raise their own cards stay on the Integration Health sensor, where they were already reported, and the contract sweeps take the names the sibling projects use.
+
+### Changed
+
+- **`supervisor_unavailable` is now `conn_error`**, raised at `IssueSeverity.ERROR` rather than `WARNING`. Same condition, same text, the key and severity the family agreed. `zte_router_5g` and `huawei_router_5g` raise the same card at the same level, and the severity is what a user automation reads off it.
+
+- **`interface_missing` and `signal_format_changed` no longer raise cards.** The Repairs panel is for conditions that have stopped resolving themselves **and** that the user can act on. An interface the Supervisor has stopped reporting, and a signal unit that flipped between dBm and percentage, are both real and neither is fixed from that panel.
+
+  **Nothing was lost in the move, because repairs here were derived from findings.** Both were `Finding`s carrying a `repair` field; setting it to `None` removes the card and leaves the finding exactly as it was — `interface_missing` at `severity: error` in `degraded_capabilities`, the unit flip as drift at `warning`. No separate health wiring was needed, and none was added.
+
+- **The contract sweeps take the family's names**: 8a → `test_every_repair_issue_has_title_and_rendered_text`, 8c → `test_every_repair_the_code_raises_is_registered_for_removal`, 8d → `test_every_published_severity_is_in_the_section_19_vocabulary`.
+
+  **8a's assertion changed with its name.** It required a `title` and a `description` on every key; `hassfest` declares `description` and `fix_flow` mutually exclusive, so that shape is wrong for any project that later gains a fixable repair. It now requires a `title` and exactly one of the two, with a description on every flow step.
+
+  **8c was rewritten, not renamed.** It swept `CHECKS` for declared repairs — and no check declares one any more, so it would have inspected an empty set and passed for the wrong reason. It now raises a card under every id the code knows about, current and retired, calls `async_remove_entry`, and asserts the registry empties.
+
+### Added
+
+- **`RETIRED_REPAIR_KEYS`**, swept at setup and on removal in both the entry-scoped and bare spellings. `ir.async_delete_issue` looks up by id, so a card still showing under a retired key has no code left that can clear it and no UI path out — every repair here is `is_fixable=False`.
+- **`test_the_repair_text_sweep_is_not_vacuous` and `test_the_severity_sweep_still_sweeps_something`**, the named vacuity guards the siblings carry. `test_every_check_has_a_firing_fixture` is kept alongside them: it asserts every check has a fixture that makes it fire, which is stronger than a set-size guard and only possible where there is a `CHECKS` tuple.
+
+### Fixed
+
+- **`async_remove_entry` swept only the entry-scoped ids.** A card raised under a bare key — the spelling used before ids carried the entry — survived removal with nothing left to clear it. It now sweeps both, matching the sibling projects. Found by the rewritten 8c.
+
+### Removed
+
+- **`_sync_repairs`, its two call sites and `_active_repairs`.** With no finding carrying a repair, the raise loop could not execute and the method degenerated to a deletion sweep over a set nothing populated. `conn_error` is raised and cleared on the fetch path, in one place, as on the other three projects.
+- **Seven tests** whose subject was that bookkeeping. Two exception paths they also covered are now held by `test_a_broken_check_leaves_the_outage_verdict_standing` and `test_a_broken_check_never_crashes_the_poll_it_diagnoses`.
+- **Eleven issue-queue references** from the test suite. A queue identifier is a transient tracking artefact; the reasoning each comment carried is kept.
+
+### Changed — development tooling
+
+- **`.devcontainer/fault_drill.py`**: the interface-missing and signal-flip scenarios now assert that **no** card is raised and the condition appears on health. `drive_until_repair` lost its only caller and gains a better one — the outage scenario, which now asserts the `conn_error` card it never checked for.
+
+### Documentation
+
+- `README.md` Repairs section rewritten to the wording the three projects share. `docs/DEVELOPMENT.md` records which conditions earn a card and why the other two do not, plus the fault-table rows for both. `docs/all_sensors.md` key list corrected.
+
+### Tests
+
+- 408 → **414**. 100% line and branch, 0 partial branches, assertion audit 0 of 334.
+
+### Verified
+
+- **Six mutations**, each restored by checksum: retired keys dropped from removal, the startup sweep removed, retired text left behind after the rename, a `description` added beside a `fix_flow`, the repair key set emptied, and `conn_error` downgraded to `WARNING`. Two were not caught on the first run — the startup sweep and the severity had no test — and both gaps are now closed.
+- `Tests: Depth Check` PASSED, 10 of 10 outcomes driven. `mypy` and `ruff` clean. `hassfest` reports **Invalid integrations: 0**.
+
+### Known
+
+- **The fault-drill stamp is stale.** `Mock: Fault Drill Staleness` watches the files this entry changes, so `Validate All` reports it until the drill is re-run against a live instance.
+
 ## [2.0.4-dev5] - 2026-08-26 - Documentation: Comprehensive Changelog Readability and Header Standardization
 
 ### Summary

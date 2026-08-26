@@ -116,7 +116,6 @@ def check_interface_missing(facts: ScanFacts) -> Finding | None:
                 f"The configured interface '{facts.interface}' is no longer "
                 "reported by the Supervisor."
             ),
-            repair="interface_missing",
         )
     return None
 
@@ -125,7 +124,8 @@ def check_signal_unit_flip(facts: ScanFacts) -> Finding | None:
     """Flag when the signal unit changed from what was previously observed.
 
     A flip between percentage and dBm silently inverts the meaning of the
-    proximity threshold, so it is worth a repair rather than a log line.
+    proximity threshold, so it is published as drift on the health sensor
+    rather than left to a log line.
     """
     if facts.signal_unit is None or facts.baseline_signal_unit is None:
         return None
@@ -139,7 +139,6 @@ def check_signal_unit_flip(facts: ScanFacts) -> Finding | None:
             f"Signal values changed from {facts.baseline_signal_unit} to "
             f"{facts.signal_unit}; check the Proximity Threshold."
         ),
-        repair="signal_format_changed",
     )
 
 

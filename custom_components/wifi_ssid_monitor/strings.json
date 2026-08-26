@@ -122,17 +122,9 @@
     }
   },
   "issues": {
-    "supervisor_unavailable": {
+    "conn_error": {
       "title": "WiFi SSID Monitor cannot reach the Supervisor API",
       "description": "The integration has failed to connect to the Home Assistant Supervisor API for multiple consecutive scan cycles. WiFi scan data is now stale. Check that the Supervisor service is running and that the monitored interface is valid under **Settings > System > Network**."
-    },
-    "interface_missing": {
-      "title": "WiFi SSID Monitor interface not found",
-      "description": "The configured WiFi interface is no longer reported by the Supervisor. It may have been renamed or removed. Check **Settings > System > Network**, then reconfigure the integration to select the correct interface.\n\nDetail: {detail}"
-    },
-    "signal_format_changed": {
-      "title": "WiFi SSID Monitor signal format changed",
-      "description": "The unit signal strength arrives in has changed (percentage vs dBm). This is what was observed, not why — the Supervisor, the adapter driver or this integration's own parsing could each produce it. Signal values have been converted automatically, but review the Proximity Signal Threshold to make sure the alert still fires when you expect.\n\nDetail: {detail}"
     }
   },
   "options": {
