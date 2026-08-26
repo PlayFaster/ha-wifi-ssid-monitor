@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.4-dev8\] - 2026-08-26 - Documentation: Prose Density and Readability Improvements](#204-dev8---2026-08-26---documentation-prose-density-and-readability-improvements)
   - [\[2.0.4-dev7\] - 2026-08-26 - Improve Changelog Readability](#204-dev7---2026-08-26---improve-changelog-readability)
   - [\[2.0.4-dev6\] - 2026-08-26 - Repair Set Reduced To One; Contract Sweeps Aligned](#204-dev6---2026-08-26---repair-set-reduced-to-one-contract-sweeps-aligned)
   - [\[2.0.4-dev5\] - 2026-08-26 - Documentation: Comprehensive Changelog Readability and Header Standardization](#204-dev5---2026-08-26---documentation-comprehensive-changelog-readability-and-header-standardization)
@@ -114,11 +115,19 @@ All changes to this project will be documented in this file. This is the detaile
 
 ---
 
+## [2.0.4-dev8] - 2026-08-26 - Documentation: Prose Density and Readability Improvements
+
+### Changed
+
+- **`README.md`**: Tightened prose across Breaking Changes, Actions overview, Event Bus mechanics, and the Repairs section; replaced rhetorical lead-in questions with formal declarative bullet points (`Actionable Issues (Repairs)` vs. `Diagnostic Conditions (Sensor Attributes)`).
+- **`docs/ROADMAP.md`**: Refined band switch explanation, `get_networks` live-data rationale, phase 2 privacy boundaries, and event trigger filtering scope.
+- **`docs/DEVELOPMENT.md`**: Streamlined coverage sufficiency commentary, relevance-triggered staleness checking, and converted `## Which conditions earn a Repair` to declarative `## Repair Issue Conditions`.
+
 ## [2.0.4-dev7] - 2026-08-26 - Improve Changelog Readability
 
 ### Changed
 
--**Changelog**: Updated main `CHANGELOG.md` to improve readability.
+- **Changelog**: Updated main `CHANGELOG.md` to improve readability.
 
 ## [2.0.4-dev6] - 2026-08-26 - Repair Set Reduced To One; Contract Sweeps Aligned
 
@@ -420,7 +429,7 @@ Tooling and one worked test. No source change.
   - **PUBLISH** — a test file that stubs `async_write_ha_state` must capture, in at least one test, what a publish would have carried. Flagged **per file, not per assignment**: a test asserting an option was persisted may legitimately ignore the publish, and flagging all eleven bare stubs here would have been noise on a project that already has the capture.
   - Both resolve constants, so a test importing `ISSUE_SUPERVISOR_UNAVAILABLE` counts the same as one writing the literal — a literal-only sweep would have punished the better-written tests.
 - **The real-transport test pattern** — one worked example in `tests/test_coordinator.py`, using `aioclient_mock` from `pytest-homeassistant-custom-component`. It intercepts `async_get_clientsession`, so the real `WifiScanAPI` makes a real request against a payload the test supplies, and `api.py` and `parse.py` both run. **No new dependency.** What it reaches that an object mock cannot: `last_response_had_ap_key` is _derived_ by `api.py` from the response shape, and every existing test of the drift it feeds asserts a flag the fixture set by hand — so those assertions could not fail if `api.py` stopped setting it.
-- **An authoring checklist in `AGENTS.md`** — four questions to ask before writing a test for new behaviour, because the audit taxonomy lives in a prompt used months after the feature ships.
+- **An authoring checklist in `AGENTS.md`** — four questions to ask before writing a test for new behavior, because the audit taxonomy lives in a prompt used months after the feature ships.
 
 ### Notes
 
@@ -463,10 +472,10 @@ No shipped code changed. Development environment, tests and documentation.
 ### Changed — dev container
 
 - **The mock Supervisor now matches what the real one sends.** Three diagnostics downloads from two x86_64 HAOS boxes and a Raspberry Pi 4 (2026-08-21) showed it had drifted: `mode` was `"infra"` where every real access point says `"infrastructure"`, and only `wlan0` was ever offered where `wlp2s0` is in the wild. `Neighbors_WiFi_5G` was also defined at 2412 MHz — a 2.4 GHz frequency — so its name and its band disagreed. Evidence and conclusions in `DEVELOPMENT.md` §3d, with the same table in the mock's own docstring so the next edit has it in front of it.
-- **A second adapter**, `wlp2s0` with `"type": "wireless"`, carrying its own payload. Makes three things reachable in the container for the first time: the `"wireless"` branch of `get_interfaces` — which exists because a Pi reports it, and whose absence once made auto-detection return nothing for every Pi user — multi-entry behaviour, and the entry-scoped repair ids that only misbehave with two entries.
-- **An unrecognised interface now returns 400**, as the real Supervisor does. Any path containing "accesspoints" previously returned 200, so a wrong interface name could not fail in the container at all.
+- **A second adapter**, `wlp2s0` with `"type": "wireless"`, carrying its own payload. Makes three things reachable in the container for the first time: the `"wireless"` branch of `get_interfaces` — which exists because a Pi reports it, and whose absence once made auto-detection return nothing for every Pi user — multi-entry behavior, and the entry-scoped repair ids that only misbehave with two entries.
+- **An unrecognized interface now returns 400**, as the real Supervisor does. Any path containing "accesspoints" previously returned 200, so a wrong interface name could not fail in the container at all.
 - **Variability on two networks**, by minute-of-hour: `Neighbors_WiFi_5G` ramps 55-95 and crosses the proximity threshold twice an hour, `Unknown_WiFi_6G` is present for the first half hour only. Everything else is fixed — a flapping known set would trip the canary continuously. `MOCK_STATIC=1` pins the payload, wired into `docker-compose.override.yml`.
-- **Fault injection** through `GET /mock/fault?mode=<name>`, eleven faults, `&scans=N` to auto-clear. Out of band because the integration builds its own fixed URL; stateful so a fault can be **cleared** mid-session, which is the point — recovery and repair deletion are the least observed behaviour in the health system. All eight health checks and all three repair cards are now reachable in the UI.
+- **Fault injection** through `GET /mock/fault?mode=<name>`, eleven faults, `&scans=N` to auto-clear. Out of band because the integration builds its own fixed URL; stateful so a fault can be **cleared** mid-session, which is the point — recovery and repair deletion are the least observed behavior in the health system. All eight health checks and all three repair cards are now reachable in the UI.
 
 ### Added — tests
 
@@ -488,7 +497,7 @@ No shipped code changed. Development environment, tests and documentation.
 
 Standardized `severity` attribute to normative values per dev_standards §19 and sanitized debug logging to prevent SSID leakage.
 
-Closes `x_project` chores C-014 and C-020. **Both are behaviour changes**, unlike dev4.
+Closes `x_project` chores C-014 and C-020. **Both are behavior changes**, unlike dev4.
 
 ### Changed — BREAKING for automations reading `severity`
 
@@ -501,7 +510,7 @@ Closes `x_project` chores C-014 and C-020. **Both are behaviour changes**, unlik
 
 ### Fixed — privacy
 
-- **`api.py` no longer logs an access point verbatim.** It logged `access_points[0]` whole at debug, publishing a neighbour's SSID and BSSID into a file with no redaction layer that users are routinely asked to paste into public issues (§20). Now logs the sorted key set, which is what the payload-drift question the line exists for actually needs.
+- **`api.py` no longer logs an access point verbatim.** It logged `access_points[0]` whole at debug, publishing a neighbor's SSID and BSSID into a file with no redaction layer that users are routinely asked to paste into public issues (§20). Now logs the sorted key set, which is what the payload-drift question the line exists for actually needs.
 - **`coordinator._parse_timestamps` no longer logs the network key** of an unreadable stored timestamp — that key is an SSID or a `Hidden-<last4>` label. Now logs how many were discarded, which is also the better diagnostic: one is a corrupt row, all of them is a format change.
 - **`README.md` troubleshooting updated with the fix, not before it.** The old text warned that raw access-point data could appear in debug logs; that was accurate until this release, and would have become a false reassurance if removed any earlier.
 

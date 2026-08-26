@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ## [2.0.4] - 2026-08-26 - Release: Repair Issue Consolidation and Removal Cleanup
 
+Routine maintenance update refining Repair notifications with no changes to daily operation; safe to skip until you are next updating integrations.
+
 ### Summary
 
 - **Repairs panel simplified**: Simplify repair notifications, raising a single actionable connection issue rather than cluttering the panel with non-fixable adapter drops.

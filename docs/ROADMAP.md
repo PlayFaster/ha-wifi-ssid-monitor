@@ -14,7 +14,7 @@ Format document `roadmap_format.md` v1.2.0 used, with one deliberate carry-over:
 
 #### **Value ⭐⭐⭐⭐ · Effort Low**
 
-All three of **Show 2.4 GHz**, **Show 5 GHz** and **Show 6 GHz** can be turned off, which leaves the integration reporting almost nothing while looking perfectly healthy. There is no legitimate reason to want that — a user who wants to stop scanning has **Pause Polling**, which says what it does.
+Disabling **Show 2.4 GHz**, **Show 5 GHz**, and **Show 6 GHz** simultaneously leaves the integration active without reporting standard networks. Users wishing to halt scanning should use **Pause Polling** instead.
 
 **What actually happens today**, which is not obvious:
 
@@ -39,7 +39,7 @@ The cost is honesty about the surprise: a user turns off a switch and a differen
 
 `get_networks` currently returns the most recent scan rather than fetching. `dev_standards` §16 requires a response action to perform its **own** bounded fetch, and this is recorded as a Project Deviation — **this item withdraws that deviation.**
 
-The reasoning for keeping the cache was that a scan costs a Supervisor round trip and an automation could call the action in a loop. That protects against a hypothetical caller at the expense of every real one: someone calling `get_networks` is asking what is in range **now**, and getting a reading up to a full scan interval old — ten minutes by default — is the wrong answer to the question they asked.
+The cache originally avoided Supervisor round trips from rapid automation calls. However, callers of `get_networks` require live data rather than cached results from up to a full scan interval ago (10 minutes by default).
 
 **What it needs:**
 
@@ -92,7 +92,7 @@ One entity per network showing whether it is currently visible. This is the phas
 - **`device_tracker`, built on `BaseScannerEntity`** — decided, see the prior art below. An access point is a physical device, and `home` states the useful fact: that device is in or near this house. That holds for a network the user owns and equally for one they are suspicious of, where the day the state changes to `not_home` is the point of tracking it at all. A `binary_sensor` was the alternative and is rejected: presence binary sensors carry a motion or occupancy connotation they do not shed, and a broadcasting AP is not that.
 - **Scope option** — which networks get an entity, because "all of them" in a dense location is hundreds. The choices are: off (default), my-WiFi only, known only, unknown only, or an explicit list. Off by default matters, **and for two reasons rather than one**:
   - **Entity count.** A user upgrading should not silently acquire a hundred entities.
-  - **Privacy, which is the reason that does not relax as hardware gets faster.** Every phase of this item is equally capable of tracking the user's own access points and of building a per-network presence and signal history for **the neighbours'** — a record of when someone else's router is on, off, or moved, retained for `last_seen_ttl_days`. The scan itself is passive and reads only what is broadcast, so nothing here is done in secret; what changes is that an aggregate count becomes a per-identity time series. That is a different thing to hold, and it must be something the user turns on deliberately for networks they choose — never something an upgrade does on their behalf. It is also why `off` and the narrow scopes (`my-WiFi`, `known`) are the ones to make easy, and `unknown` the one to make a conscious choice.
+  - **Privacy boundaries**: Tracking presence converts aggregate counts into per-identity time series for neighboring networks. Per-network tracking must remain opt-in (disabled by default) and require deliberate user configuration for specific scopes (`my-WiFi`, `known`, or explicit lists).
 
   **Do not let this argument be re-litigated on entity-count grounds alone.** Entity count is a performance concern and a future release could make it cheap; the privacy reasoning would still stand, and the default should not move with it.
 
@@ -168,7 +168,7 @@ An action that returns the stored history for the networks matching a query, so 
 
 The first-ever-seen case ships as `wifi_ssid_monitor_new_network`. What remains is the recurring diff: an event when a previously-seen network **re-appears** after an absence, and one when a currently-visible network **disappears**.
 
-**What this gives an automation.** The events fire for every network, carrying the same payload fields as `new_network` (`key`, `ssid`, `bssid`, `band`, `signal`, and for the recurring cases, how long it was absent or present). Selecting a specific network is the automation's job, in an event-trigger condition — a template `condition` on `trigger.event.data.ssid`, with whatever wildcard or regex the user wants, or a match on `bssid` to pin one radio. **The integration does not take a per-network event filter**, because the automation can express one better than a config option could, and adding one would mean a fourth list to keep in step with the other three.
+**Automation Scope**: Events fire for all networks with standard payloads (`key`, `ssid`, `bssid`, `band`, `signal`, and absence/presence duration). Automations filter specific networks via event trigger conditions (matching `trigger.event.data.ssid` or `bssid`), avoiding the need for duplicate configuration lists in the integration.
 
 **Glitch guarding — this is the part that decides whether the events are usable.** A scan that misses a network for one cycle would otherwise fire a disappearance and then an appearance, and a location with passing traffic would fire constantly. Three guards, all reusing machinery that exists:
 

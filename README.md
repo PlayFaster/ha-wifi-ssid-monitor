@@ -37,8 +37,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 ### 🛑 Upgrading from 1.6.x to 2.0.0 or Above - Breaking Changes
 
-- The Version 2.0.0 release corrects long-standing signal-unit and band-filter bugs, which required renaming several things.
-- There are also some moves. This was not done lightly, but the previous set-up was incorrect.
+- Version 2.0.0 corrects signal-unit scaling and band-filter behavior, renaming legacy entities and relocating options.
 
 <details>
 
@@ -469,7 +468,7 @@ The integration keeps track of how often and when unknown networks are seen:
 
 ## 🧹 Actions (Services)
 
-Six callable actions (services) cover the full management lifecycle - add, remove, or replace the known and denylist, query live networks (get_networks), trigger on-demand scans, and clear history.
+Six actions cover management, querying live networks (`get_networks`), triggering on-demand scans, and clearing history.
 
 <details>
 
@@ -665,7 +664,7 @@ See the [Alert on Any New WiFi Network using Event](#-alert-on-any-new-wifi-netw
 &nbsp; &nbsp; ➕ &nbsp; &nbsp; Click to Expand for Details:
 </summary><br>
 
-The integration fires a `wifi_ssid_monitor_new_network` event on the Home Assistant event bus each time a **genuinely new** network is seen for the first time. Unlike the `new_network_alert` binary sensor (which is simply on/off while any unknown network is present), this event fires once **per network** and survives restarts - the existing set is recorded silently on the first scan after start or a history reset, so a restart never replays the backlog. Emission is rate-limited to 10 events per scan cycle (any excess is counted and logged, never silently dropped).
+The integration fires a `wifi_ssid_monitor_new_network` event on the Home Assistant event bus each time a new network is detected for the first time. Unlike the `new_network_alert` binary sensor (which reports state while any unknown network is present), this event fires once per network and survives restarts without replaying previous history. Emission is rate-limited to 10 events per scan cycle (excess events are counted and logged).
 
 | Event type | Fires when | `trigger.event.data` fields |
 | :-- | :-- | :-- |
@@ -1569,9 +1568,8 @@ One condition raises a card in Home Assistant's **Repairs** panel, and it needs 
 | :-- | :-- | :-- |
 | **WiFi scanning is unavailable** | 4 consecutive failed polls | Four failures in a row means the problem is not clearing on its own. The Supervisor API has stopped responding, which needs the host system checked. Clears itself once scanning resumes. |
 
-**What earns a Repair.** Two things together: the condition has stopped resolving itself, **and** there is something you can do about it. A reading you cannot influence fails the second test however persistent it is.
-
-**What does not, and where to find it instead.** A configured interface that the Supervisor no longer reports shows in `degraded_capabilities` at `severity: error`. A signal unit that flips between dBm and percentage shows as `severity: warning`, with the detail in the `drift` attribute. Both are real and worth automating on — neither is something the Repairs panel can resolve.
+- **Actionable Issues (Repairs)**: A Repair issue is raised only when a condition persists across multiple polls and requires manual user action to resolve (such as checking host Supervisor connectivity).
+- **Diagnostic Conditions (Sensor Attributes)**: Conditions that do not require Repairs panel intervention report directly on the Integration Health sensor. A detached interface reports under `degraded_capabilities` (`severity: error`), while signal unit changes report under `drift` (`severity: warning`).
 
 **A Repair also turns the Integration Health sensor on**, so an automation watching that sensor sees this one as well, without watching the panel. See [Self-Diagnosis](#-self-diagnosis).
 
