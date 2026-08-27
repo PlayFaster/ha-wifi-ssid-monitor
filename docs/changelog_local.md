@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.5-dev3\] - 2026-08-27 - Upload to re-do github CI](#205-dev3---2026-08-27---upload-to-re-do-github-ci)
   - [\[2.0.5-dev2\] - 2026-08-26 - Linting: Issue Registry Alias Normalization and Test Import Exclusions](#205-dev2---2026-08-26---linting-issue-registry-alias-normalization-and-test-import-exclusions)
   - [\[2.0.5-dev1\] - 2026-08-26 - AGENTS.md Alignment](#205-dev1---2026-08-26---agentsmd-alignment)
   - [\[2.0.4\] - 2026-08-26 - Release: Repair Issue Consolidation and Removal Cleanup](#204---2026-08-26---release-repair-issue-consolidation-and-removal-cleanup)
@@ -117,6 +118,12 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
 
 ---
+
+## [2.0.5-dev3] - 2026-08-27 - Upload to re-do github CI
+
+### Changed
+
+- **No Changes**: Only changed `changelog_local.md` (this file) to commit and re-do github CI.
 
 ## [2.0.5-dev2] - 2026-08-26 - Linting: Issue Registry Alias Normalization and Test Import Exclusions
 
