@@ -227,7 +227,7 @@ Major feature release introducing security monitoring, scanning controls, and pe
 
 - **Known Limitations**: Documented that multiple non-broadcasting WiFi networks report as a single `[hidden]` entry in SSID counts, as unbroadcast SSIDs cannot be distinguished individually.
 
-## [1.4.1] - 2026-04-18 - Telemetry: Last Updated Sensor, Custom Naming, and Guard Bands
+## [1.4.1] - 2026-04-18 - Release: Last Updated Sensor, Custom Naming, and Guard Bands
 
 ### Added
 
@@ -280,7 +280,7 @@ Major feature release introducing security monitoring, scanning controls, and pe
 
 - **Tests**: Expanded the test suite to include full coverage for the new number platform and debouncing logic.
 
-## [1.1.0] - 2026-04-02 - Telemetry: New Network Alert Binary Sensor and Interface Sensor
+## [1.1.0] - 2026-04-02 - Release: New Network Alert Binary Sensor and Interface Sensor
 
 ### Added
 
@@ -334,12 +334,12 @@ Entry structure — headers, titles, category headings and the split between thi
   - [\[1.6.0\] - 2026-06-12 - Release: Proximity Alert, Persistent History, and Denylist Matching](#160---2026-06-12---release-proximity-alert-persistent-history-and-denylist-matching)
   - [\[1.4.3\] - 2026-05-10 - Maintenance: README Overhaul and Standards Alignment](#143---2026-05-10---maintenance-readme-overhaul-and-standards-alignment)
   - [\[1.4.2\] - 2026-05-02 - Controls: Scan Interval Minimum Enforcement](#142---2026-05-02---controls-scan-interval-minimum-enforcement)
-  - [\[1.4.1\] - 2026-04-18 - Telemetry: Last Updated Sensor, Custom Naming, and Guard Bands](#141---2026-04-18---telemetry-last-updated-sensor-custom-naming-and-guard-bands)
+  - [\[1.4.1\] - 2026-04-18 - Release: Last Updated Sensor, Custom Naming, and Guard Bands](#141---2026-04-18---release-last-updated-sensor-custom-naming-and-guard-bands)
   - [\[1.4.0\] - 2026-04-05 - Features: WiFi Interface Auto-Discovery and Resilient Polling](#140---2026-04-05---features-wifi-interface-auto-discovery-and-resilient-polling)
   - [\[1.3.1\] - 2026-04-02 - Architecture: Structured Network Data Model](#131---2026-04-02---architecture-structured-network-data-model)
   - [\[1.3.0\] - 2026-04-02 - Integration Hygiene: Renamed to WiFi SSID Monitor](#130---2026-04-02---integration-hygiene-renamed-to-wifi-ssid-monitor)
   - [\[1.2.0\] - 2026-04-02 - Controls: Scan Interval Number Entity](#120---2026-04-02---controls-scan-interval-number-entity)
-  - [\[1.1.0\] - 2026-04-02 - Telemetry: New Network Alert Binary Sensor and Interface Sensor](#110---2026-04-02---telemetry-new-network-alert-binary-sensor-and-interface-sensor)
+  - [\[1.1.0\] - 2026-04-02 - Release: New Network Alert Binary Sensor and Interface Sensor](#110---2026-04-02---release-new-network-alert-binary-sensor-and-interface-sensor)
   - [\[1.0.2\] - 2026-04-02 - Testing: Branding Assets and Mock Supervisor](#102---2026-04-02---testing-branding-assets-and-mock-supervisor)
   - [\[1.0.1\] - 2026-04-02 - Test Suite: Branch Coverage Expansion and Lint Compliance](#101---2026-04-02---test-suite-branch-coverage-expansion-and-lint-compliance)
   - [\[1.0.0\] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring](#100---2026-04-01---initial-release-custom-component-for-wifi-ssid-monitoring)

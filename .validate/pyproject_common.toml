@@ -21,6 +21,7 @@ select = [
     "G",      # flake8-logging-format
     "I",      # isort
     "ICN001", # import conventions; {name} should be imported as {asname}
+    "ICN002", # import conventions; {name} should not be imported as {asname}
     "INP",    # flake8-no-pep420
     "ISC",    # flake8-implicit-str-concat
     "LOG",    # flake8-logging
@@ -143,6 +144,12 @@ ignore = [
     "ISC004",
     "LOG004",
 ]
+
+[lint.isort]
+force-sort-within-sections = true
+known-first-party = ["homeassistant"]
+combine-as-imports = true
+split-on-trailing-comma = false
 
 [lint.mccabe]
 max-complexity = 25

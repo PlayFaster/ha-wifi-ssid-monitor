@@ -99,6 +99,7 @@ scratch/
 # AI
 .aider/
 .antigravitycli/
+.agents/
 .claude/
 .continue/
 .cursor/

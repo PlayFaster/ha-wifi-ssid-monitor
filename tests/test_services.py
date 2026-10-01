@@ -30,9 +30,9 @@ def test_iso_none_for_non_datetime():
 def test_resolve_entries_unloaded_entry(hass, mock_config_entry):
     """_resolve_entries raises HomeAssistantError when target entry is not loaded."""
     import pytest
-    from homeassistant.exceptions import HomeAssistantError
 
     from custom_components.wifi_ssid_monitor.services import _resolve_entries
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
     with pytest.raises(HomeAssistantError) as exc_info:

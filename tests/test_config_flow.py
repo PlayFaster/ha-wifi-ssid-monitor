@@ -3,9 +3,6 @@
 from unittest.mock import patch
 
 import pytest
-from homeassistant import config_entries, data_entry_flow
-from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import AbortFlow
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.wifi_ssid_monitor.api import WifiScanError
@@ -17,6 +14,9 @@ from custom_components.wifi_ssid_monitor.const import (
     DEFAULT_LAST_SEEN_TTL_DAYS,
     DOMAIN,
 )
+from homeassistant import config_entries, data_entry_flow
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import AbortFlow
 
 
 @pytest.mark.asyncio
@@ -445,9 +445,8 @@ async def test_a_bad_status_raises_rather_than_reporting_no_interfaces(
     """
     import os
 
-    from homeassistant.helpers.aiohttp_client import async_get_clientsession
-
     from custom_components.wifi_ssid_monitor.api import WifiScanAPI
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
     aioclient_mock.get(_NETWORK_INFO_URL, status=500)
 

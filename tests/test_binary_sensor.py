@@ -3,7 +3,6 @@
 from unittest.mock import patch
 
 import pytest
-from homeassistant.core import HomeAssistant
 
 from custom_components.wifi_ssid_monitor.binary_sensor import (
     HEALTH_DESCRIPTION,
@@ -17,6 +16,7 @@ from custom_components.wifi_ssid_monitor.const import (
     CONF_PROXIMITY_SIGNAL_THRESHOLD,
     DOMAIN,
 )
+from homeassistant.core import HomeAssistant
 
 
 @pytest.fixture

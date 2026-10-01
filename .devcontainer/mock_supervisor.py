@@ -46,11 +46,11 @@ Two switches, both off by default:
 # than in pyproject.toml — that file is synced from dev-workbench and a local
 # per-file-ignores entry would be erased on the next sync.
 
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import logging
 import os
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
 _LOGGER = logging.getLogger(__name__)

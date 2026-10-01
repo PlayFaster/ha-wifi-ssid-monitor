@@ -14,8 +14,8 @@ gutted file is as useless as a leaky one.
 
 from __future__ import annotations
 
-import re
 from copy import deepcopy
+import re
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data

@@ -8,8 +8,6 @@ non-identifying substance is preserved.
 import json
 from unittest.mock import MagicMock
 
-from homeassistant.core import HomeAssistant
-
 from custom_components.wifi_ssid_monitor.const import (
     CONF_DENYLIST_SSIDS,
     CONF_INTERFACE,
@@ -25,6 +23,7 @@ from custom_components.wifi_ssid_monitor.diagnostics import (
     _sanitize_networks,
     async_get_config_entry_diagnostics,
 )
+from homeassistant.core import HomeAssistant
 from tests.conftest import MockConfigEntry
 
 

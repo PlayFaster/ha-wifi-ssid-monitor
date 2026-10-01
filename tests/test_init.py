@@ -3,8 +3,9 @@
 from unittest.mock import patch
 
 import pytest
-from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from homeassistant.core import HomeAssistant
 
 
 @pytest.mark.asyncio
@@ -614,10 +615,7 @@ async def test_get_networks_service_filters(hass: HomeAssistant, mock_config_ent
 @pytest.mark.asyncio
 async def test_add_known_ssid_service(hass: HomeAssistant, mock_config_entry):
     """Test the add_ssid service."""
-    from custom_components.wifi_ssid_monitor.const import (
-        CONF_KNOWN_SSIDS,
-        DOMAIN,
-    )
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
 
@@ -644,10 +642,7 @@ async def test_add_known_ssid_service_already_exists(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test the add_ssid service when SSID already exists."""
-    from custom_components.wifi_ssid_monitor.const import (
-        CONF_KNOWN_SSIDS,
-        DOMAIN,
-    )
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
 
@@ -675,10 +670,7 @@ async def test_add_known_ssid_service_with_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test the add_ssid service with a specific config_entry_id."""
-    from custom_components.wifi_ssid_monitor.const import (
-        CONF_KNOWN_SSIDS,
-        DOMAIN,
-    )
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
 
@@ -705,10 +697,7 @@ async def test_add_known_ssid_service_deduplication(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test add_ssid service deduplicates a runtime-added SSID."""
-    from custom_components.wifi_ssid_monitor.const import (
-        CONF_KNOWN_SSIDS,
-        DOMAIN,
-    )
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
 
@@ -836,9 +825,8 @@ async def test_add_known_ssid_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test add_known_ssid service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -945,9 +933,8 @@ async def test_remove_known_ssid_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test remove_ssid service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -1109,9 +1096,8 @@ async def test_scan_now_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test scan_now service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -1193,9 +1179,8 @@ async def test_clear_last_seen_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test clear_last_seen service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -1283,9 +1268,8 @@ async def test_set_known_ssids_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test set_ssids service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -1378,9 +1362,8 @@ async def test_get_networks_reports_the_oldest_scan_across_entries(
     """
     from datetime import timedelta
 
-    from homeassistant.util import dt as dt_util
-
     from custom_components.wifi_ssid_monitor.const import CONF_INTERFACE, DOMAIN
+    from homeassistant.util import dt as dt_util
 
     mock_config_entry.add_to_hass(hass)
     second = MockConfigEntry(
@@ -1477,10 +1460,7 @@ async def test_setup_clears_repairs_raised_under_retired_keys(
     it is `is_fixable=False`, so the user cannot dismiss it either. The sweep
     runs at every setup, which is what makes retiring a key safe.
     """
-    from custom_components.wifi_ssid_monitor.const import (
-        RETIRED_REPAIR_KEYS,
-        issue_id,
-    )
+    from custom_components.wifi_ssid_monitor.const import RETIRED_REPAIR_KEYS, issue_id
 
     mock_config_entry.add_to_hass(hass)
 

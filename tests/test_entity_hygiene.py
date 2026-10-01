@@ -22,9 +22,9 @@ entity description, and no static check can see through that.
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.core import HomeAssistant
 
 from custom_components.wifi_ssid_monitor.const import DOMAIN
+from homeassistant.core import HomeAssistant
 
 # Attributes deliberately left recorded, with the justification Section 14
 # requires. Empty by design — adding an entry here is a visible, reviewable
@@ -115,9 +115,7 @@ def test_health_detail_is_unrecorded() -> None:
     absent from `_unrecorded_attributes`, which had fallen behind
     `extra_state_attributes` as the attribute set grew.
     """
-    from custom_components.wifi_ssid_monitor.binary_sensor import (
-        WifiHealthBinarySensor,
-    )
+    from custom_components.wifi_ssid_monitor.binary_sensor import WifiHealthBinarySensor
 
     unrecorded = WifiHealthBinarySensor._unrecorded_attributes
     for name in (

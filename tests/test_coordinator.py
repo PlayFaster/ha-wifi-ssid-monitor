@@ -5,9 +5,6 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.update_coordinator import UpdateFailed
-from homeassistant.util import dt as dt_util
 
 from custom_components.wifi_ssid_monitor import coordinator as coordinator_module
 from custom_components.wifi_ssid_monitor.api import WifiScanError
@@ -35,6 +32,9 @@ from custom_components.wifi_ssid_monitor.health import (
     SEVERITY_OK,
     SEVERITY_UNKNOWN,
 )
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util import dt as dt_util
 
 # Frequencies for the two bands, so fixtures don't rely on a channel field.
 FREQ_24 = 2437  # channel 6
@@ -1855,9 +1855,8 @@ _ACCESSPOINTS_URL = "http://supervisor/network/interface/wlan0/accesspoints"
 
 def _real_api(hass):
     """Build the real API object over Home Assistant's mocked session."""
-    from homeassistant.helpers.aiohttp_client import async_get_clientsession
-
     from custom_components.wifi_ssid_monitor.api import WifiScanAPI
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
     return WifiScanAPI(async_get_clientsession(hass), "wlan0")
 

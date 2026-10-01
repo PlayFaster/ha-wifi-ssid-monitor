@@ -95,8 +95,8 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 **🏠 Home Assistant Version:**
 
-- Minimum: Home Assistant **2024.8.0**
-- Minimum Python: **3.12+** (this is built into and handled by HA, but relevant for non-standard installs).
+- Minimum: Home Assistant **2025.2**
+- Minimum Python: **3.13+** (this is built into and handled by HA, but relevant for non-standard installs).
 
 ## 🎯 Use Cases
 
