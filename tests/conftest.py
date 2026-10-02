@@ -117,12 +117,22 @@ def mock_coordinator(hass, mock_config_entry, mock_wifi_api):
 class MockResponse:
     """Helper to mock aiohttp responses."""
 
-    def __init__(self, json_data=None, status=200, text_data="", json_error=False):
+    def __init__(
+        self,
+        json_data=None,
+        status=200,
+        text_data="",
+        json_error=False,
+        headers=None,
+    ):
         """Initialize the mock response."""
         self._json_data = json_data
         self.status = status
         self._text_data = text_data
         self._json_error = json_error
+        self.headers = (
+            {"Content-Type": "application/json"} if headers is None else headers
+        )
 
     async def json(self, **kwargs):
         """Return the JSON data."""

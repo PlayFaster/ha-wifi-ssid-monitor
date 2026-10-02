@@ -30,6 +30,7 @@ from tests.conftest import MockConfigEntry
 def _coordinator_with_data():
     coordinator = MagicMock()
     coordinator.api.interface = "wlan0"
+    coordinator.api.last_rejection = None
     coordinator.last_update_success = True
     coordinator.last_update_success_time = "2026-07-22T12:00:00"
     coordinator.version = "1.7.0"
@@ -315,3 +316,275 @@ def test_an_ssid_and_a_bssid_do_not_collide_on_one_token():
     assert ssid_token != bssid_token
     assert ssid_token.startswith("ssid-")
     assert bssid_token.startswith("bssid-")
+
+
+# ---------------------------------------------------------------------------
+# Rejected-response record published in the download (I3).
+# ---------------------------------------------------------------------------
+
+
+async def test_diagnostics_publishes_the_retained_rejection(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """The record the API client retained is in the returned diagnostics."""
+    mock_config_entry.add_to_hass(hass)
+    coordinator = _coordinator_with_data()
+    coordinator.api.last_rejection = {
+        "http_status": 500,
+        "failure_class": "http_error",
+        "recorded_at": "2026-10-02T12:00:00+00:00",
+        "content_type": "text/plain",
+        "text_length": 21,
+        "text": "Internal Server Error",
+    }
+    mock_config_entry.runtime_data = coordinator
+
+    diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+    assert diag["coordinator"]["last_rejection"] == {
+        "http_status": 500,
+        "failure_class": "http_error",
+        "recorded_at": "2026-10-02T12:00:00+00:00",
+        "content_type": "text/plain",
+        "text_length": 21,
+        "text": "Internal Server Error",
+    }
+
+
+async def test_diagnostics_rejection_is_null_when_none_is_retained(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """With no retained record the key is present and null."""
+    mock_config_entry.add_to_hass(hass)
+    mock_config_entry.runtime_data = _coordinator_with_data()
+
+    diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+    assert "last_rejection" in diag["coordinator"]
+    assert diag["coordinator"]["last_rejection"] is None
+
+
+async def test_diagnostics_never_publishes_a_mock_attribute(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """A retained value that is not a record is ignored, never serialized."""
+    mock_config_entry.add_to_hass(hass)
+    coordinator = _coordinator_with_data()
+    coordinator.api.last_rejection = MagicMock()
+    mock_config_entry.runtime_data = coordinator
+
+    diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+    assert diag["coordinator"]["last_rejection"] is None
+    json.dumps(diag)
+
+
+async def test_diagnostics_rejection_keeps_only_scalars_and_string_lists(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """Nested objects, mixed lists and non-text keys are dropped from the record."""
+    mock_config_entry.add_to_hass(hass)
+    coordinator = _coordinator_with_data()
+    coordinator.api.last_rejection = {
+        "http_status": 200,
+        "ratio": 0.5,
+        "flag": True,
+        "content_type": None,
+        "key_names": ["interfaces", "scan_state"],
+        "nested": {"HomeNet": 1},
+        "mixed": ["ok", 3],
+        7: "non-text key",
+    }
+    mock_config_entry.runtime_data = coordinator
+
+    diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+    assert diag["coordinator"]["last_rejection"] == {
+        "http_status": 200,
+        "ratio": 0.5,
+        "flag": True,
+        "content_type": None,
+        "key_names": ["interfaces", "scan_state"],
+    }
+
+
+async def test_a_real_rejection_reaches_the_download_without_identifiers(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """A rejected scan, driven through the API client, publishes no identifier."""
+    from contextlib import suppress
+    import os
+    from unittest.mock import patch
+
+    from custom_components.wifi_ssid_monitor.api import WifiScanAPI, WifiScanError
+    from tests.conftest import MockResponse
+
+    session = MagicMock()
+    session.get.return_value = MockResponse(
+        status=500,
+        text_data="failed for aa:bb:cc:00:00:02 on NeighbourNet",
+        headers={"Content-Type": "text/plain"},
+    )
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = WifiScanAPI(session, "wlan0")
+        with suppress(WifiScanError):
+            await api.get_access_points()
+
+    mock_config_entry.add_to_hass(hass)
+    coordinator = _coordinator_with_data()
+    coordinator.api = api
+    mock_config_entry.runtime_data = coordinator
+
+    diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+    record = diag["coordinator"]["last_rejection"]
+    assert record["http_status"] == 500
+    assert record["failure_class"] == "http_error"
+    assert "aa:bb:cc:00:00:02" not in json.dumps(diag).lower()
+    assert "[REDACTED_MAC]" in record["text"]
+
+
+# ---------------------------------------------------------------------------
+# Classification of the payload (I4): every key the producer publishes is
+# classified for identity, and each classification is checked against what the
+# sanitizer does.
+# ---------------------------------------------------------------------------
+
+_REAL_SCAN_APS = [
+    {
+        "mac": "AA:BB:CC:00:00:01",
+        "ssid": "MyNetwork1",
+        "signal": 80,
+        "frequency": 2462,
+        "mode": "infrastructure",
+    },
+    {
+        "mac": "AA:BB:CC:00:00:02",
+        "ssid": "NeighbourNet",
+        "signal": 55,
+        "frequency": 5240,
+        "mode": "infrastructure",
+    },
+    {
+        "mac": "AA:BB:CC:00:00:03",
+        "ssid": None,
+        "signal": 30,
+        "frequency": 2412,
+        "mode": "infrastructure",
+    },
+]
+_REAL_SCAN_IDENTIFIERS = (
+    "MyNetwork1",
+    "NeighbourNet",
+    "AA:BB:CC:00:00:01",
+    "AA:BB:CC:00:00:02",
+    "AA:BB:CC:00:00:03",
+    "Hidden-",
+)
+
+
+async def _real_scan(hass: HomeAssistant, entry: MockConfigEntry):
+    """Set the integration up on a real scan with a hidden and an unknown network."""
+    from unittest.mock import AsyncMock, patch
+
+    entry.add_to_hass(hass)
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        new=AsyncMock(return_value=list(_REAL_SCAN_APS)),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    return entry.runtime_data
+
+
+async def test_every_published_data_key_is_classified_for_identity(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """A new key in the payload must be classified before the suite passes."""
+    from custom_components.wifi_ssid_monitor.diagnostics import (
+        DATA_FIELDS_IDENTITY_FREE,
+        DATA_FIELDS_REWRITTEN,
+    )
+
+    coordinator = await _real_scan(hass, mock_config_entry)
+
+    assert not DATA_FIELDS_REWRITTEN & DATA_FIELDS_IDENTITY_FREE
+    assert set(coordinator.data) == DATA_FIELDS_REWRITTEN | DATA_FIELDS_IDENTITY_FREE, (
+        "classify the new payload key in DATA_FIELDS_REWRITTEN or _IDENTITY_FREE"
+    )
+
+
+async def test_every_network_entry_field_is_classified_for_identity(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """A new per-network field must be classified before the suite passes."""
+    from custom_components.wifi_ssid_monitor.diagnostics import (
+        NETWORK_FIELDS_IDENTITY_FREE,
+        NETWORK_FIELDS_REWRITTEN,
+    )
+
+    coordinator = await _real_scan(hass, mock_config_entry)
+
+    assert not NETWORK_FIELDS_REWRITTEN & NETWORK_FIELDS_IDENTITY_FREE
+    assert coordinator.data["networks"]
+    for label, entry in coordinator.data["networks"].items():
+        assert set(entry) == NETWORK_FIELDS_REWRITTEN | NETWORK_FIELDS_IDENTITY_FREE, (
+            f"classify the new field of {label!r} in NETWORK_FIELDS_*"
+        )
+
+
+async def test_the_classification_sets_match_what_the_sanitizer_does(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """Rewritten keys change under the sanitizer and identity-free keys do not."""
+    from custom_components.wifi_ssid_monitor.diagnostics import (
+        DATA_FIELDS_IDENTITY_FREE,
+        DATA_FIELDS_REWRITTEN,
+        NETWORK_FIELDS_IDENTITY_FREE,
+        NETWORK_FIELDS_REWRITTEN,
+    )
+
+    coordinator = await _real_scan(hass, mock_config_entry)
+    data = coordinator.data
+    # Each rewritten key needs a value the sanitizer can change: an empty map or
+    # the None Detected sentinel passes through unchanged.
+    for key in ("last_seen", "first_seen", "visit_counts", "unknown_ssids"):
+        assert data[key], key
+    assert isinstance(data["strongest_unknown_ssid"], str)
+    assert data["strongest_unknown_ssid"] != NO_NETWORKS_SENTINEL
+
+    clean = _sanitize_data(data)
+
+    for key in DATA_FIELDS_REWRITTEN:
+        assert clean[key] != data[key], f"{key} is classified rewritten but unchanged"
+    for key in DATA_FIELDS_IDENTITY_FREE:
+        assert clean[key] == data[key], f"{key} is classified identity-free but changed"
+
+    hidden = [n for n in data["networks"].values() if n["hidden"]]
+    assert hidden, "the real scan must include a hidden network"
+    clean_by_bssid = {n["bssid"]: n for n in clean["networks"].values()}
+    for net in data["networks"].values():
+        (clean_net,) = [
+            c
+            for c in clean["networks"].values()
+            if c["signal"] == net["signal"] and c["channel"] == net["channel"]
+        ]
+        for field in NETWORK_FIELDS_REWRITTEN:
+            assert clean_net[field] != net[field], field
+        for field in NETWORK_FIELDS_IDENTITY_FREE:
+            assert clean_net[field] == net[field], field
+    assert len(clean_by_bssid) == len(data["networks"])
+
+
+async def test_no_identifier_survives_in_a_download_of_a_real_scan(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+):
+    """The serialized download of a real scan carries no seeded SSID or BSSID."""
+    await _real_scan(hass, mock_config_entry)
+
+    diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+    blob = json.dumps(diag, default=str)
+
+    assert diag["coordinator"]["health_snapshot"]
+    for leaked in _REAL_SCAN_IDENTIFIERS:
+        assert leaked not in blob

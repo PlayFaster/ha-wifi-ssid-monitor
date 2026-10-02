@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.5-dev9\] - 2026-10-02 - Diagnostics Download Carries Rejected-Response Record; Payload Keys Classified; Device Sweep](#205-dev9---2026-10-02---diagnostics-download-carries-rejected-response-record-payload-keys-classified-device-sweep)
   - [\[2.0.5-dev8\] - 2026-10-02 - get\_networks Filter Tests; Handler and Filter Predicate at Module Level](#205-dev8---2026-10-02---get_networks-filter-tests-handler-and-filter-predicate-at-module-level)
   - [\[2.0.5-dev7\] - 2026-10-01 - CI Bumps, HA Compatibility, ruff re-sorts, mypy fix](#205-dev7---2026-10-01---ci-bumps-ha-compatibility-ruff-re-sorts-mypy-fix)
   - [\[2.0.5-dev6\] - 2026-09-23 - AGENTS.md: Guard Test Table Trimmed; Rationale Moved to docs/test\_guards.md](#205-dev6---2026-09-23---agentsmd-guard-test-table-trimmed-rationale-moved-to-docstest_guardsmd)
@@ -121,6 +122,47 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.2\] - 2026-04-02 - Test Infrastructure: Mock Supervisor and Branding](#102---2026-04-02---test-infrastructure-mock-supervisor-and-branding)
   - [\[1.0.1\] - 2026-04-02 - Test Suite: Test Coverage to 99%](#101---2026-04-02---test-suite-test-coverage-to-99)
   - [\[1.0.0\] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring](#100---2026-04-01---initial-release-custom-component-for-wifi-ssid-monitoring)
+
+## [2.0.5-dev9] - 2026-10-02 - Diagnostics Download Carries Rejected-Response Record; Payload Keys Classified; Device Sweep
+
+### Summary
+
+The diagnostics download now carries `coordinator.last_rejection`, a structure-only record of the last rejected Supervisor scan response, which is absent after the next successful scan. Every key the coordinator publishes, and every field of a network entry, is classified for identity in module-level sets, with tests that fail when a new key or field is not classified. A new sweep test asserts that every live entity belongs to a device. One defect in the access-point response handling was found and fixed. This is build 2 of 3 in `v205_plan.md` (items I3, I4 and I5).
+
+### Added
+
+- **`last_rejection` in the diagnostics download** (I3): `api.py` retains the record at the three places a scan response is rejected, and `diagnostics.py` publishes it under `coordinator`, next to `data`, as `null` when none is retained. The record always holds `http_status`, `failure_class` and `recorded_at` (UTC, ISO 8601), and `content_type` read from the response headers. `failure_class` is `http_error` for a non-200 status, `invalid_json` for a 200 whose body fails JSON parsing, and `missing_ap_key` for a 200 whose parsed `data` object carries no `accesspoints` list.
+  - **Non-200 body**: `text_length` and `text`, with `text` capped at 500 characters after every MAC-shaped substring in colon, dash or dotted form is replaced by `[REDACTED_MAC]`. The scrub is anchored on hex boundaries, so a UUID, a hash or a timestamp is not altered, and it runs before the cap, so a MAC at the cap is replaced whole.
+  - **`missing_ap_key`**: `key_names` lists the keys of the `data` object that look like field names (lowercase letters, digits and underscores, 32 characters or fewer), and `other_key_count` counts the rest, so a payload keyed by SSID does not put SSIDs in the record. No key names are recorded where `data` is not an object or is empty.
+  - **Never kept**: the body of a 200 response. A 200 that fails JSON parsing keeps no body, and a 200 body is never kept as text.
+  - **Clearing**: the record clears only after the access-point list check passes, not at HTTP 200. A later rejection replaces it, and a connection error leaves it.
+  - **Published values**: `_rejection_record` in `diagnostics.py` publishes only scalars and lists of strings, so a value that is not what the API client stores, such as a mock attribute, is never serialized.
+  - **Difference from the shared item**: no `login` key, because WiFi manages no session.
+- **Classification sets** (I4): `DATA_FIELDS_REWRITTEN` (7 keys) and `DATA_FIELDS_IDENTITY_FREE` (6 keys) in `diagnostics.py` for `coordinator.data`, and `NETWORK_FIELDS_REWRITTEN` (`bssid`, `key`) and `NETWORK_FIELDS_IDENTITY_FREE` (7 fields) for an entry of `data["networks"]`. The names differ from the reference implementation, which names `DISCOVERY_METADATA_PUBLISHED` and `DISCOVERY_METADATA_GATED`.
+
+### Fixed
+
+- **A 200 response whose `data` is a non-empty list, string or number raised `AttributeError` from `get_access_points`**: `res_data.get("data") or {}` kept any truthy value, and the `.get("accesspoints")` that followed was outside the `try` block that wraps every other failure in `WifiScanError`. `data` that is not an object is now treated as a missing access-point list, recorded as `missing_ap_key`, which the health check reports as drift. The plan's E30 finding F5 stated that array and scalar `data` already became `{}`, which was true only for an empty value. The unreachable `type(data_block)` branch of the debug log was removed with the fix.
+
+### Tests
+
+- **`tests/test_api.py`** (I3): 19 tests, including the 8 `data` shapes of `test_a_payload_with_no_object_data_records_no_key_names`, a MAC embedded in an error body in each form, a UUID, hash and timestamp left unaltered, a MAC at the cap boundary, hex runs that only contain a MAC shape, a 200 with no access-point list keeping the record, and only a later successful scan clearing it.
+- **`tests/test_diagnostics.py`**: 5 tests of the published record (I3), one asserting on the value returned by `async_get_config_entry_diagnostics` after a real rejection driven through the API client. 4 tests of the classification (I4): the producer's keys, taken from a real scan that includes a hidden and an unknown network, equal the union of the two data sets with no overlap, the same for the per-network fields, each set matches what `_sanitize_data` does to the real payload, and no seeded SSID, BSSID or `Hidden-` text survives in the serialized download of that scan, which includes the health snapshot. The `_coordinator_with_data` fixture sets `coordinator.api.last_rejection` to `None`.
+- **`tests/conftest.py`**: `MockResponse` gains a `headers` mapping.
+- **`tests/test_entity_hygiene.py`** (I5): `test_every_live_entity_belongs_to_a_device` sets the integration up with disabled-by-default entities forced on, asserts every entity reports a device with non-empty identifiers, and asserts a floor of 18 entities.
+- **Suite**: 457 tests before the build, 486 after.
+
+### Verified
+
+- **Mutations**: 20 mutations were applied to `api.py`, `diagnostics.py`, `coordinator.py` and `entity.py`, each under a 900 s timeout with a checksummed restore, and all 20 fail at least one test in a full-suite run. They cover the capture at each of the three sites, the clearing, the MAC scrub and both of its boundaries, the order of scrub and cap, the cap, the key-name shape rule, the `data` object guard, the published key, the scalar check and the record type check, a new payload key and a new network field left unclassified, a BSSID no longer rewritten, an identity-free key removed from its set, and `device_info` returning `None`. One mutation, the removal of the leading hex boundary of the MAC scrub, survived the first set of tests and is now caught by the hex-run test.
+- **Live check**: after a restart of the development Home Assistant, each of the mock faults `down`, `unknown_interface`, `html` and `no_ap_key` produced a `last_rejection` record in the diagnostics download of the development entry, taken with `GET /api/diagnostics/config_entry/<entry_id>`: `http_error` with status 500 and 400 and the Supervisor text, `invalid_json` with status 200, and `missing_ap_key` with status 200. After each fault was cleared and a scan succeeded the record was `null`. In every download, taken with a hidden network seeded with a BSSID, no SSID, BSSID or `Hidden-` text appeared and every key of `data` and of each network entry was classified.
+- **Version**: `manifest.json` is unchanged and reads `2.0.5`.
+
+### Notes
+
+- **Defects found during the build**: the non-object `data` defect above, and a gap in the new tests found by mutation, where the leading boundary of the MAC scrub could be removed with every test passing.
+- **Scan cooldown**: `scan_now` inside the coordinator's debouncer cooldown returns without fetching, so a live drive of consecutive faults waits 12 s between scans, as `fault_drill.py` does.
+- **Records**: the WiFi cells and difference rows of `improve_diagnostics_on_bad_payload_data.md` and the WiFi cell of `every_entity_must_have_a_device.md`.
 
 ## [2.0.5-dev8] - 2026-10-02 - get_networks Filter Tests; Handler and Filter Predicate at Module Level
 

@@ -41,6 +41,41 @@ _MAC_RE = re.compile(r"^(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")
 # loses the very information a maintainer reads first.
 _PRESERVE = {HIDDEN_FALLBACK_LABEL, NO_NETWORKS_SENTINEL}
 
+# Every key the coordinator publishes in ``data`` is classified here, so a new
+# key cannot pass through the sanitizer without a decision about identity.
+# ``tests/test_diagnostics.py`` derives the producer's keys from a real scan and
+# requires them to equal the union of the two sets, with no overlap, and checks
+# each set against the behavior of ``_sanitize_data``. WiFi names these sets
+# for what the sanitizer does; the reference implementation names the sets of
+# discovery metadata it publishes and gates.
+DATA_FIELDS_REWRITTEN = frozenset(
+    {
+        "networks",
+        "ssids",
+        "unknown_ssids",
+        "last_seen",
+        "first_seen",
+        "visit_counts",
+        "strongest_unknown_ssid",
+    }
+)
+DATA_FIELDS_IDENTITY_FREE = frozenset(
+    {
+        "count",
+        "unknown_count",
+        "interface",
+        "new_24h",
+        "strongest_unknown_signal",
+        "signal_unit",
+    }
+)
+
+# The same classification for the fields of one entry in ``data["networks"]``.
+NETWORK_FIELDS_REWRITTEN = frozenset({"bssid", "key"})
+NETWORK_FIELDS_IDENTITY_FREE = frozenset(
+    {"signal", "signal_raw", "channel", "band", "hidden", "ssid_anomaly", "mode"}
+)
+
 
 class _Pseudonymizer:
     """Allocates and reuses stable tokens for the identifiers it is shown."""
@@ -127,6 +162,28 @@ def _sanitize_data(data: dict[str, Any]) -> dict[str, Any]:
     return clean
 
 
+def _rejection_record(api: Any) -> dict[str, Any] | None:
+    """Return the API client's retained rejection record, or None.
+
+    Only scalar values and lists of strings are published, so a value that is
+    not what the API client stores (a mock attribute, for one) never reaches the
+    file. The client stores structure only: status, failure class, a timestamp,
+    the content type, lengths, key names and a capped, MAC-scrubbed error text.
+    """
+    record = getattr(api, "last_rejection", None)
+    if not isinstance(record, dict):
+        return None
+    clean: dict[str, Any] = {}
+    for key, value in record.items():
+        if not isinstance(key, str):
+            continue
+        if value is None or isinstance(value, str | int | float | bool):
+            clean[key] = value
+        elif isinstance(value, list) and all(isinstance(v, str) for v in value):
+            clean[key] = list(value)
+    return clean
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
@@ -150,6 +207,7 @@ async def async_get_config_entry_diagnostics(
             "last_update_success_time": coordinator.last_update_success_time,
             "version": coordinator.version,
             "health_snapshot": coordinator.health_snapshot,
+            "last_rejection": _rejection_record(coordinator.api),
             "data": sanitized_data,
         },
     }
