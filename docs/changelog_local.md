@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.5-dev8\] - 2026-10-02 - get\_networks Filter Tests; Handler and Filter Predicate at Module Level](#205-dev8---2026-10-02---get_networks-filter-tests-handler-and-filter-predicate-at-module-level)
   - [\[2.0.5-dev7\] - 2026-10-01 - CI Bumps, HA Compatibility, ruff re-sorts, mypy fix](#205-dev7---2026-10-01---ci-bumps-ha-compatibility-ruff-re-sorts-mypy-fix)
   - [\[2.0.5-dev6\] - 2026-09-23 - AGENTS.md: Guard Test Table Trimmed; Rationale Moved to docs/test\_guards.md](#205-dev6---2026-09-23---agentsmd-guard-test-table-trimmed-rationale-moved-to-docstest_guardsmd)
   - [\[2.0.5-dev5\] - 2026-09-23 - Breaking: Minimum Home Assistant Raised to 2025.2.0 for Python 3.13](#205-dev5---2026-09-23---breaking-minimum-home-assistant-raised-to-202520-for-python-313)
@@ -120,6 +121,34 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.2\] - 2026-04-02 - Test Infrastructure: Mock Supervisor and Branding](#102---2026-04-02---test-infrastructure-mock-supervisor-and-branding)
   - [\[1.0.1\] - 2026-04-02 - Test Suite: Test Coverage to 99%](#101---2026-04-02---test-suite-test-coverage-to-99)
   - [\[1.0.0\] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring](#100---2026-04-01---initial-release-custom-component-for-wifi-ssid-monitoring)
+
+## [2.0.5-dev8] - 2026-10-02 - get_networks Filter Tests; Handler and Filter Predicate at Module Level
+
+### Summary
+
+The `get_networks` service filters gained characterization tests that assert which networks return, and five filter mutations that the earlier tests did not catch are now caught. The six filter branches then moved into a module-level `_network_matches_filter`, and the handler moved out of `async_register_services` to module level, which lowers that function's McCabe score from 24 to 13. Behavior is unchanged. This is build 1 of 3 in `v205_plan.md` (items I1 and I2).
+
+### Tests
+
+- **`tests/test_init.py`** (I1): `test_get_networks_returns_the_expected_networks`, 17 parametrized cases over one asymmetric payload of two known and four unknown networks, one unknown with no BSSID and one with no signal. Each case asserts the ordered list of returned SSIDs and `total_matched`, not a count. Cases cover the default `unknown` scope, `known` and `all`, the inclusive `min_signal` boundary, a network with no signal under `min_signal` and sorting last, keyword and exclude terms matching only the BSSID or only the band, term direction, any-term matching, a missing BSSID adding no text, and keyword with exclude combined. Written first and passing against the unmodified `services.py`.
+- **`tests/test_services.py`** (I2): 26 direct tests of `_network_matches_filter`, covering scope, band, `min_signal`, keyword, exclude and the missing-BSSID case.
+- **Suite**: 414 tests before the build, 457 after.
+
+### Changed
+
+- **`services.py`**: `_network_matches_filter(label, net, is_unknown, scope, band, min_signal, keyword, exclude)` holds the six filter branches verbatim, in their original order. `_handle_get_networks(hass, call)` is now module level and is registered with `functools.partial(_handle_get_networks, hass)`. No branch, order of evaluation or message changed. The handler moved as well as the predicate because the predicate alone leaves `async_register_services` at 19, one point under the target of 20, and the roadmap work on `get_networks` adds branches to this handler.
+- **McCabe scores** (`ruff check --select C901 --config "lint.mccabe.max-complexity=1"`): `async_register_services` 24 to 13, `_handle_get_networks` 11 (nested) to 6 (module level), `_network_matches_filter` 7. The highest score in the component is now 13.
+
+### Verified
+
+- **Mutations** (E5): the five filter mutations that survived the earlier suite (default `unknown` scope exclusion dropped, signal `None` guard removed, keyword match inverted, BSSID dropped from the haystack, band dropped from the haystack) each fail at least one new I1 test in a full-suite run on the unmodified code. A set of nine filter mutations was then applied to the extracted predicate, each under a 900 s timeout with a checksummed restore, and all nine fail at least one test. The nine are the five above plus the known-scope exclusion dropped, the band filter dropped, `min_signal` `<` changed to `<=`, and the exclude match inverted. Only the band-filter-dropped mutation is caught solely by a test that existed before the build (`test_get_networks_service_filters`) and by the new `test_network_matches_filter_band`.
+- **Live check**: after a restart of the development Home Assistant, `get_networks` returned the seven networks of the mock payload. Ten parameter combinations were compared with the filter logic from `HEAD` evaluated on the same live payload, and all ten matched in membership and order.
+- **Version**: `manifest.json` is unchanged and reads `2.0.5`.
+
+### Notes
+
+- **Defects found during the build**: the five filter mutations above survived the earlier tests because the test data was symmetric and the assertions counted networks, so the keyword direction, the BSSID and band haystack parts, the default scope and the signal `None` guard were unguarded. The plan's figure of 6 for `_network_matches_filter` was taken from a prototype and measures 7 in the shipped code, because the shipped predicate keeps the haystack comprehension inside it. The McCabe item named the predicate two ways and estimated about 8, which the item now corrects to the measured 7. No defect was found in the behavior of the shipped code.
+- **Records**: the WiFi rows of `shared/SharedNotes/issues/x_project/mccabe_complexity_reduction.md` carry the measured before and after.
 
 ## [2.0.5-dev7] - 2026-10-01 - CI Bumps, HA Compatibility, ruff re-sorts, mypy fix
 

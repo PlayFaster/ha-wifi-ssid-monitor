@@ -7,6 +7,7 @@ resolves its target entry from the call, defaulting to every configured entry.
 from __future__ import annotations
 
 from datetime import datetime
+from functools import partial
 import logging
 from typing import Any
 
@@ -145,6 +146,120 @@ async def _async_write_list(
     hass.config_entries.async_update_entry(entry, options=new_options)
 
 
+def _network_matches_filter(
+    label: str,
+    net: dict[str, Any],
+    is_unknown: bool,
+    scope: str,
+    band: str,
+    min_signal: int | None,
+    keyword: list[str],
+    exclude: list[str],
+) -> bool:
+    """Return whether one network passes every ``get_networks`` filter."""
+    if scope == "unknown" and not is_unknown:
+        return False
+    if scope == "known" and is_unknown:
+        return False
+    if band != "all" and net.get("band") != _BAND_LABELS.get(band):
+        return False
+    signal = net.get("signal")
+    if min_signal is not None and (signal is None or signal < min_signal):
+        return False
+
+    haystack = " ".join(
+        str(part).lower() for part in (label, net.get("bssid"), net.get("band")) if part
+    )
+    if keyword and not _matches(haystack, keyword):
+        return False
+    if exclude and _matches(haystack, exclude):
+        return False
+    return True
+
+
+async def _handle_get_networks(
+    hass: HomeAssistant, call: ServiceCall
+) -> dict[str, Any]:
+    """Return the current networks with their history annotations.
+
+    Reads the coordinator's own state rather than a sensor's attributes, so
+    it keeps working when the passive entities are unavailable, filtered or
+    capped — which is the coupling dev_standards Section 16 exists to
+    prevent.
+
+    It does **not** perform its own fetch, which Section 16 also asks for.
+    Deliberate: a scan is a real cost against the Supervisor, and an action
+    a user can call in a loop should not be able to drive that rate. The
+    trade is that a call during an outage returns the last good scan, so
+    the response carries `last_updated` and `stale` and the caller can
+    decide. Silently returning frozen data as though it were current is the
+    thing worth avoiding, not the reuse itself.
+    """
+    entries = _resolve_entries(hass, call.data.get("config_entry_id"))
+    scope = call.data["scope"]
+    band = call.data["band"]
+    min_signal = call.data.get("min_signal")
+    quantity = call.data["quantity"]
+    keyword = _split_terms(call.data.get("keyword"))
+    exclude = _split_terms(call.data.get("exclude"))
+
+    results: list[dict[str, Any]] = []
+    # Oldest scan across the entries queried, and whether any is stale.
+    # Reported once for the whole response rather than per network: every
+    # network in a given entry's payload came from the same scan.
+    last_updated: datetime | None = None
+    stale = False
+    for entry in entries:
+        coordinator: WifiScanCoordinator = entry.runtime_data
+        data = coordinator.data or {}
+
+        scanned_at = coordinator.last_update_success_time
+        if scanned_at is not None and (
+            last_updated is None or scanned_at < last_updated
+        ):
+            last_updated = scanned_at
+        if not coordinator.last_update_success or data == {}:
+            stale = True
+        networks: dict[str, Any] = data.get("networks", {})
+        unknown = set(data.get("unknown_ssids") or [])
+
+        for label, net in networks.items():
+            is_unknown = label in unknown
+            if not _network_matches_filter(
+                label, net, is_unknown, scope, band, min_signal, keyword, exclude
+            ):
+                continue
+
+            key = net.get("key")
+            results.append(
+                {
+                    "entry_id": entry.entry_id,
+                    "ssid": label,
+                    "bssid": net.get("bssid"),
+                    "signal": net.get("signal"),
+                    "channel": net.get("channel"),
+                    "band": net.get("band"),
+                    "hidden": net.get("hidden"),
+                    "ssid_anomaly": net.get("ssid_anomaly"),
+                    "mode": net.get("mode"),
+                    "known": not is_unknown,
+                    "first_seen": _iso(coordinator.first_seen.get(key)),
+                    "last_seen": _iso(coordinator.last_seen.get(key)),
+                    "visit_count": coordinator.visit_counts.get(key),
+                }
+            )
+
+    results.sort(key=lambda n: (n["signal"] is None, -(n["signal"] or 0)))
+    total_matched = len(results)
+    return {
+        "networks": results[:quantity],
+        "count": min(quantity, total_matched),
+        "total_matched": total_matched,
+        "last_updated": _iso(last_updated),
+        "stale": stale,
+    }
+
+
 def async_register_services(hass: HomeAssistant) -> None:
     """Register every domain-global service.
 
@@ -201,101 +316,6 @@ def async_register_services(hass: HomeAssistant) -> None:
             coordinator: WifiScanCoordinator = entry.runtime_data
             await coordinator.async_clear_history()
 
-    async def _handle_get_networks(call: ServiceCall) -> dict[str, Any]:
-        """Return the current networks with their history annotations.
-
-        Reads the coordinator's own state rather than a sensor's attributes, so
-        it keeps working when the passive entities are unavailable, filtered or
-        capped — which is the coupling dev_standards Section 16 exists to
-        prevent.
-
-        It does **not** perform its own fetch, which Section 16 also asks for.
-        Deliberate: a scan is a real cost against the Supervisor, and an action
-        a user can call in a loop should not be able to drive that rate. The
-        trade is that a call during an outage returns the last good scan, so
-        the response carries `last_updated` and `stale` and the caller can
-        decide. Silently returning frozen data as though it were current is the
-        thing worth avoiding, not the reuse itself.
-        """
-        entries = _resolve_entries(hass, call.data.get("config_entry_id"))
-        scope = call.data["scope"]
-        band = call.data["band"]
-        min_signal = call.data.get("min_signal")
-        quantity = call.data["quantity"]
-        keyword = _split_terms(call.data.get("keyword"))
-        exclude = _split_terms(call.data.get("exclude"))
-
-        results: list[dict[str, Any]] = []
-        # Oldest scan across the entries queried, and whether any is stale.
-        # Reported once for the whole response rather than per network: every
-        # network in a given entry's payload came from the same scan.
-        last_updated: datetime | None = None
-        stale = False
-        for entry in entries:
-            coordinator: WifiScanCoordinator = entry.runtime_data
-            data = coordinator.data or {}
-
-            scanned_at = coordinator.last_update_success_time
-            if scanned_at is not None and (
-                last_updated is None or scanned_at < last_updated
-            ):
-                last_updated = scanned_at
-            if not coordinator.last_update_success or data == {}:
-                stale = True
-            networks: dict[str, Any] = data.get("networks", {})
-            unknown = set(data.get("unknown_ssids") or [])
-
-            for label, net in networks.items():
-                is_unknown = label in unknown
-                if scope == "unknown" and not is_unknown:
-                    continue
-                if scope == "known" and is_unknown:
-                    continue
-                if band != "all" and net.get("band") != _BAND_LABELS.get(band):
-                    continue
-                signal = net.get("signal")
-                if min_signal is not None and (signal is None or signal < min_signal):
-                    continue
-
-                haystack = " ".join(
-                    str(part).lower()
-                    for part in (label, net.get("bssid"), net.get("band"))
-                    if part
-                )
-                if keyword and not _matches(haystack, keyword):
-                    continue
-                if exclude and _matches(haystack, exclude):
-                    continue
-
-                key = net.get("key")
-                results.append(
-                    {
-                        "entry_id": entry.entry_id,
-                        "ssid": label,
-                        "bssid": net.get("bssid"),
-                        "signal": signal,
-                        "channel": net.get("channel"),
-                        "band": net.get("band"),
-                        "hidden": net.get("hidden"),
-                        "ssid_anomaly": net.get("ssid_anomaly"),
-                        "mode": net.get("mode"),
-                        "known": not is_unknown,
-                        "first_seen": _iso(coordinator.first_seen.get(key)),
-                        "last_seen": _iso(coordinator.last_seen.get(key)),
-                        "visit_count": coordinator.visit_counts.get(key),
-                    }
-                )
-
-        results.sort(key=lambda n: (n["signal"] is None, -(n["signal"] or 0)))
-        total_matched = len(results)
-        return {
-            "networks": results[:quantity],
-            "count": min(quantity, total_matched),
-            "total_matched": total_matched,
-            "last_updated": _iso(last_updated),
-            "stale": stale,
-        }
-
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_SSID, _handle_add_ssid, schema=SCHEMA_ADD_SSID
     )
@@ -321,7 +341,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN,
         SERVICE_GET_NETWORKS,
-        _handle_get_networks,
+        partial(_handle_get_networks, hass),
         schema=SCHEMA_GET_NETWORKS,
         supports_response=SupportsResponse.ONLY,
     )
