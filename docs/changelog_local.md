@@ -5,6 +5,7 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.5-dev10\] - 2026-10-03 - Mock Supervisor Scan Latency, Jitter and Intermittent Networks; Scan Behavior Reference; Queue Records](#205-dev10---2026-10-03---mock-supervisor-scan-latency-jitter-and-intermittent-networks-scan-behavior-reference-queue-records)
   - [\[2.0.5-dev9\] - 2026-10-02 - Diagnostics Download Carries Rejected-Response Record; Payload Keys Classified; Device Sweep](#205-dev9---2026-10-02---diagnostics-download-carries-rejected-response-record-payload-keys-classified-device-sweep)
   - [\[2.0.5-dev8\] - 2026-10-02 - get\_networks Filter Tests; Handler and Filter Predicate at Module Level](#205-dev8---2026-10-02---get_networks-filter-tests-handler-and-filter-predicate-at-module-level)
   - [\[2.0.5-dev7\] - 2026-10-01 - CI Bumps, HA Compatibility, ruff re-sorts, mypy fix](#205-dev7---2026-10-01---ci-bumps-ha-compatibility-ruff-re-sorts-mypy-fix)
@@ -122,6 +123,40 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.2\] - 2026-04-02 - Test Infrastructure: Mock Supervisor and Branding](#102---2026-04-02---test-infrastructure-mock-supervisor-and-branding)
   - [\[1.0.1\] - 2026-04-02 - Test Suite: Test Coverage to 99%](#101---2026-04-02---test-suite-test-coverage-to-99)
   - [\[1.0.0\] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring](#100---2026-04-01---initial-release-custom-component-for-wifi-ssid-monitoring)
+
+## [2.0.5-dev10] - 2026-10-03 - Mock Supervisor Scan Latency, Jitter and Intermittent Networks; Scan Behavior Reference; Queue Records
+
+### Summary
+
+The devcontainer mock Supervisor now behaves like the real one measured on 2026-10-01: a scan takes about 5 s, signals jitter between scans, and two unknown networks come and go. The two-host measurement is published as `docs/supervisor_scan_behavior.md`, with a README line, four roadmap pointers and corrections to `docs/DEVELOPMENT.md`. The queue records for the outcomes decided in `v205_plan.md` are written. No integration code changed. This is build 3 of 3 in `v205_plan.md` (items I6, I7, I8 and I9).
+
+### Added
+
+- **Scan latency in the mock** (I6): 5.1 s on every `accesspoints` call that returns 200, and 10.5 s on every 50th call, counted across both interfaces from process start. The 400 and 500 answers are not delayed, because real 400 and 404 answers are fast, and the `slow` fault replaces the latency. The 50th call is a chosen stress value, since the observed rate of a long call was 1 in 117.
+- **Signal jitter in the mock** (I6): a uniform whole-number offset per scan, clamped to 0 to 100, on four `wlan0` networks: `My_WiFi_24G` plus or minus 2, `My_WiFi_5G` plus or minus 4, the zero-width network plus or minus 5, and `Neighbors_WiFi_5G` plus or minus 12 on top of its hourly triangle.
+- **Two intermittent unknown networks on `wlan0`** (I6): `Neighbor_Flat_2G` at a signal of 52 plus or minus 3 on 2437 MHz, present in about 78% of scans, and `Distant_Cafe_5G` at 33 plus or minus 1 on 5260 MHz, present in about 12%. The MACs are `AA:BB:CC:DD:EE:07` and `AA:BB:CC:DD:EE:08`, and the mode is `infrastructure`. Every random choice uses one generator with a fixed seed set at start. `wlp2s0` keeps its payload and takes the latency, and every known network stays present in every scan. `MOCK_STATIC=1` returns the fixed payload with no jitter and none of the extra networks, and keeps the latency.
+- **`docs/supervisor_scan_behavior.md`** (I7): the two-host measurement as tables of latency, change rate, presence by signal tier and signal swing, with the host types, the response fields, and the finding that the `supervisor/api` WebSocket command reaches the Supervisor with an administrator token and that `wlan0` reports `wireless` and `enabled: False` on both hosts. A case-insensitive search of the document for each of the 10 BSSIDs in the two result files finds none. The probe folder is named in prose, with no link into `shared/ProjNotes`.
+- **README line under Dynamic Polling** (I7): a scan is a point sample, and a weak network can be absent from one.
+- **Roadmap pointers** (I8): one line in each of the entries `get_networks` should scan, Visit-count threshold, Appearance / disappearance events and Proximity alert hysteresis, pointing to the reference, and one Version Control line (v2.6.1). The diff of `ROADMAP.md` is those five lines and the blank lines that separate them.
+
+### Changed
+
+- **Mock text** (I6): the docstring of `mock_supervisor.py` cites the 2026-10-01 measurement for each new literal, and its statements that exactly two networks move, that both `My_WiFi_*` entries stay fixed and that static mode is for `Sensor: Verify HA` are rewritten. The comment on `MOCK_STATIC` in `docker-compose.override.yml` is rewritten to match, and the setting itself is unchanged. An S311 suppression with its reason is added to the file's existing `noqa` header for the seeded generator.
+- **`docs/DEVELOPMENT.md` §3e** (I7): a new record (E) for the realistic mock, and corrections to three statements. Exactly two networks no longer move, both `My_WiFi_*` entries no longer stay fixed, and `MOCK_STATIC=1` is no longer described as needed for `Sensor: Verify HA`. That task compares live values with the `min_limit` and `max_limit` guard bands and not with fixed values (`check_sensor_manifest.py`, read 2026-10-02), so jitter clamped to 0 to 100 stays inside them.
+- **Queue records** (I9): chore C-037 is `DONE` for WiFi, with the earlier statement that Mypy had not run corrected. In the ZTE techniques item, rows 20 and 23 are `DONE`, rows 25 and 26 are `N/A`, row 30 is `PENDING` with the I4 tests named, the reasons of rows 1, 3 and 27 name one polled endpoint with `/network/info` read once at setup, and the item's `Verified` line and Version Control are updated. The reset-action item and the text-history item are `N/A` for WiFi with their reasons, the earlier statement that no services are registered is corrected to six, and the reset item's alignment section places an `N/A` project outside its requirement. The queue checker reports the same 10 advisories as before and the WiFi open list no longer shows these three items.
+
+### Verified
+
+- **Generator**: 5000 offline draws gave medium presence 77% and weak presence 13%, jitter inside each amplitude, every known network present in every draw, and `wlp2s0` unchanged.
+- **Measurement of the running mock**: after the owner recreated `supervisor_mock`, 40 consecutive `accesspoints` calls to `wlan0` gave a median latency of 5.11 s and a minimum of 5.10 s. Signals differed between calls on all four jittered networks. `Neighbor_Flat_2G` was present in 33 calls and `Distant_Cafe_5G` in 2, each with its set frequency and mode. All five known networks were present in all 40 calls, and the MACs in a call were unique. Eight calls took 7.7 to 10.2 s, which is requests waiting behind Home Assistant's own polls on the single-threaded server (conclusion C14 of the plan), and the 50th-call stress delay was not isolated.
+- **Fault drill**: `Mock: Fault Drill` passed all 19 checks in 359 s and recorded 2026-10-02T23:48:59+0100 in `.notes/fault_drill_last.txt`. The previous record was 2026-08-26. The validation run for this build shows `Mock: Fault Drill Staleness` as not clear, because the task fails whenever a watched file, here `mock_supervisor.py`, has uncommitted changes, whatever the drill date. It clears when the owner commits the build.
+- **Observation, not a gate**: over 30 minutes the `wlan0` entry was scanned 31 times, one `scan_now` a minute, and `unknown_count` ranged from 2 to 5, the total count from 5 to 8, and the strongest unknown signal from 79 to 89. `proximity_alert` was on in 28 samples and off in 3, with 6 changes, because the zero-width network, at 84 plus or minus 5, sits across the threshold of 80. `new_networks_24h` rose from 1 to 2, and one `new_network` event fired, for `Distant_Cafe_5G` on its first sighting. `integration_health` stayed off throughout. The result agrees with the coordinator reading in plan evidence E21.
+- **Version**: `manifest.json` is unchanged and reads `2.0.5`.
+
+### Notes
+
+- **Defects and findings during the build**: the statement in §3e that static mode is needed for `Sensor: Verify HA` was not supported by the checker and is corrected. The plan's `Distant_Cafe_2G` name and the feedback's suggested frequencies would have given a 5 GHz weak network a 2.4 GHz name or a frequency the measurement did not show, so the network is `Distant_Cafe_5G` on the measured 5260 MHz. The drill staleness task cannot report clear before commit, which the plan's acceptance for I6 did not allow for. On the development instance the `WiFi SSID Monitor` entry has Home Assistant's own "Enable polling for changes" option off (`pref_disable_polling: True`), so it is scanned only by `scan_now`, and the observation drove it that way. The setting was left as found.
+- **Records**: the 2026-10-01 record in `docs/DEVELOPMENT.md` §3e (E), the WiFi cells of `x_proj_chores.md`, `zte_techniques_review.md`, `reset_entities_action.md` and `text_sensor_long_term_history.md`, and `docs/supervisor_scan_behavior.md`.
 
 ## [2.0.5-dev9] - 2026-10-02 - Diagnostics Download Carries Rejected-Response Record; Payload Keys Classified; Device Sweep
 

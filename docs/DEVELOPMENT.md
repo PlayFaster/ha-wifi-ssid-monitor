@@ -158,16 +158,16 @@ Also fix a pre-existing internal contradiction: `Neighbors_WiFi_5G` is defined w
 
 Give the second adapter its own access-point payload, or the two entries look identical and prove less.
 
-**(C) Variability, on exactly two networks, driven by minute-of-hour.** The payload is static today, so across a whole devcontainer session `new_24h` stays `0`, `visit_counts` never move, `last_seen` never changes, the signal never crosses the proximity threshold and the strike budget never runs.
+**(C) Variability, driven by minute-of-hour.** From 2026-10-01 the mock also jitters signals and adds two intermittent networks, recorded in (E). The payload was static at the time of this decision, so across a whole devcontainer session `new_24h` stays `0`, `visit_counts` never move, `last_seen` never changes, the signal never crosses the proximity threshold and the strike budget never runs.
 
 - **`Neighbors_WiFi_5G`** — signal as a triangle wave between 55 and 95 across the hour, crossing the default threshold of 80 twice. Drives `proximity_alert`, `strongest_unknown_signal`, and gives the hysteresis roadmap item something real to be judged against.
 - **`Unknown_WiFi_6G`** — present for minutes 0-29, absent for 30-59. Drives the `new_network` event, `visit_counts`, `new_24h`, `last_seen` movement and a changing `unknown_count`.
 
 **Minute-of-hour rather than a request counter**, because it is stateless — the mock is a bare `HTTPServer` that loses everything on restart — and reproducible: ":05 looks like this" is a statement someone can check.
 
-**Both `My_WiFi_*` entries, the hidden one and the zero-width one stay fixed.** A flapping known set would trip the canary and raise repairs continuously, and the hidden and anomaly labels must stay reproducible.
+**Every known network is present in every scan.** A flapping known set would trip the canary and raise repairs continuously. The hidden and zero-width entries keep their labels, because signal jitter changes a signal and nothing else.
 
-**`MOCK_STATIC=1` pins the payload, and is not optional.** `Sensor: Verify HA` audits live entity state in the devcontainer, and any bug reproduction wants a fixed payload. Without the escape hatch this trades one problem for a worse one.
+**`MOCK_STATIC=1` returns the fixed payload.** It reproduces a payload byte for byte, with no jitter and none of the extra networks, and the scan latency stays. `Sensor: Verify HA` does not need it: that task compares live values with the `min_limit` and `max_limit` guard bands and not with fixed values (`check_sensor_manifest.py`, read 2026-10-02), so jitter clamped to 0 to 100 stays inside them. The setting comes only from the compose file, so changing it means recreating the container.
 
 **(D) Fault injection, through a `/mock/fault` control endpoint.** The integration builds its own fixed URL, so there is nowhere to put a query parameter — the switch has to be out of band. An endpoint setting module-level state also allows a fault to be **cleared** mid-session, which is the point: auto-recovery and repair deletion are the least eyeballed behavior in the health system. An environment variable would need a container restart and could not show recovery at all.
 
@@ -193,6 +193,14 @@ That reaches **all eight health checks and all three repair issues**, none of wh
 **Relevance-Triggered Staleness**: The drill verification task prints output only when changes to monitored files post-date `.notes/fault_drill_last.txt` or when uncommitted working-tree edits exist.
 
 **Several will not fire on the first poll, and that is correct.** Drift checks wait out `HEALTH_STARTUP_GRACE_SCANS` and `HEALTH_DRIFT_STRIKE_LIMIT`, `signal_format_changed` needs a baseline from a previous scan, and `empty_scan` and the canary need accumulated visit counts. So the endpoint wants an optional auto-clear after N scans, and a short devcontainer scan interval — otherwise the tool is a waiting game. Route `/mock/` **before** the existing 404 fallback.
+
+**(E) Realistic scan behavior, recorded 2026-10-01.** A measurement of the Supervisor scan on two real hosts, in `docs/supervisor_scan_behavior.md`, showed that a scan takes about 5 s, that consecutive results differ in 83% to 93% of cases, and that networks below a signal of about 55 come and go. Three behaviors were added to the mock, on by default:
+
+- **Latency**: 5.1 s on every `accesspoints` call that returns 200, and 10.5 s on every 50th call, counted across both interfaces from process start. The observed rate of a long call was 1 in 117, so 50 is a chosen stress value. The 400 and 500 answers are not delayed, because real 400 and 404 answers are fast. The `slow` fault replaces the latency.
+- **Signal jitter**: a uniform whole-number offset per scan, clamped to 0 to 100, on four `wlan0` networks: `My_WiFi_24G` plus or minus 2, `My_WiFi_5G` plus or minus 4, the zero-width network plus or minus 5, and `Neighbors_WiFi_5G` plus or minus 12 on top of its hourly triangle.
+- **Two intermittent unknown networks on `wlan0`**: `Neighbor_Flat_2G` at a signal of 52 plus or minus 3 on 2437 MHz, present in about 78% of scans, and `Distant_Cafe_5G` at 33 plus or minus 1 on 5260 MHz, present in about 12%. The frequencies are those the measurement reported for the medium and weak networks, and the weak one is named for its band.
+
+`wlp2s0` keeps its payload and takes the latency. Every random choice uses one generator with a fixed seed set at start. A restart does not reproduce a run, because Home Assistant's own polls consume the draws and the call count. `scan_now` blocks for the scan, so each scan of the `Mock: Fault Drill` takes about 5 s longer, which is an estimated 90 s over the 18 scans of the last run. One recreate of the `supervisor_mock` container loads the change, and it is not recreated again. The weak tier rests on one host and the medium tier on the other, and neither is a distribution.
 
 ## 3c. Standards Sweeps — why 100% coverage was not enough
 
@@ -237,7 +245,7 @@ Added 2026-08-03. The suite was at 100% line coverage and 217 passing, and **fou
 - **Supervisor API**: This integration requires Home Assistant to be running in an environment with the Supervisor (HA OS or Supervised). It uses the internal `http://supervisor` endpoint and `SUPERVISOR_TOKEN`.
 - **Testing Dependencies**: Robust testing relies on `pytest-homeassistant-custom-component` and `pytest-asyncio`.
 - **Supervisor payload shape**: what the real Supervisor sends is recorded in §3d, from three live systems; the dev-container mock reproduces it and its docstring carries the same table. Check both before assuming a field's type or value.
-- **Mock switches**: `MOCK_STATIC=1` pins the mock payload for reproducible runs; `GET /mock/fault?mode=<name>` injects a failure and `mode=off` clears it. See §3e.
+- **Mock switches**: `MOCK_STATIC=1` returns the fixed mock payload, without jitter or the extra networks, and keeps the scan latency; `GET /mock/fault?mode=<name>` injects a failure and `mode=off` clears it. See §3e.
 - **Branding Assets**: Generic branding (WiFi signal + magnifying glass) was generated using Python's `Pillow` library to ensure a clean, modern aesthetic independent of hardware-specific imagery.
 
 ---
@@ -258,6 +266,7 @@ Added 2026-08-03. The suite was at 100% line coverage and 217 passing, and **fou
 - **[2026-08-21]** - Added §3d, the Supervisor payload as observed on three real systems, and §3e, four mock Supervisor changes, implemented the same day after those downloads showed it had drifted from the live payload (`mode`, interface naming). Records the second-adapter reasoning, minute-of-hour variability and out-of-band fault injection, plus the attended drill and the relevance-triggered staleness warning that makes it get run.
 - **[2026-08-06]** - **Corrected one pattern that had become false, and refreshed two facts.** The button error-propagation entry (§3, added v1.5.0-dev3) told a reader to call `async_refresh()` and then check `last_update_success`. Both halves had drifted: the button routes through `async_force_refresh()` → `async_request_refresh()` since 2026-08-03, and that path is debounced — inside the 10-second cooldown `last_update_success` describes the _previous_ run, so a failed scan followed by a quick retry press reported failure again without having retried. The entry now carries the timestamp-comparison pattern and names all three outcomes of a press. **This is the second stale claim found in this file in four days**, and the first that would have propagated a live bug into a sibling project, since §3 exists to be copied. Coverage figure updated to 363 tests at 100% line _and_ branch, with a note that every fault fixed on 2026-08-06 was found by deepening tests against code already at 100% line coverage. Composite history key entry extended to state which radio's measurement survives when several share one SSID — arbitrary until 2026-08-06, now the strongest.
 - **[2026-08-22]** - **Refreshed two facts §3 had outlived.** The test count read "363 tests as of 2026-08-06" and is now 415; the mutation sentence predated `coordinator.py` joining the scoped list and now carries the measured result — 1,307 mutants, 84.3% killed — plus a pointer to `.notes/test_pytest_issues/mutation_covered_not_covered.md`, which records why each module is on or off that list and what adding one costs. No pattern in §3 became false; these were stale numbers, which age quietly and are the reason this section is worth re-reading rather than appending to.
+- **[2026-10-01]** - Added §3e (E), the realistic mock Supervisor with scan latency, signal jitter and two intermittent unknown networks, from the two-host measurement in `docs/supervisor_scan_behavior.md`. Corrected the statements in §3e that exactly two networks move, that both `My_WiFi_*` entries stay fixed, and that `MOCK_STATIC=1` is needed for `Sensor: Verify HA`.
 
 ## Repair Issue Conditions
 
