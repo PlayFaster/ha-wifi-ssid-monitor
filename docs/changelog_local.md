@@ -167,6 +167,10 @@ This is a maintenance release that improves diagnostics and fixes an edge case e
 
 Release of 2.0.5, built over dev1 to dev10. The public entry in `CHANGELOG.md` states the breaking Home Assistant floor of 2025.2.0, the `last_rejection` record in the diagnostics download and the fix for a non-object `data` reply, and it leaves the other dev entries out because a user never saw their intermediate states. This entry also corrects one sentence of the dev5 entry. `manifest.json` already read `2.0.5` and is unchanged.
 
+### Bumps
+
+- **Shared CI**: Bump `.github` Shared CI Validation via SHA from v2.0.16 to v2.0.17
+
 ### Changed
 
 - **`CHANGELOG.md`** (I10): the `[2.0.5]` entry. The Home Assistant floor change is under a Breaking section, as the 2.0.3 attribute change was, because HACS withholds the version from installations below 2025.2.0, which Home Assistant public analytics of 2026-09-23 place at 4.6% of 687,049 opted-in installations (dev5 entry). Shipping a floor change in a patch release was the owner's decision on 2026-10-01 (plan evidence E27, decision D28).
