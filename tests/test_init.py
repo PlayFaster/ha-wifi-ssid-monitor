@@ -1,10 +1,12 @@
 """Tests for WiFi SSID Monitor setup and unload."""
 
+from typing import Any
 from unittest.mock import patch
 
 import pytest
-from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from homeassistant.core import HomeAssistant
 
 
 @pytest.mark.asyncio
@@ -611,13 +613,154 @@ async def test_get_networks_service_filters(hass: HomeAssistant, mock_config_ent
     assert len(result6["networks"]) == 1
 
 
+def _filter_fixture_network(
+    bssid: str | None, signal: int | None, band: str
+) -> dict[str, Any]:
+    return {
+        "bssid": bssid,
+        "signal": signal,
+        "channel": 1,
+        "band": band,
+        "hidden": False,
+        "ssid_anomaly": False,
+        "mode": "infrastructure",
+        "key": None,
+    }
+
+
+# Asymmetric on purpose: two known and four unknown networks, one unknown with no
+# BSSID and one with no signal, and BSSIDs and bands that no label contains, so a
+# term can match through exactly one field.
+_FILTER_NETWORKS: dict[str, dict[str, Any]] = {
+    "Alpha": _filter_fixture_network("11:11:11:11:11:01", 80, "2.4 GHz"),
+    "Bravo": _filter_fixture_network("11:11:11:11:11:02", 70, "5 GHz"),
+    "Charlie": _filter_fixture_network("22:22:22:22:22:01", 60, "2.4 GHz"),
+    "Delta": _filter_fixture_network("22:22:22:22:22:02", 40, "5 GHz"),
+    "Echo": _filter_fixture_network(None, 30, "6 GHz"),
+    "Foxtrot": _filter_fixture_network("22:22:22:22:22:03", None, "5 GHz"),
+}
+_FILTER_UNKNOWN = ["Charlie", "Delta", "Echo", "Foxtrot"]
+_ALL_BY_SIGNAL = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("params", "expected"),
+    [
+        pytest.param({}, _FILTER_UNKNOWN, id="default-scope-is-unknown"),
+        pytest.param({"scope": "unknown"}, _FILTER_UNKNOWN, id="unknown-scope"),
+        pytest.param({"scope": "known"}, ["Alpha", "Bravo"], id="known-scope"),
+        pytest.param(
+            {"scope": "all"}, _ALL_BY_SIGNAL, id="no-signal-sorts-last-after-weakest"
+        ),
+        pytest.param(
+            {"scope": "all", "min_signal": 60},
+            ["Alpha", "Bravo", "Charlie"],
+            id="min-signal-is-inclusive",
+        ),
+        pytest.param(
+            {"scope": "all", "min_signal": 0},
+            _ALL_BY_SIGNAL[:-1],
+            id="no-signal-fails-any-min-signal",
+        ),
+        pytest.param(
+            {"scope": "all", "keyword": "22:22:22:22:22:02"},
+            ["Delta"],
+            id="keyword-matches-bssid-only",
+        ),
+        pytest.param(
+            {"scope": "all", "keyword": "6 ghz"},
+            ["Echo"],
+            id="keyword-matches-band-only",
+        ),
+        pytest.param(
+            {"scope": "all", "keyword": "alp"}, ["Alpha"], id="keyword-matches-label"
+        ),
+        pytest.param(
+            {"scope": "all", "keyword": "alp, DELTA"},
+            ["Alpha", "Delta"],
+            id="keyword-any-term-case-insensitive",
+        ),
+        pytest.param(
+            {"scope": "all", "keyword": "none"}, [], id="missing-bssid-is-not-text"
+        ),
+        pytest.param(
+            {"scope": "all", "keyword": "alphabet"},
+            [],
+            id="keyword-longer-than-haystack-misses",
+        ),
+        pytest.param(
+            {"scope": "known", "keyword": "22:22"}, [], id="scope-applies-with-keyword"
+        ),
+        pytest.param(
+            {"scope": "all", "exclude": "alp"},
+            _ALL_BY_SIGNAL[1:],
+            id="exclude-drops-label-match",
+        ),
+        pytest.param(
+            {"scope": "all", "exclude": "22:22:22:22:22:0"},
+            ["Alpha", "Bravo", "Echo"],
+            id="exclude-drops-bssid-match-keeps-no-bssid",
+        ),
+        pytest.param(
+            {"scope": "all", "exclude": "6 ghz"},
+            [n for n in _ALL_BY_SIGNAL if n != "Echo"],
+            id="exclude-drops-band-match",
+        ),
+        pytest.param(
+            {"scope": "all", "keyword": "ghz", "exclude": "5 ghz"},
+            ["Alpha", "Charlie", "Echo"],
+            id="keyword-and-exclude-combine",
+        ),
+    ],
+)
+async def test_get_networks_returns_the_expected_networks(
+    hass: HomeAssistant,
+    mock_config_entry,
+    params: dict[str, Any],
+    expected: list[str],
+):
+    """The filters return exactly these networks, in this order, not a count."""
+    from custom_components.wifi_ssid_monitor.const import DOMAIN
+
+    mock_config_entry.add_to_hass(hass)
+    with patch(
+        "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+        return_value=[],
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    networks = {label: {**net, "key": label} for label, net in _FILTER_NETWORKS.items()}
+    coordinator = mock_config_entry.runtime_data
+    coordinator.data = {
+        "count": len(networks),
+        "ssids": list(networks),
+        "unknown_ssids": _FILTER_UNKNOWN,
+        "unknown_count": len(_FILTER_UNKNOWN),
+        "interface": "wlan0",
+        "networks": networks,
+        "last_seen": {},
+        "first_seen": {},
+        "visit_counts": {},
+        "new_24h": 0,
+        "strongest_unknown_signal": 60,
+        "strongest_unknown_ssid": "Charlie",
+        "signal_unit": "percent",
+    }
+
+    result = await hass.services.async_call(
+        DOMAIN, "get_networks", params, blocking=True, return_response=True
+    )
+
+    assert [n["ssid"] for n in result["networks"]] == expected
+    assert result["total_matched"] == len(expected)
+
+
 @pytest.mark.asyncio
 async def test_add_known_ssid_service(hass: HomeAssistant, mock_config_entry):
     """Test the add_ssid service."""
-    from custom_components.wifi_ssid_monitor.const import (
-        CONF_KNOWN_SSIDS,
-        DOMAIN,
-    )
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
 
@@ -644,10 +787,7 @@ async def test_add_known_ssid_service_already_exists(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test the add_ssid service when SSID already exists."""
-    from custom_components.wifi_ssid_monitor.const import (
-        CONF_KNOWN_SSIDS,
-        DOMAIN,
-    )
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
 
@@ -675,10 +815,7 @@ async def test_add_known_ssid_service_with_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test the add_ssid service with a specific config_entry_id."""
-    from custom_components.wifi_ssid_monitor.const import (
-        CONF_KNOWN_SSIDS,
-        DOMAIN,
-    )
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
 
@@ -705,10 +842,7 @@ async def test_add_known_ssid_service_deduplication(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test add_ssid service deduplicates a runtime-added SSID."""
-    from custom_components.wifi_ssid_monitor.const import (
-        CONF_KNOWN_SSIDS,
-        DOMAIN,
-    )
+    from custom_components.wifi_ssid_monitor.const import CONF_KNOWN_SSIDS, DOMAIN
 
     mock_config_entry.add_to_hass(hass)
 
@@ -836,9 +970,8 @@ async def test_add_known_ssid_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test add_known_ssid service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -945,9 +1078,8 @@ async def test_remove_known_ssid_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test remove_ssid service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -1109,9 +1241,8 @@ async def test_scan_now_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test scan_now service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -1193,9 +1324,8 @@ async def test_clear_last_seen_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test clear_last_seen service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -1283,9 +1413,8 @@ async def test_set_known_ssids_service_invalid_entry_id(
     hass: HomeAssistant, mock_config_entry
 ):
     """Test set_ssids service raises HomeAssistantError with bogus entry_id."""
-    from homeassistant.exceptions import HomeAssistantError
-
     from custom_components.wifi_ssid_monitor.const import DOMAIN
+    from homeassistant.exceptions import HomeAssistantError
 
     mock_config_entry.add_to_hass(hass)
 
@@ -1378,9 +1507,8 @@ async def test_get_networks_reports_the_oldest_scan_across_entries(
     """
     from datetime import timedelta
 
-    from homeassistant.util import dt as dt_util
-
     from custom_components.wifi_ssid_monitor.const import CONF_INTERFACE, DOMAIN
+    from homeassistant.util import dt as dt_util
 
     mock_config_entry.add_to_hass(hass)
     second = MockConfigEntry(
@@ -1477,10 +1605,7 @@ async def test_setup_clears_repairs_raised_under_retired_keys(
     it is `is_fixable=False`, so the user cannot dismiss it either. The sweep
     runs at every setup, which is what makes retiring a key safe.
     """
-    from custom_components.wifi_ssid_monitor.const import (
-        RETIRED_REPAIR_KEYS,
-        issue_id,
-    )
+    from custom_components.wifi_ssid_monitor.const import RETIRED_REPAIR_KEYS, issue_id
 
     mock_config_entry.add_to_hass(hass)
 

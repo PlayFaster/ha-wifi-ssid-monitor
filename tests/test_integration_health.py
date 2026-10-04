@@ -652,8 +652,6 @@ async def test_every_repair_the_code_raises_is_registered_for_removal(
     pass for the wrong reason. Raising a card under every id the code knows
     about and asserting the registry empties cannot.
     """
-    from homeassistant.helpers import issue_registry as ir
-
     from custom_components.wifi_ssid_monitor import async_remove_entry
     from custom_components.wifi_ssid_monitor.const import (
         ALL_REPAIR_KEYS,
@@ -661,6 +659,7 @@ async def test_every_repair_the_code_raises_is_registered_for_removal(
         RETIRED_REPAIR_KEYS,
         issue_id,
     )
+    from homeassistant.helpers import issue_registry as ir
 
     mock_config_entry.add_to_hass(hass)
     names = (*ALL_REPAIR_KEYS, *RETIRED_REPAIR_KEYS)

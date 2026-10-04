@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.0.5] - 2026-10-04 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in Diagnostics; Malformed Reply Fix
+
+This is a maintenance release that improves diagnostics and fixes an edge case error, but does not otherwise change the functionality of the integration.
+
+### Summary
+
+- **Minimum Home Assistant raised to 2025.2.0**: Requires Python 3.13 runtime; older Home Assistant versions will remain on 2.0.4 until updated.
+- **Diagnostics download includes rejected scan details**: Diagnostics exports now capture the last rejected Supervisor response to aid troubleshooting, with personal network names and hardware addresses stripped.
+- **Resilience against unexpected replies**: Scans no longer fail with an unhandled error when the Supervisor returns non-standard data.
+
+### Breaking
+
+- **Minimum Home Assistant version is now 2025.2.0:** Home Assistant 2025.2.0 is the first release requiring Python 3.13, making Python 3.13 the minimum runtime.
+  - HACS withholds this update from installations running older Home Assistant releases, which will remain on 2.0.4.
+  - Update Home Assistant first, then update this integration. No entity, configuration, or service action changes are required.
+
+### Added
+
+- **Rejected scan details in diagnostics download**: When the Supervisor rejects a scan, the diagnostics export now records a `last_rejection` entry under `coordinator`. It includes the HTTP status code, failure category (`http_error`, `invalid_json`, or `missing_ap_key`), timestamp, content type, and up to 500 characters of error response text with any hardware MAC addresses replaced by `[REDACTED_MAC]`.
+  - The record contains no SSIDs, BSSIDs, or network credentials.
+  - It clears automatically as soon as a subsequent scan succeeds.
+  - Attach the download to an issue as before.
+
+### Fixed
+
+- **Malformed Supervisor reply handling**: An issue where a Supervisor reply returning non-object data caused an unhandled error during scans is resolved. It is now handled gracefully as a missing access-point list and surfaced as payload drift on the **Integration Health** sensor.
+
+### Under the hood
+
+- Reorganized `get_networks` filtering into a dedicated helper and expanded the test suite from 414 to 486 tests at 100% line and branch coverage.
+- Introduced strict classification sets in diagnostics to ensure all published and sanitized fields are guarded against identifier leaks.
+- Documented empirical multi-host scan behavior and signal jitter measurements in `docs/supervisor_scan_behavior.md`.
+
+---
+
 ## [2.0.4] - 2026-08-26 - Release: Repair Issue Consolidation and Removal Cleanup
 
 Routine maintenance update refining Repair notifications with no changes to daily operation; safe to skip until you are next updating integrations.
@@ -227,7 +262,7 @@ Major feature release introducing security monitoring, scanning controls, and pe
 
 - **Known Limitations**: Documented that multiple non-broadcasting WiFi networks report as a single `[hidden]` entry in SSID counts, as unbroadcast SSIDs cannot be distinguished individually.
 
-## [1.4.1] - 2026-04-18 - Telemetry: Last Updated Sensor, Custom Naming, and Guard Bands
+## [1.4.1] - 2026-04-18 - Release: Last Updated Sensor, Custom Naming, and Guard Bands
 
 ### Added
 
@@ -280,7 +315,7 @@ Major feature release introducing security monitoring, scanning controls, and pe
 
 - **Tests**: Expanded the test suite to include full coverage for the new number platform and debouncing logic.
 
-## [1.1.0] - 2026-04-02 - Telemetry: New Network Alert Binary Sensor and Interface Sensor
+## [1.1.0] - 2026-04-02 - Release: New Network Alert Binary Sensor and Interface Sensor
 
 ### Added
 
@@ -326,6 +361,7 @@ Entry structure — headers, titles, category headings and the split between thi
 ---
 
 - [Changelog: WiFi SSID Monitor](#changelog-wifi-ssid-monitor)
+  - [\[2.0.5\] - 2026-10-04 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in Diagnostics; Malformed Reply Fix](#205---2026-10-04---release-minimum-home-assistant-202520-rejected-scan-responses-in-diagnostics-malformed-reply-fix)
   - [\[2.0.4\] - 2026-08-26 - Release: Repair Issue Consolidation and Removal Cleanup](#204---2026-08-26---release-repair-issue-consolidation-and-removal-cleanup)
   - [\[2.0.3\] - 2026-08-22 - Release: Integration Health Severity Standardization and Repair Fixes](#203---2026-08-22---release-integration-health-severity-standardization-and-repair-fixes)
   - [\[2.0.1\] - 2026-08-06 - Release: Multi-AP Strongest Signal Tracking and 6 GHz Channel Fixes](#201---2026-08-06---release-multi-ap-strongest-signal-tracking-and-6-ghz-channel-fixes)
@@ -334,12 +370,12 @@ Entry structure — headers, titles, category headings and the split between thi
   - [\[1.6.0\] - 2026-06-12 - Release: Proximity Alert, Persistent History, and Denylist Matching](#160---2026-06-12---release-proximity-alert-persistent-history-and-denylist-matching)
   - [\[1.4.3\] - 2026-05-10 - Maintenance: README Overhaul and Standards Alignment](#143---2026-05-10---maintenance-readme-overhaul-and-standards-alignment)
   - [\[1.4.2\] - 2026-05-02 - Controls: Scan Interval Minimum Enforcement](#142---2026-05-02---controls-scan-interval-minimum-enforcement)
-  - [\[1.4.1\] - 2026-04-18 - Telemetry: Last Updated Sensor, Custom Naming, and Guard Bands](#141---2026-04-18---telemetry-last-updated-sensor-custom-naming-and-guard-bands)
+  - [\[1.4.1\] - 2026-04-18 - Release: Last Updated Sensor, Custom Naming, and Guard Bands](#141---2026-04-18---release-last-updated-sensor-custom-naming-and-guard-bands)
   - [\[1.4.0\] - 2026-04-05 - Features: WiFi Interface Auto-Discovery and Resilient Polling](#140---2026-04-05---features-wifi-interface-auto-discovery-and-resilient-polling)
   - [\[1.3.1\] - 2026-04-02 - Architecture: Structured Network Data Model](#131---2026-04-02---architecture-structured-network-data-model)
   - [\[1.3.0\] - 2026-04-02 - Integration Hygiene: Renamed to WiFi SSID Monitor](#130---2026-04-02---integration-hygiene-renamed-to-wifi-ssid-monitor)
   - [\[1.2.0\] - 2026-04-02 - Controls: Scan Interval Number Entity](#120---2026-04-02---controls-scan-interval-number-entity)
-  - [\[1.1.0\] - 2026-04-02 - Telemetry: New Network Alert Binary Sensor and Interface Sensor](#110---2026-04-02---telemetry-new-network-alert-binary-sensor-and-interface-sensor)
+  - [\[1.1.0\] - 2026-04-02 - Release: New Network Alert Binary Sensor and Interface Sensor](#110---2026-04-02---release-new-network-alert-binary-sensor-and-interface-sensor)
   - [\[1.0.2\] - 2026-04-02 - Testing: Branding Assets and Mock Supervisor](#102---2026-04-02---testing-branding-assets-and-mock-supervisor)
   - [\[1.0.1\] - 2026-04-02 - Test Suite: Branch Coverage Expansion and Lint Compliance](#101---2026-04-02---test-suite-branch-coverage-expansion-and-lint-compliance)
   - [\[1.0.0\] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring](#100---2026-04-01---initial-release-custom-component-for-wifi-ssid-monitoring)

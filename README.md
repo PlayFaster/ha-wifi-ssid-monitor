@@ -95,8 +95,8 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 **🏠 Home Assistant Version:**
 
-- Minimum: Home Assistant **2024.8.0**
-- Minimum Python: **3.12+** (this is built into and handled by HA, but relevant for non-standard installs).
+- Minimum: Home Assistant **2025.2**
+- Minimum Python: **3.13+** (this is built into and handled by HA, but relevant for non-standard installs).
 
 ## 🎯 Use Cases
 
@@ -143,6 +143,7 @@ A Home Assistant integration that monitors and reports on WiFi networks in your 
 
 - **Dynamic Polling Control**: Adjust the scan frequency (1–180 minutes) from the HA UI or via automations. See the [Dynamic Polling Control](#-dynamic-polling-control) and [Pause Scanning Overnight](#-pause-scanning-overnight) examples.
 - **On-Demand Scan**: Trigger an immediate scan at any time using the **Scan Now** button entity or the `wifi_ssid_monitor.scan_now` service - no need to wait for the next interval. See the [Security Scan on Arrival](#-security-scan-on-arrival) example.
+- **Scans Are Point Samples**: Each scan shows the networks in range at that moment, and a weak network can be absent from one scan and present in the next. Counts and last-seen times can move with nothing changing nearby. The measurements are in `docs/supervisor_scan_behavior.md`.
 
 ### 🔌 Action Support
 

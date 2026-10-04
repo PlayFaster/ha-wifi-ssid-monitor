@@ -3,7 +3,7 @@
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.3
+    rev: v0.16.9
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -15,7 +15,7 @@ repos:
       - id: codespell
 
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.29.0
+    rev: v1.30.1
     hooks:
       - id: zizmor
         args: [--pedantic]
@@ -46,6 +46,7 @@ repos:
           - prettier@3.6.2
           - prettier-plugin-sort-json@4.2.0
         args: [--config, .validate/.prettierrc.json]
+        types_or: [json, yaml]
 
   - repo: local
     hooks:

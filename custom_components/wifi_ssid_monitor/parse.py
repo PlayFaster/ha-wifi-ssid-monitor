@@ -19,16 +19,10 @@ Three rules hold throughout:
 from __future__ import annotations
 
 import re
-import unicodedata
 from typing import Any
+import unicodedata
 
-from .const import (
-    BAND_5,
-    BAND_6,
-    BAND_24,
-    HIDDEN_FALLBACK_LABEL,
-    HIDDEN_KEY_PREFIX,
-)
+from .const import BAND_5, BAND_6, BAND_24, HIDDEN_FALLBACK_LABEL, HIDDEN_KEY_PREFIX
 
 SIGNAL_UNIT_PERCENT = "percent"
 SIGNAL_UNIT_DBM = "dBm"

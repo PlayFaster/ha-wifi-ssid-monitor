@@ -25,14 +25,35 @@ interface ``type``   ``"wifi"`` and ``"wireless"``. The Pi reports the latter,
 **Not yet confirmed against hardware:** no cloaked network and no zero-width
 SSID appeared in any capture, so the ``Hidden-<last4>`` and ``ssid_anomaly``
 entries below rest on the single hand test of 2026-08-03. They are kept
-deliberately, and kept **static** (see `_variable_signal`), so those labels stay
-reproducible.
+deliberately, and their labels stay reproducible (see `_variable_signal`).
+
+**Scan behavior, measured 2026-10-01** on two hosts, each scanning ``wlan0``
+back to back for 300 s: a Raspberry Pi 4 (60 scans) and an Intel mini PC (57
+scans), both reached through the Home Assistant ``supervisor/api`` WebSocket
+command. Each literal below that came from that measurement cites it. The raw
+results are in the project's ``local_only/supervisor_scan_probe`` notes folder,
+and the summary is `docs/supervisor_scan_behavior.md`.
+
+===================  ==========================================================
+latency              A scan is live and takes about 5 s: medians 5.03 s and
+                     5.10 s, minimum 5.02 s and 5.08 s. One call in 117 took
+                     10.46 s. Applied to 200 responses only, since real 400
+                     and 404 answers are fast.
+signal swing         Networks above a signal of 67 were always present and
+                     swung by 3 to 10 points on the Pi and 3 to 25 on the mini
+                     PC between consecutive scans.
+medium networks      Signal about 50, present in 40, 46 and 48 of 57 scans on
+                     the mini PC (70%, 81% and 84%).
+weak networks        Signal about 33, present in 7 of 60 scans on the Pi
+                     (12%). One host only.
+===================  ==========================================================
 
 Two switches, both off by default:
 
 ``MOCK_STATIC=1``
-    Pins the payload. Set it for `Sensor: Verify HA`, and for any bug
-    reproduction that needs the same bytes twice.
+    Returns the fixed payload with no signal jitter and none of the extra
+    networks, and keeps the scan latency. It cannot be toggled once the
+    container is running, because nothing sets it but the compose file.
 
 ``GET /mock/fault?mode=<name>[&scans=N]``
     Injects a failure. ``mode=off`` clears it, no arguments reports the current
@@ -40,20 +61,37 @@ Two switches, both off by default:
     stateful so a fault can be **cleared** mid-session — auto-recovery and
     repair deletion are the least observed behaviour in the health system.
 """
-# ruff: noqa: S104, INP001
+# ruff: noqa: S104, S311, INP001
 # INP001: a standalone dev-container script, run directly by docker-compose and
 # never imported, so it is deliberately not a package. Suppressed here rather
 # than in pyproject.toml — that file is synced from dev-workbench and a local
 # per-file-ignores entry would be erased on the next sync.
+# S311: the generator picks mock signal offsets and which networks are present,
+# nothing that needs to be unpredictable.
 
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import itertools
 import json
 import logging
 import os
+import random
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
 _LOGGER = logging.getLogger(__name__)
+
+# Scan latency, from the 2026-10-01 two-host measurement: medians of 5.03 s and
+# 5.10 s, and one 10.46 s call in 117. The spike is a stress value on every 50th
+# `accesspoints` call, counted across both interfaces from process start, not
+# the observed rate of 1 in 117.
+_SCAN_SECONDS = 5.1
+_SCAN_SECONDS_SPIKE = 10.5
+_SPIKE_EVERY = 50
+_calls = itertools.count(1)
+
+# One generator for every random choice, seeded once at start. A run is not
+# claimed to be reproducible: Home Assistant's own polls consume the draws.
+_rng = random.Random(20261001)
 
 # Longer than the integration's API_TIMEOUT_SECONDS (30) so `fault=slow`
 # actually reaches the coordinator's asyncio.timeout rather than merely
@@ -186,15 +224,61 @@ _APS_BY_INTERFACE = {"wlan0": _WLAN0_APS, "wlp2s0": _WLP2S0_APS}
 # server is a bare HTTPServer that loses all state on restart, and ":05 looks
 # like this" is a claim someone can go and check.
 #
-# Exactly two networks move. Both `My_WiFi_*` stay fixed — a flapping known set
-# trips the canary check and raises repairs continuously — and so do the hidden
-# and zero-width entries, whose labels must stay reproducible.
+# On `wlan0`, four networks have their signal jittered on every scan, two move
+# by minute-of-hour, and two extra unknown networks come and go. Every known
+# network is present in every scan, because a flapping known set trips the
+# canary check and raises repairs continuously. Jitter changes a signal only, so
+# the hidden and zero-width labels stay reproducible. `wlp2s0` keeps its payload.
+#
+# `MOCK_STATIC=1` returns the fixed payload instead: no jitter, no extra
+# networks and no minute-of-hour movement.
 
 _VARIABLE_SIGNAL_SSID = "Neighbors_WiFi_5G"
 _VARIABLE_PRESENCE_SSID = "Unknown_WiFi_6G"
 
 _SIGNAL_LOW = 55
 _SIGNAL_HIGH = 95
+
+# Per-scan signal jitter, a uniform whole-number offset clamped to 0-100. The
+# amplitudes cover the observed swings of 3 to 10 points on the Pi and 3 to 25
+# on the mini PC (2026-10-01); the largest sits on the network that already
+# moves by the hour.
+_JITTER = {
+    "My_WiFi_24G": 2,
+    "My_WiFi_5G": 4,
+    "Evil\u200bTwin": 5,
+    _VARIABLE_SIGNAL_SSID: 12,
+}
+
+# Extra unknown networks on `wlan0` only, present in a share of scans. The
+# medium one follows the mini PC (present in 70%, 81% and 84% of scans, signal
+# about 50, 2437 MHz) and the weak one the Pi (7 of 60 scans, signal about 33,
+# 5260 MHz), so each takes the frequency the measurement reported and a name that
+# agrees with its band. The MACs sit beside the existing `AA:BB:CC:DD:EE:*` set.
+_INTERMITTENT_WLAN0 = (
+    (
+        {
+            "mac": "AA:BB:CC:DD:EE:07",
+            "ssid": "Neighbor_Flat_2G",
+            "signal": 52,
+            "frequency": 2437,
+            "mode": "infrastructure",
+        },
+        0.78,
+        3,
+    ),
+    (
+        {
+            "mac": "AA:BB:CC:DD:EE:08",
+            "ssid": "Distant_Cafe_5G",
+            "signal": 33,
+            "frequency": 5260,
+            "mode": "infrastructure",
+        },
+        0.12,
+        1,
+    ),
+)
 
 
 def _static() -> bool:
@@ -216,6 +300,11 @@ def _variable_signal(minute: int) -> int:
     return _SIGNAL_LOW + round(span * distance / 30)
 
 
+def _jittered(signal: int, amplitude: int) -> int:
+    """Return the signal plus a uniform whole-number offset, clamped to 0-100."""
+    return max(0, min(100, signal + _rng.randint(-amplitude, amplitude)))
+
+
 def _access_points(interface: str) -> list[dict]:
     """Return this interface's access points, with variability applied."""
     base = [dict(ap) for ap in _APS_BY_INTERFACE.get(interface, [])]
@@ -231,8 +320,22 @@ def _access_points(interface: str) -> list[dict]:
             continue
         if ap["ssid"] == _VARIABLE_SIGNAL_SSID:
             ap["signal"] = _variable_signal(minute)
+        if interface == "wlan0" and ap["ssid"] in _JITTER:
+            ap["signal"] = _jittered(ap["signal"], _JITTER[ap["ssid"]])
         out.append(ap)
+
+    if interface == "wlan0":
+        for template, presence, amplitude in _INTERMITTENT_WLAN0:
+            if _rng.random() < presence:
+                out.append(
+                    {**template, "signal": _jittered(template["signal"], amplitude)}
+                )
     return out
+
+
+def _scan_delay(call_number: int) -> float:
+    """Return the latency of the Nth `accesspoints` call."""
+    return _SCAN_SECONDS_SPIKE if call_number % _SPIKE_EVERY == 0 else _SCAN_SECONDS
 
 
 # --------------------------------------------------------------------------
@@ -335,6 +438,7 @@ class MockSupervisorHandler(BaseHTTPRequestHandler):
         """Serve /network/interface/{iface}/accesspoints."""
         parts = [p for p in path.split("/") if p]
         interface = parts[2] if len(parts) > 2 else ""
+        call_number = next(_calls)
         fault = _current_fault()
 
         # An unrecognised interface 400s whether or not a fault is armed: that
@@ -353,8 +457,9 @@ class MockSupervisorHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"supervisor unavailable")
             return
 
-        if fault == "slow":
-            time.sleep(_SLOW_SECONDS)
+        # Latency applies to 200 responses only: the 400 above and the 500
+        # above are answered at once. The `slow` fault replaces it.
+        time.sleep(_SLOW_SECONDS if fault == "slow" else _scan_delay(call_number))
 
         if fault == "html":
             # What the Supervisor answers with when it serves an error page:

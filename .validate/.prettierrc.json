@@ -15,12 +15,6 @@
         "jsonRecursiveSort": false,
         "jsonSortOrder": "{\"domain\":null,\"name\":null,\"/.*/\":\"numeric\"}"
       }
-    },
-    {
-      "files": "*.md",
-      "options": {
-        "proseWrap": "never"
-      }
     }
   ],
   "plugins": ["prettier-plugin-sort-json"],

@@ -5,12 +5,24 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.5\] - 2026-10-04 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in Diagnostics; Malformed Reply Fix](#205---2026-10-04---release-minimum-home-assistant-202520-rejected-scan-responses-in-diagnostics-malformed-reply-fix)
+  - [\[2.0.5\] - 2026-10-03 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in the Diagnostics Download; Malformed Reply Fix](#205---2026-10-03---release-minimum-home-assistant-202520-rejected-scan-responses-in-the-diagnostics-download-malformed-reply-fix)
+  - [\[2.0.5-dev10\] - 2026-10-03 - Mock Supervisor Scan Latency, Jitter and Intermittent Networks; Scan Behavior Reference; Queue Records](#205-dev10---2026-10-03---mock-supervisor-scan-latency-jitter-and-intermittent-networks-scan-behavior-reference-queue-records)
+  - [\[2.0.5-dev9\] - 2026-10-02 - Diagnostics Download Carries Rejected-Response Record; Payload Keys Classified; Device Sweep](#205-dev9---2026-10-02---diagnostics-download-carries-rejected-response-record-payload-keys-classified-device-sweep)
+  - [\[2.0.5-dev8\] - 2026-10-02 - get\_networks Filter Tests; Handler and Filter Predicate at Module Level](#205-dev8---2026-10-02---get_networks-filter-tests-handler-and-filter-predicate-at-module-level)
+  - [\[2.0.5-dev7\] - 2026-10-01 - CI Bumps, HA Compatibility, ruff re-sorts, mypy fix](#205-dev7---2026-10-01---ci-bumps-ha-compatibility-ruff-re-sorts-mypy-fix)
+  - [\[2.0.5-dev6\] - 2026-09-23 - AGENTS.md: Guard Test Table Trimmed; Rationale Moved to docs/test\_guards.md](#205-dev6---2026-09-23---agentsmd-guard-test-table-trimmed-rationale-moved-to-docstest_guardsmd)
+  - [\[2.0.5-dev5\] - 2026-09-23 - Breaking: Minimum Home Assistant Raised to 2025.2.0 for Python 3.13](#205-dev5---2026-09-23---breaking-minimum-home-assistant-raised-to-202520-for-python-313)
+  - [\[2.0.5-dev4\] - 2026-09-08 - Documentation: Project Complexity \& Health Scorecard Added](#205-dev4---2026-09-08---documentation-project-complexity--health-scorecard-added)
+  - [\[2.0.5-dev3\] - 2026-08-27 - CI: GitHub Actions Workflow Re-trigger](#205-dev3---2026-08-27---ci-github-actions-workflow-re-trigger)
+  - [\[2.0.5-dev2\] - 2026-08-26 - Linting: Issue Registry Alias Normalization and Test Import Exclusions](#205-dev2---2026-08-26---linting-issue-registry-alias-normalization-and-test-import-exclusions)
+  - [\[2.0.5-dev1\] - 2026-08-26 - AGENTS.md Alignment](#205-dev1---2026-08-26---agentsmd-alignment)
   - [\[2.0.4\] - 2026-08-26 - Release: Repair Issue Consolidation and Removal Cleanup](#204---2026-08-26---release-repair-issue-consolidation-and-removal-cleanup)
   - [\[2.0.4-dev8\] - 2026-08-26 - Documentation: Prose Density and Readability Improvements](#204-dev8---2026-08-26---documentation-prose-density-and-readability-improvements)
-  - [\[2.0.4-dev7\] - 2026-08-26 - Improve Changelog Readability](#204-dev7---2026-08-26---improve-changelog-readability)
-  - [\[2.0.4-dev6\] - 2026-08-26 - Repair Set Reduced To One; Contract Sweeps Aligned](#204-dev6---2026-08-26---repair-set-reduced-to-one-contract-sweeps-aligned)
+  - [\[2.0.4-dev7\] - 2026-08-26 - Documentation: Changelog Readability Improvements](#204-dev7---2026-08-26---documentation-changelog-readability-improvements)
+  - [\[2.0.4-dev6\] - 2026-08-26 - Repair Set Consolidation; Schema Sweep Alignment](#204-dev6---2026-08-26---repair-set-consolidation-schema-sweep-alignment)
   - [\[2.0.4-dev5\] - 2026-08-26 - Documentation: Comprehensive Changelog Readability and Header Standardization](#204-dev5---2026-08-26---documentation-comprehensive-changelog-readability-and-header-standardization)
-  - [\[2.0.4-dev4\] - 2026-08-24 - Cross-Project Chores Settled: PARALLEL_UPDATES Rationale, US Spelling, and Review Closures](#204-dev4---2026-08-24---cross-project-chores-settled-parallel_updates-rationale-us-spelling-and-review-closures)
+  - [\[2.0.4-dev4\] - 2026-08-24 - Cross-Project Chores Settled: PARALLEL\_UPDATES Rationale, US Spelling, and Review Closures](#204-dev4---2026-08-24---cross-project-chores-settled-parallel_updates-rationale-us-spelling-and-review-closures)
   - [\[2.0.4-dev3\] - 2026-08-24 - CI Bumps: MyPy and PHACC Tooling Updates](#204-dev3---2026-08-24---ci-bumps-mypy-and-phacc-tooling-updates)
   - [\[2.0.4-dev2\] - 2026-08-24 - Notes Queue: Superseded Planning Folder Archival](#204-dev2---2026-08-24---notes-queue-superseded-planning-folder-archival)
   - [\[2.0.4-dev1\] - 2026-08-24 - Notes Queue: Standardized Tasks Directory and Trigger Duplicate Resolution](#204-dev1---2026-08-24---notes-queue-standardized-tasks-directory-and-trigger-duplicate-resolution)
@@ -20,9 +32,9 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.3-dev10\] - 2026-08-22 - Entity Documentation: About Notes Review and Pause Polling Alignment](#203-dev10---2026-08-22---entity-documentation-about-notes-review-and-pause-polling-alignment)
   - [\[2.0.3-dev9\] - 2026-08-22 - Test Depth: Outcome Reachability and Real-Transport Tests](#203-dev9---2026-08-22---test-depth-outcome-reachability-and-real-transport-tests)
   - [\[2.0.3-dev8\] - 2026-08-22 - Test Infrastructure: Depth Check Script and Real-Transport Pattern](#203-dev8---2026-08-22---test-infrastructure-depth-check-script-and-real-transport-pattern)
-  - [\[2.0.3-dev7\] - 2026-08-22 - Health Telemetry: Sequence Fault Drill and Held-Baseline Fixes](#203-dev7---2026-08-22---health-telemetry-sequence-fault-drill-and-held-baseline-fixes)
+  - [\[2.0.3-dev7\] - 2026-08-22 - Health Diagnostics: Sequence Fault Drill and Held-Baseline Fixes](#203-dev7---2026-08-22---health-diagnostics-sequence-fault-drill-and-held-baseline-fixes)
   - [\[2.0.3-dev6\] - 2026-08-21 - Mock Supervisor: Real-Hardware Parity, Multi-Adapter, and Fault Drill](#203-dev6---2026-08-21---mock-supervisor-real-hardware-parity-multi-adapter-and-fault-drill)
-  - [\[2.0.3-dev5\] - 2026-08-21 - Health Telemetry: Standard Severity Enum and Debug Logging Privacy](#203-dev5---2026-08-21---health-telemetry-standard-severity-enum-and-debug-logging-privacy)
+  - [\[2.0.3-dev5\] - 2026-08-21 - Health Diagnostics: Standard Severity Enum and Debug Logging Privacy](#203-dev5---2026-08-21---health-diagnostics-standard-severity-enum-and-debug-logging-privacy)
   - [\[2.0.3-dev4\] - 2026-08-21 - Chore Sweep: Suppression Allow-List and Publish-Moment Tests](#203-dev4---2026-08-21---chore-sweep-suppression-allow-list-and-publish-moment-tests)
   - [\[2.0.3-dev3\] - 2026-08-21 - CI and Quality Standards: Dependency Bumps and Sensor Manifests](#203-dev3---2026-08-21---ci-and-quality-standards-dependency-bumps-and-sensor-manifests)
   - [\[2.0.3-dev2\] - 2026-08-14 - CI and Documentation: Tooling Bumps and AGENTS Clarifications](#203-dev2---2026-08-14---ci-and-documentation-tooling-bumps-and-agents-clarifications)
@@ -32,29 +44,29 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.1-dev25\] - 2026-08-06 - Code Review: Multi-Adapter Repair Isolation and Signal Tracking](#201-dev25---2026-08-06---code-review-multi-adapter-repair-isolation-and-signal-tracking)
   - [\[2.0.1-dev24\] - 2026-08-06 - Test Depth: Boundary Tests and Startup Grace Recovery](#201-dev24---2026-08-06---test-depth-boundary-tests-and-startup-grace-recovery)
   - [\[2.0.1-dev23\] - 2026-08-06 - Mutation Testing: First Full Baseline and Survivor Triage](#201-dev23---2026-08-06---mutation-testing-first-full-baseline-and-survivor-triage)
-  - [\[2.0.1-dev22\] - 2026-08-06 - Health Telemetry: Threshold Validation and Dispatch Loop](#201-dev22---2026-08-06---health-telemetry-threshold-validation-and-dispatch-loop)
+  - [\[2.0.1-dev22\] - 2026-08-06 - Health Diagnostics: Threshold Validation and Dispatch Loop](#201-dev22---2026-08-06---health-diagnostics-threshold-validation-and-dispatch-loop)
   - [\[2.0.1-dev21\] - 2026-08-06 - Channel Calculation: 6 GHz Edge-of-Band Channel Mapping](#201-dev21---2026-08-06---channel-calculation-6-ghz-edge-of-band-channel-mapping)
   - [\[2.0.1-dev20\] - 2026-08-06 - Mutation Testing: Parse and Diagnostics Boundary Tests](#201-dev20---2026-08-06---mutation-testing-parse-and-diagnostics-boundary-tests)
   - [\[2.0.1-dev19\] - 2026-08-06 - Documentation: AGENTS Type-Ignore Claim Correction](#201-dev19---2026-08-06---documentation-agents-type-ignore-claim-correction)
-  - [\[2.0.1-dev18\] - 2026-08-05 - Bump PHACC; Update AGENTS.md](#201-dev18---2026-08-05---bump-phacc-update-agentsmd)
+  - [\[2.0.1-dev18\] - 2026-08-05 - PHACC Tooling Bump; AGENTS.md Update](#201-dev18---2026-08-05---phacc-tooling-bump-agentsmd-update)
   - [\[2.0.1-dev17\] - 2026-08-05 - Mutation Testing: Module Scoping and Baseline Analysis](#201-dev17---2026-08-05---mutation-testing-module-scoping-and-baseline-analysis)
   - [\[2.0.1-dev16\] - 2026-08-05 - Test Infrastructure: Zero-Assertion Audit and Event Tests](#201-dev16---2026-08-05---test-infrastructure-zero-assertion-audit-and-event-tests)
   - [\[2.0.1-dev15\] - 2026-08-05 - Test Suite: 100% Branch Coverage on Untaken Defensive Paths](#201-dev15---2026-08-05---test-suite-100-branch-coverage-on-untaken-defensive-paths)
   - [\[2.0.1-dev14\] - 2026-08-03 - Documentation: Standards Alignment and Manifest Updates](#201-dev14---2026-08-03---documentation-standards-alignment-and-manifest-updates)
   - [\[2.0.1-dev13\] - 2026-08-03 - Standards Test Coverage: §6, §12, §19 and §21 Guards; Action Icons](#201-dev13---2026-08-03---standards-test-coverage-6-12-19-and-21-guards-action-icons)
-  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev_std_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
+  - [\[2.0.1-dev12\] - 2026-08-03 - Validation Pass; ROADMAP Conversion; dev\_std\_review and IQS SCAN=Full](#201-dev12---2026-08-03---validation-pass-roadmap-conversion-dev_std_review-and-iqs-scanfull)
   - [\[2.0.1-dev11\] - 2026-08-03 - Hardware-Check Task; Changelog ToC Added, Bumps](#201-dev11---2026-08-03---hardware-check-task-changelog-toc-added-bumps)
-  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
+  - [\[2.0.1-dev10\] - 2026-07-28 - Automation Example Glitch Guards \& has\_value Checks in README](#201-dev10---2026-07-28---automation-example-glitch-guards--has_value-checks-in-readme)
   - [\[2.0.1-dev9\] - 2026-07-27 - Standards Test Coverage: Compliance Matrix Recorded](#201-dev9---2026-07-27---standards-test-coverage-compliance-matrix-recorded)
   - [\[2.0.1-dev8\] - 2026-07-27 - Recorder Hygiene: Unrecorded Attribute Enforcement Test](#201-dev8---2026-07-27---recorder-hygiene-unrecorded-attribute-enforcement-test)
-  - [\[2.0.1-dev7\] - 2026-07-27 - Health Telemetry: Platform Drift Attribute Exposure](#201-dev7---2026-07-27---health-telemetry-platform-drift-attribute-exposure)
+  - [\[2.0.1-dev7\] - 2026-07-27 - Health Diagnostics: Platform Schema Change Attribute Exposure](#201-dev7---2026-07-27---health-diagnostics-platform-schema-change-attribute-exposure)
   - [\[2.0.1-dev6\] - 2026-07-27 - Cross-Project Alignment: Health Attributes and Constant Standardization](#201-dev6---2026-07-27---cross-project-alignment-health-attributes-and-constant-standardization)
   - [\[2.0.1-dev5\] - 2026-07-26 - Documentation: README Section Names and Links](#201-dev5---2026-07-26---documentation-readme-section-names-and-links)
   - [\[2.0.1-dev4\] - 2026-07-26 - Tooling: Ruff Version Bump to 0.15.22](#201-dev4---2026-07-26---tooling-ruff-version-bump-to-01522)
   - [\[2.0.1-dev3\] - 2026-07-26 - CI Workflow: Shared Validation Bump to v2.0.6](#201-dev3---2026-07-26---ci-workflow-shared-validation-bump-to-v206)
   - [\[2.0.1-dev2\] - 2026-07-26 - Documentation: README Tweaks and AGENTS Structure](#201-dev2---2026-07-26---documentation-readme-tweaks-and-agents-structure)
   - [\[2.0.1-dev1\] - 2026-07-26 - Tooling: PHACC Bump to 0.13.348](#201-dev1---2026-07-26---tooling-phacc-bump-to-013348)
-  - [\[2.0.0\] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames](#200---2026-07-25---signal-as-a-percentage-health-sensor-breaking-renames)
+  - [\[2.0.0\] - 2026-07-25 - Major Release: Percentage Signal Metrics; Health Sensor; Breaking Renames](#200---2026-07-25---major-release-percentage-signal-metrics-health-sensor-breaking-renames)
   - [\[2.0.0-dev9\] - 2026-07-25 - Documentation: Format Fixes and Spelling Alignment](#200-dev9---2026-07-25---documentation-format-fixes-and-spelling-alignment)
   - [\[2.0.0-dev8\] - 2026-07-24 - Documentation: README Automations and Section Links](#200-dev8---2026-07-24---documentation-readme-automations-and-section-links)
   - [\[2.0.0-dev7\] - 2026-07-24 - Documentation: README Screenshots and Automations](#200-dev7---2026-07-24---documentation-readme-screenshots-and-automations)
@@ -63,7 +75,7 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[2.0.0-dev4\] - 2026-07-23 - Localization: Exception Translations and UniFi-Aligned README](#200-dev4---2026-07-23---localization-exception-translations-and-unifi-aligned-readme)
   - [\[2.0.0-dev3\] - 2026-07-22 - Test Suite: 100% Coverage and Document Reconciliation](#200-dev3---2026-07-22---test-suite-100-coverage-and-document-reconciliation)
   - [\[2.0.0-dev2\] - 2026-07-22 - BSSID Pattern Matching; Operating Mode Exposed](#200-dev2---2026-07-22---bssid-pattern-matching-operating-mode-exposed)
-  - [\[2.0.0-dev1\] - 2026-07-22 - Telemetry and Actions: Signal Percent, Health Sensor, and Service Names](#200-dev1---2026-07-22---telemetry-and-actions-signal-percent-health-sensor-and-service-names)
+  - [\[2.0.0-dev1\] - 2026-07-22 - Sensor Additions and Actions: Signal Percent, Health Sensor, and Service Names](#200-dev1---2026-07-22---sensor-additions-and-actions-signal-percent-health-sensor-and-service-names)
   - [\[1.6.2-dev8\] - 2026-07-22 - Tooling and Documentation: Ruff, PHACC, and Markdown Emojis](#162-dev8---2026-07-22---tooling-and-documentation-ruff-phacc-and-markdown-emojis)
   - [\[1.6.2-dev7\] - 2026-07-12 - Documentation: Formatting and Spelling Revisions](#162-dev7---2026-07-12---documentation-formatting-and-spelling-revisions)
   - [\[1.6.2-dev6\] - 2026-07-12 - Tooling: PHACC Bump to 0.13.346](#162-dev6---2026-07-12---tooling-phacc-bump-to-013346)
@@ -72,7 +84,7 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.6.2-dev3\] - 2026-07-05 - Static Typing: Mypy Unreachable Statement Resolution](#162-dev3---2026-07-05---static-typing-mypy-unreachable-statement-resolution)
   - [\[1.6.2-dev2\] - 2026-07-05 - Quality Scale: ConfigEntryNotReady Setup Resilience](#162-dev2---2026-07-05---quality-scale-configentrynotready-setup-resilience)
   - [\[1.6.2-dev1\] - 2026-07-05 - Code Quality: Extended Ruff Linting and Exception Refactoring](#162-dev1---2026-07-05---code-quality-extended-ruff-linting-and-exception-refactoring)
-  - [\[1.6.1\] - 2026-07-04 - Reconfigure Settings and Polling Toggle](#161---2026-07-04---reconfigure-settings-and-polling-toggle)
+  - [\[1.6.1\] - 2026-07-04 - Release: Reconfigure Settings and Polling Toggle](#161---2026-07-04---release-reconfigure-settings-and-polling-toggle)
   - [\[1.6.1-dev11\] - 2026-07-04 - Configuration Flow: Full Options Set in Reconfigure Flow](#161-dev11---2026-07-04---configuration-flow-full-options-set-in-reconfigure-flow)
   - [\[1.6.1-dev10\] - 2026-07-04 - Tooling: Check-Drift Script and README Alignment](#161-dev10---2026-07-04---tooling-check-drift-script-and-readme-alignment)
   - [\[1.6.1-dev9\] - 2026-07-03 - Tooling: Ruff Version Bump to 0.15.20](#161-dev9---2026-07-03---tooling-ruff-version-bump-to-01520)
@@ -80,11 +92,11 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.6.1-dev7\] - 2026-06-27 - Documentation: README Screenshots and YAML Linting](#161-dev7---2026-06-27---documentation-readme-screenshots-and-yaml-linting)
   - [\[1.6.1-dev6\] - 2026-06-26 - Dependencies: Shared CI, Ruff, and PHACC Bumps](#161-dev6---2026-06-26---dependencies-shared-ci-ruff-and-phacc-bumps)
   - [\[1.6.1-dev5\] - 2026-06-18 - Validation Infrastructure: Dev-Workbench CI Overhaul](#161-dev5---2026-06-18---validation-infrastructure-dev-workbench-ci-overhaul)
-  - [\[1.6.0\] - 2026-06-12 - Proximity Alert, Persistent History and Denylist](#160---2026-06-12---proximity-alert-persistent-history-and-denylist)
+  - [\[1.6.0\] - 2026-06-12 - Release: Proximity Alert, Persistent History, and Denylist](#160---2026-06-12---release-proximity-alert-persistent-history-and-denylist)
   - [\[1.6.0-dev7\] - 2026-06-11 - Documentation: Full Documentation Refresh](#160-dev7---2026-06-11---documentation-full-documentation-refresh)
   - [\[1.6.0-dev6\] - 2026-06-11 - Test Suite: 100% Initialization Coverage](#160-dev6---2026-06-11---test-suite-100-initialization-coverage)
   - [\[1.6.0-dev4\] - 2026-06-11 - Architecture: Persistent Stores and Multi-Entry Services](#160-dev4---2026-06-11---architecture-persistent-stores-and-multi-entry-services)
-  - [\[1.6.0-dev1\] - 2026-06-11 - Security Telemetry: Persistent Last-Seen, Band Filter, and Denylist](#160-dev1---2026-06-11---security-telemetry-persistent-last-seen-band-filter-and-denylist)
+  - [\[1.6.0-dev1\] - 2026-06-11 - Security Sensor Additions: Persistent Last-Seen, Band Filter, and Denylist](#160-dev1---2026-06-11---security-sensor-additions-persistent-last-seen-band-filter-and-denylist)
   - [\[1.5.0-dev6\] - 2026-06-11 - Tooling: Tool Version Matrix and Task Sync](#150-dev6---2026-06-11---tooling-tool-version-matrix-and-task-sync)
   - [\[1.5.0-dev5\] - 2026-06-07 - Quality Standards: Mypy Parity and Markdown Emojis](#150-dev5---2026-06-07---quality-standards-mypy-parity-and-markdown-emojis)
   - [\[1.5.0-dev4\] - 2026-06-03 - Lifecycle: Service Registration and Exception Translations](#150-dev4---2026-06-03---lifecycle-service-registration-and-exception-translations)
@@ -94,7 +106,7 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.4.4-dev3\] - 2026-06-02 - Code Health: Strict Mypy Clean and Documentation Sync](#144-dev3---2026-06-02---code-health-strict-mypy-clean-and-documentation-sync)
   - [\[1.4.4-dev2\] - 2026-05-13 - Quality Scale: Runtime-Data Migration and Repair Issues](#144-dev2---2026-05-13---quality-scale-runtime-data-migration-and-repair-issues)
   - [\[1.4.4-dev1\] - 2026-05-13 - UI Assets: Icons Standard and Strict Mypy Alignment](#144-dev1---2026-05-13---ui-assets-icons-standard-and-strict-mypy-alignment)
-  - [\[1.4.3\] - 2026-05-10 - Documentation Overhaul and Architecture Alignment](#143---2026-05-10---documentation-overhaul-and-architecture-alignment)
+  - [\[1.4.3\] - 2026-05-10 - Release: Documentation Overhaul and Architecture Alignment](#143---2026-05-10---release-documentation-overhaul-and-architecture-alignment)
   - [\[1.4.3-rc1\] - 2026-05-10 - Configuration: Project-Agnostic Tooling Configuration](#143-rc1---2026-05-10---configuration-project-agnostic-tooling-configuration)
   - [\[1.4.3-dev20\] - 2026-05-09 - CI Workflow: Centralized Reusable GitHub Actions Workflow](#143-dev20---2026-05-09---ci-workflow-centralized-reusable-github-actions-workflow)
   - [\[1.4.3-dev11\] - 2026-05-09 - Type Annotations: Full Mypy Type Hints](#143-dev11---2026-05-09---type-annotations-full-mypy-type-hints)
@@ -102,9 +114,9 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.4.3-dev3\] - 2026-05-06 - Configuration Flow: Diagnostics, Reauth, and Reconfigure Flows](#143-dev3---2026-05-06---configuration-flow-diagnostics-reauth-and-reconfigure-flows)
   - [\[1.4.3-dev2\] - 2026-05-06 - Documentation: Entity Manifest and API Test Suite to 100%](#143-dev2---2026-05-06---documentation-entity-manifest-and-api-test-suite-to-100)
   - [\[1.4.3-dev1\] - 2026-05-02 - Documentation: README Badge Links](#143-dev1---2026-05-02---documentation-readme-badge-links)
-  - [\[1.4.2\] - 2026-05-02 - Scan Interval Minimum Aligned to 60 Seconds](#142---2026-05-02---scan-interval-minimum-aligned-to-60-seconds)
+  - [\[1.4.2\] - 2026-05-02 - Release: Scan Interval Minimum Aligned to 60 Seconds](#142---2026-05-02---release-scan-interval-minimum-aligned-to-60-seconds)
   - [\[1.4.2-dev3\] - 2026-05-01 - Code Quality: Exception Handling and Coordinator Resilience Tests](#142-dev3---2026-05-01---code-quality-exception-handling-and-coordinator-resilience-tests)
-  - [\[1.4.1\] - 2026-04-18 - Last Updated Sensor, Custom Naming, and Guard Bands](#141---2026-04-18---last-updated-sensor-custom-naming-and-guard-bands)
+  - [\[1.4.1\] - 2026-04-18 - Release: Last Updated Sensor, Custom Naming, and Guard Bands](#141---2026-04-18---release-last-updated-sensor-custom-naming-and-guard-bands)
   - [\[1.4.0\] - 2026-04-05 - Auto-Discovery: WiFi Interface Discovery and Entity Naming](#140---2026-04-05---auto-discovery-wifi-interface-discovery-and-entity-naming)
   - [\[1.3.1\] - 2026-04-02 - Data Model: Structured Network Model Refactoring](#131---2026-04-02---data-model-structured-network-model-refactoring)
   - [\[1.3.0\] - 2026-04-02 - Branding: Renamed to WiFi SSID Monitor](#130---2026-04-02---branding-renamed-to-wifi-ssid-monitor)
@@ -112,7 +124,282 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.1.0\] - 2026-04-02 - Binary Sensors: New Network Alert and Interface Sensor](#110---2026-04-02---binary-sensors-new-network-alert-and-interface-sensor)
   - [\[1.0.2\] - 2026-04-02 - Test Infrastructure: Mock Supervisor and Branding](#102---2026-04-02---test-infrastructure-mock-supervisor-and-branding)
   - [\[1.0.1\] - 2026-04-02 - Test Suite: Test Coverage to 99%](#101---2026-04-02---test-suite-test-coverage-to-99)
-  - [\[1.0.0\] - 2026-04-01 - Initial Release](#100---2026-04-01---initial-release)
+  - [\[1.0.0\] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring](#100---2026-04-01---initial-release-custom-component-for-wifi-ssid-monitoring)
+
+---
+
+## [2.0.5] - 2026-10-04 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in Diagnostics; Malformed Reply Fix
+
+This is a maintenance release that improves diagnostics and fixes an edge case error, but does not otherwise change the functionality of the integration.
+
+### Summary
+
+- **Minimum Home Assistant raised to 2025.2.0**: Requires Python 3.13 runtime; older Home Assistant versions will remain on 2.0.4 until updated.
+- **Diagnostics download includes rejected scan details**: Diagnostics exports now capture the last rejected Supervisor response to aid troubleshooting, with personal network names and hardware addresses stripped.
+- **Resilience against unexpected replies**: Scans no longer fail with an unhandled error when the Supervisor returns non-standard data.
+
+### Breaking
+
+- **Minimum Home Assistant version is now 2025.2.0:** Home Assistant 2025.2.0 is the first release requiring Python 3.13, making Python 3.13 the minimum runtime.
+  - HACS withholds this update from installations running older Home Assistant releases, which will remain on 2.0.4.
+  - Update Home Assistant first, then update this integration. No entity, configuration, or service action changes are required.
+
+### Added
+
+- **Rejected scan details in diagnostics download**: When the Supervisor rejects a scan, the diagnostics export now records a `last_rejection` entry under `coordinator`. It includes the HTTP status code, failure category (`http_error`, `invalid_json`, or `missing_ap_key`), timestamp, content type, and up to 500 characters of error response text with any hardware MAC addresses replaced by `[REDACTED_MAC]`.
+  - The record contains no SSIDs, BSSIDs, or network credentials.
+  - It clears automatically as soon as a subsequent scan succeeds.
+  - Attach the download to an issue as before.
+
+### Fixed
+
+- **Malformed Supervisor reply handling**: An issue where a Supervisor reply returning non-object data caused an unhandled error during scans is resolved. It is now handled gracefully as a missing access-point list and surfaced as payload drift on the **Integration Health** sensor.
+
+### Under the hood
+
+- Reorganized `get_networks` filtering into a dedicated helper and expanded the test suite from 414 to 486 tests at 100% line and branch coverage.
+- Introduced strict classification sets in diagnostics to ensure all published and sanitized fields are guarded against identifier leaks.
+- Documented empirical multi-host scan behavior and signal jitter measurements in `docs/supervisor_scan_behavior.md`.
+
+## [2.0.5] - 2026-10-03 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in the Diagnostics Download; Malformed Reply Fix
+
+### Summary
+
+Release of 2.0.5, built over dev1 to dev10. The public entry in `CHANGELOG.md` states the breaking Home Assistant floor of 2025.2.0, the `last_rejection` record in the diagnostics download and the fix for a non-object `data` reply, and it leaves the other dev entries out because a user never saw their intermediate states. This entry also corrects one sentence of the dev5 entry. `manifest.json` already read `2.0.5` and is unchanged.
+
+### Bumps
+
+- **Shared CI**: Bump `.github` Shared CI Validation via SHA from v2.0.16 to v2.0.17
+
+### Changed
+
+- **`CHANGELOG.md`** (I10): the `[2.0.5]` entry. The Home Assistant floor change is under a Breaking section, as the 2.0.3 attribute change was, because HACS withholds the version from installations below 2025.2.0, which Home Assistant public analytics of 2026-09-23 place at 4.6% of 687,049 opted-in installations (dev5 entry). Shipping a floor change in a patch release was the owner's decision on 2026-10-01 (plan evidence E27, decision D28).
+- **What the public entry omits**: dev1 to dev4 and dev6 changed `AGENTS.md`, lint settings, a scorecard document and CI triggers only, and dev7 bumped shared CI and tooling, so none of them has a visible effect. The mock, the reference document and the queue records of dev10 are maintainer material.
+
+### Notes
+
+- **Correction to the 2.0.5-dev5 entry, naming a file that does not exist**: the dev5 entry says `_compat.py` is unaffected because its branches detect 2026.8 device-registry features. The project has no `_compat.py`. The component directory holds no such file, checked by a directory listing of `custom_components/wifi_ssid_monitor` on 2026-10-01, so the sentence refers to nothing in this project. The dev5 entry is unchanged, as the changelog standard requires, and this entry corrects only that sentence: the rest of the dev5 entry was not re-checked here.
+- **Release tag**: the release workflow passes the tag of the published release to the shared workflow, whose `Verify Manifest Version Matches Tag` step removes a leading `v` and fails the release unless the result equals the manifest version. The tag of this release is therefore `2.0.5` or `v2.0.5`.
+
+### Verified
+
+- **Version**: `manifest.json` reads `2.0.5` and is unchanged by every dev build.
+
+## [2.0.5-dev10] - 2026-10-03 - Mock Supervisor Scan Latency, Jitter and Intermittent Networks; Scan Behavior Reference; Queue Records
+
+### Summary
+
+The devcontainer mock Supervisor now behaves like the real one measured on 2026-10-01: a scan takes about 5 s, signals jitter between scans, and two unknown networks come and go. The two-host measurement is published as `docs/supervisor_scan_behavior.md`, with a README line, four roadmap pointers and corrections to `docs/DEVELOPMENT.md`. The queue records for the outcomes decided in `v205_plan.md` are written. No integration code changed. This is build 3 of 3 in `v205_plan.md` (items I6, I7, I8 and I9).
+
+### Bumps
+
+- **Validate Bump**: Update `mypy` from 2.3.1 to 2.4.0
+
+### Added
+
+- **Scan latency in the mock** (I6): 5.1 s on every `accesspoints` call that returns 200, and 10.5 s on every 50th call, counted across both interfaces from process start. The 400 and 500 answers are not delayed, because real 400 and 404 answers are fast, and the `slow` fault replaces the latency. The 50th call is a chosen stress value, since the observed rate of a long call was 1 in 117.
+- **Signal jitter in the mock** (I6): a uniform whole-number offset per scan, clamped to 0 to 100, on four `wlan0` networks: `My_WiFi_24G` plus or minus 2, `My_WiFi_5G` plus or minus 4, the zero-width network plus or minus 5, and `Neighbors_WiFi_5G` plus or minus 12 on top of its hourly triangle.
+- **Two intermittent unknown networks on `wlan0`** (I6): `Neighbor_Flat_2G` at a signal of 52 plus or minus 3 on 2437 MHz, present in about 78% of scans, and `Distant_Cafe_5G` at 33 plus or minus 1 on 5260 MHz, present in about 12%. The MACs are `AA:BB:CC:DD:EE:07` and `AA:BB:CC:DD:EE:08`, and the mode is `infrastructure`. Every random choice uses one generator with a fixed seed set at start. `wlp2s0` keeps its payload and takes the latency, and every known network stays present in every scan. `MOCK_STATIC=1` returns the fixed payload with no jitter and none of the extra networks, and keeps the latency.
+- **`docs/supervisor_scan_behavior.md`** (I7): the two-host measurement as tables of latency, change rate, presence by signal tier and signal swing, with the host types, the response fields, and the finding that the `supervisor/api` WebSocket command reaches the Supervisor with an administrator token and that `wlan0` reports `wireless` and `enabled: False` on both hosts. A case-insensitive search of the document for each of the 10 BSSIDs in the two result files finds none. The probe folder is named in prose, with no link into `shared/ProjNotes`.
+- **README line under Dynamic Polling** (I7): a scan is a point sample, and a weak network can be absent from one.
+- **Roadmap pointers** (I8): one line in each of the entries `get_networks` should scan, Visit-count threshold, Appearance / disappearance events and Proximity alert hysteresis, pointing to the reference, and one Version Control line (v2.6.1). The diff of `ROADMAP.md` is those five lines and the blank lines that separate them.
+
+### Changed
+
+- **Mock text** (I6): the docstring of `mock_supervisor.py` cites the 2026-10-01 measurement for each new literal, and its statements that exactly two networks move, that both `My_WiFi_*` entries stay fixed and that static mode is for `Sensor: Verify HA` are rewritten. The comment on `MOCK_STATIC` in `docker-compose.override.yml` is rewritten to match, and the setting itself is unchanged. An S311 suppression with its reason is added to the file's existing `noqa` header for the seeded generator.
+- **`docs/DEVELOPMENT.md` §3e** (I7): a new record (E) for the realistic mock, and corrections to three statements. Exactly two networks no longer move, both `My_WiFi_*` entries no longer stay fixed, and `MOCK_STATIC=1` is no longer described as needed for `Sensor: Verify HA`. That task compares live values with the `min_limit` and `max_limit` guard bands and not with fixed values (`check_sensor_manifest.py`, read 2026-10-02), so jitter clamped to 0 to 100 stays inside them.
+- **Queue records** (I9): chore C-037 is `DONE` for WiFi, with the earlier statement that Mypy had not run corrected. In the ZTE techniques item, rows 20 and 23 are `DONE`, rows 25 and 26 are `N/A`, row 30 is `PENDING` with the I4 tests named, the reasons of rows 1, 3 and 27 name one polled endpoint with `/network/info` read once at setup, and the item's `Verified` line and Version Control are updated. The reset-action item and the text-history item are `N/A` for WiFi with their reasons, the earlier statement that no services are registered is corrected to six, and the reset item's alignment section places an `N/A` project outside its requirement. The queue checker reports the same 10 advisories as before and the WiFi open list no longer shows these three items.
+
+### Verified
+
+- **Generator**: 5000 offline draws gave medium presence 77% and weak presence 13%, jitter inside each amplitude, every known network present in every draw, and `wlp2s0` unchanged.
+- **Measurement of the running mock**: after the owner recreated `supervisor_mock`, 40 consecutive `accesspoints` calls to `wlan0` gave a median latency of 5.11 s and a minimum of 5.10 s. Signals differed between calls on all four jittered networks. `Neighbor_Flat_2G` was present in 33 calls and `Distant_Cafe_5G` in 2, each with its set frequency and mode. All five known networks were present in all 40 calls, and the MACs in a call were unique. Eight calls took 7.7 to 10.2 s, which is requests waiting behind Home Assistant's own polls on the single-threaded server (conclusion C14 of the plan), and the 50th-call stress delay was not isolated.
+- **Fault drill**: `Mock: Fault Drill` passed all 19 checks in 359 s and recorded 2026-10-02T23:48:59+0100 in `.notes/fault_drill_last.txt`. The previous record was 2026-08-26. The validation run for this build shows `Mock: Fault Drill Staleness` as not clear, because the task fails whenever a watched file, here `mock_supervisor.py`, has uncommitted changes, whatever the drill date. It clears when the owner commits the build.
+- **Observation, not a gate**: over 30 minutes the `wlan0` entry was scanned 31 times, one `scan_now` a minute, and `unknown_count` ranged from 2 to 5, the total count from 5 to 8, and the strongest unknown signal from 79 to 89. `proximity_alert` was on in 28 samples and off in 3, with 6 changes, because the zero-width network, at 84 plus or minus 5, sits across the threshold of 80. `new_networks_24h` rose from 1 to 2, and one `new_network` event fired, for `Distant_Cafe_5G` on its first sighting. `integration_health` stayed off throughout. The result agrees with the coordinator reading in plan evidence E21.
+- **Version**: `manifest.json` is unchanged and reads `2.0.5`.
+
+### Notes
+
+- **Defects and findings during the build**: the statement in §3e that static mode is needed for `Sensor: Verify HA` was not supported by the checker and is corrected. The plan's `Distant_Cafe_2G` name and the feedback's suggested frequencies would have given a 5 GHz weak network a 2.4 GHz name or a frequency the measurement did not show, so the network is `Distant_Cafe_5G` on the measured 5260 MHz. The drill staleness task cannot report clear before commit, which the plan's acceptance for I6 did not allow for. On the development instance the `WiFi SSID Monitor` entry has Home Assistant's own "Enable polling for changes" option off (`pref_disable_polling: True`), so it is scanned only by `scan_now`, and the observation drove it that way. The setting was left as found.
+- **Records**: the 2026-10-01 record in `docs/DEVELOPMENT.md` §3e (E), the WiFi cells of `x_proj_chores.md`, `zte_techniques_review.md`, `reset_entities_action.md` and `text_sensor_long_term_history.md`, and `docs/supervisor_scan_behavior.md`.
+
+## [2.0.5-dev9] - 2026-10-02 - Diagnostics Download Carries Rejected-Response Record; Payload Keys Classified; Device Sweep
+
+### Summary
+
+The diagnostics download now carries `coordinator.last_rejection`, a structure-only record of the last rejected Supervisor scan response, which is absent after the next successful scan. Every key the coordinator publishes, and every field of a network entry, is classified for identity in module-level sets, with tests that fail when a new key or field is not classified. A new sweep test asserts that every live entity belongs to a device. One defect in the access-point response handling was found and fixed. This is build 2 of 3 in `v205_plan.md` (items I3, I4 and I5).
+
+### Added
+
+- **`last_rejection` in the diagnostics download** (I3): `api.py` retains the record at the three places a scan response is rejected, and `diagnostics.py` publishes it under `coordinator`, next to `data`, as `null` when none is retained. The record always holds `http_status`, `failure_class` and `recorded_at` (UTC, ISO 8601), and `content_type` read from the response headers. `failure_class` is `http_error` for a non-200 status, `invalid_json` for a 200 whose body fails JSON parsing, and `missing_ap_key` for a 200 whose parsed `data` object carries no `accesspoints` list.
+  - **Non-200 body**: `text_length` and `text`, with `text` capped at 500 characters after every MAC-shaped substring in colon, dash or dotted form is replaced by `[REDACTED_MAC]`. The scrub is anchored on hex boundaries, so a UUID, a hash or a timestamp is not altered, and it runs before the cap, so a MAC at the cap is replaced whole.
+  - **`missing_ap_key`**: `key_names` lists the keys of the `data` object that look like field names (lowercase letters, digits and underscores, 32 characters or fewer), and `other_key_count` counts the rest, so a payload keyed by SSID does not put SSIDs in the record. No key names are recorded where `data` is not an object or is empty.
+  - **Never kept**: the body of a 200 response. A 200 that fails JSON parsing keeps no body, and a 200 body is never kept as text.
+  - **Clearing**: the record clears only after the access-point list check passes, not at HTTP 200. A later rejection replaces it, and a connection error leaves it.
+  - **Published values**: `_rejection_record` in `diagnostics.py` publishes only scalars and lists of strings, so a value that is not what the API client stores, such as a mock attribute, is never serialized.
+  - **Difference from the shared item**: no `login` key, because WiFi manages no session.
+- **Classification sets** (I4): `DATA_FIELDS_REWRITTEN` (7 keys) and `DATA_FIELDS_IDENTITY_FREE` (6 keys) in `diagnostics.py` for `coordinator.data`, and `NETWORK_FIELDS_REWRITTEN` (`bssid`, `key`) and `NETWORK_FIELDS_IDENTITY_FREE` (7 fields) for an entry of `data["networks"]`. The names differ from the reference implementation, which names `DISCOVERY_METADATA_PUBLISHED` and `DISCOVERY_METADATA_GATED`.
+
+### Fixed
+
+- **A 200 response whose `data` is a non-empty list, string or number raised `AttributeError` from `get_access_points`**: `res_data.get("data") or {}` kept any truthy value, and the `.get("accesspoints")` that followed was outside the `try` block that wraps every other failure in `WifiScanError`. `data` that is not an object is now treated as a missing access-point list, recorded as `missing_ap_key`, which the health check reports as drift. The plan's E30 finding F5 stated that array and scalar `data` already became `{}`, which was true only for an empty value. The unreachable `type(data_block)` branch of the debug log was removed with the fix.
+
+### Tests
+
+- **`tests/test_api.py`** (I3): 19 tests, including the 8 `data` shapes of `test_a_payload_with_no_object_data_records_no_key_names`, a MAC embedded in an error body in each form, a UUID, hash and timestamp left unaltered, a MAC at the cap boundary, hex runs that only contain a MAC shape, a 200 with no access-point list keeping the record, and only a later successful scan clearing it.
+- **`tests/test_diagnostics.py`**: 5 tests of the published record (I3), one asserting on the value returned by `async_get_config_entry_diagnostics` after a real rejection driven through the API client. 4 tests of the classification (I4): the producer's keys, taken from a real scan that includes a hidden and an unknown network, equal the union of the two data sets with no overlap, the same for the per-network fields, each set matches what `_sanitize_data` does to the real payload, and no seeded SSID, BSSID or `Hidden-` text survives in the serialized download of that scan, which includes the health snapshot. The `_coordinator_with_data` fixture sets `coordinator.api.last_rejection` to `None`.
+- **`tests/conftest.py`**: `MockResponse` gains a `headers` mapping.
+- **`tests/test_entity_hygiene.py`** (I5): `test_every_live_entity_belongs_to_a_device` sets the integration up with disabled-by-default entities forced on, asserts every entity reports a device with non-empty identifiers, and asserts a floor of 18 entities.
+- **Suite**: 457 tests before the build, 486 after.
+
+### Verified
+
+- **Mutations**: 20 mutations were applied to `api.py`, `diagnostics.py`, `coordinator.py` and `entity.py`, each under a 900 s timeout with a checksummed restore, and all 20 fail at least one test in a full-suite run. They cover the capture at each of the three sites, the clearing, the MAC scrub and both of its boundaries, the order of scrub and cap, the cap, the key-name shape rule, the `data` object guard, the published key, the scalar check and the record type check, a new payload key and a new network field left unclassified, a BSSID no longer rewritten, an identity-free key removed from its set, and `device_info` returning `None`. One mutation, the removal of the leading hex boundary of the MAC scrub, survived the first set of tests and is now caught by the hex-run test.
+- **Live check**: after a restart of the development Home Assistant, each of the mock faults `down`, `unknown_interface`, `html` and `no_ap_key` produced a `last_rejection` record in the diagnostics download of the development entry, taken with `GET /api/diagnostics/config_entry/<entry_id>`: `http_error` with status 500 and 400 and the Supervisor text, `invalid_json` with status 200, and `missing_ap_key` with status 200. After each fault was cleared and a scan succeeded the record was `null`. In every download, taken with a hidden network seeded with a BSSID, no SSID, BSSID or `Hidden-` text appeared and every key of `data` and of each network entry was classified.
+- **Version**: `manifest.json` is unchanged and reads `2.0.5`.
+
+### Notes
+
+- **Defects found during the build**: the non-object `data` defect above, and a gap in the new tests found by mutation, where the leading boundary of the MAC scrub could be removed with every test passing.
+- **Scan cooldown**: `scan_now` inside the coordinator's debouncer cooldown returns without fetching, so a live drive of consecutive faults waits 12 s between scans, as `fault_drill.py` does.
+- **Records**: the WiFi cells and difference rows of `improve_diagnostics_on_bad_payload_data.md` and the WiFi cell of `every_entity_must_have_a_device.md`.
+
+## [2.0.5-dev8] - 2026-10-02 - get_networks Filter Tests; Handler and Filter Predicate at Module Level
+
+### Summary
+
+The `get_networks` service filters gained characterization tests that assert which networks return, and five filter mutations that the earlier tests did not catch are now caught. The six filter branches then moved into a module-level `_network_matches_filter`, and the handler moved out of `async_register_services` to module level, which lowers that function's McCabe score from 24 to 13. Behavior is unchanged. This is build 1 of 3 in `v205_plan.md` (items I1 and I2).
+
+### Tests
+
+- **`tests/test_init.py`** (I1): `test_get_networks_returns_the_expected_networks`, 17 parametrized cases over one asymmetric payload of two known and four unknown networks, one unknown with no BSSID and one with no signal. Each case asserts the ordered list of returned SSIDs and `total_matched`, not a count. Cases cover the default `unknown` scope, `known` and `all`, the inclusive `min_signal` boundary, a network with no signal under `min_signal` and sorting last, keyword and exclude terms matching only the BSSID or only the band, term direction, any-term matching, a missing BSSID adding no text, and keyword with exclude combined. Written first and passing against the unmodified `services.py`.
+- **`tests/test_services.py`** (I2): 26 direct tests of `_network_matches_filter`, covering scope, band, `min_signal`, keyword, exclude and the missing-BSSID case.
+- **Suite**: 414 tests before the build, 457 after.
+
+### Changed
+
+- **`services.py`**: `_network_matches_filter(label, net, is_unknown, scope, band, min_signal, keyword, exclude)` holds the six filter branches verbatim, in their original order. `_handle_get_networks(hass, call)` is now module level and is registered with `functools.partial(_handle_get_networks, hass)`. No branch, order of evaluation or message changed. The handler moved as well as the predicate because the predicate alone leaves `async_register_services` at 19, one point under the target of 20, and the roadmap work on `get_networks` adds branches to this handler.
+- **McCabe scores** (`ruff check --select C901 --config "lint.mccabe.max-complexity=1"`): `async_register_services` 24 to 13, `_handle_get_networks` 11 (nested) to 6 (module level), `_network_matches_filter` 7. The highest score in the component is now 13.
+
+### Verified
+
+- **Mutations** (E5): the five filter mutations that survived the earlier suite (default `unknown` scope exclusion dropped, signal `None` guard removed, keyword match inverted, BSSID dropped from the haystack, band dropped from the haystack) each fail at least one new I1 test in a full-suite run on the unmodified code. A set of nine filter mutations was then applied to the extracted predicate, each under a 900 s timeout with a checksummed restore, and all nine fail at least one test. The nine are the five above plus the known-scope exclusion dropped, the band filter dropped, `min_signal` `<` changed to `<=`, and the exclude match inverted. Only the band-filter-dropped mutation is caught solely by a test that existed before the build (`test_get_networks_service_filters`) and by the new `test_network_matches_filter_band`.
+- **Live check**: after a restart of the development Home Assistant, `get_networks` returned the seven networks of the mock payload. Ten parameter combinations were compared with the filter logic from `HEAD` evaluated on the same live payload, and all ten matched in membership and order.
+- **Version**: `manifest.json` is unchanged and reads `2.0.5`.
+
+### Notes
+
+- **Defects found during the build**: the five filter mutations above survived the earlier tests because the test data was symmetric and the assertions counted networks, so the keyword direction, the BSSID and band haystack parts, the default scope and the signal `None` guard were unguarded. The plan's figure of 6 for `_network_matches_filter` was taken from a prototype and measures 7 in the shipped code, because the shipped predicate keeps the haystack comprehension inside it. The McCabe item named the predicate two ways and estimated about 8, which the item now corrects to the measured 7. No defect was found in the behavior of the shipped code.
+- **Records**: the WiFi rows of `shared/SharedNotes/issues/x_project/mccabe_complexity_reduction.md` carry the measured before and after.
+
+## [2.0.5-dev7] - 2026-10-01 - CI Bumps, HA Compatibility, ruff re-sorts, mypy fix
+
+### Summary
+
+The shared Ruff configuration adopted two settings from Home Assistant core's `pyproject.toml`: the `[lint.isort]` table and the `ICN002` rule. The isort settings change the expected import order, so `ruff check --fix` re-sorted imports in Python files across the project.
+
+### Bumps
+
+- **Shared CI**: Bump `.github` Shared CI Validation via SHA from v2.0.14 to v2.0.16
+
+- **Validate Bump**: Update `ruff` from 0.16.3 to 0.16.9
+- **Validate Bump**: Update `zizmor` from 1.29.0 to 1.30.1
+- **Validate Bump**: Update `check-jsonschema` from 0.38.0 to 0.38.2
+- **Validate Bump**: Bumped PHACC `pytest-homeassistant-custom-component` from 0.13.357 to 0.13.367
+
+### Changed
+
+- **`pyproject_common.toml`**: added `[lint.isort]` with HA core's four settings (`force-sort-within-sections = true`, `known-first-party = ["homeassistant"]`, `combine-as-imports = true`, `split-on-trailing-comma = false`), and added `"ICN002"` to `select`. HA core pairs `ICN002` with a `probatio` → `vol` banned alias; that alias was not adopted, so the rule currently flags nothing.
+
+- **Import order: `force-sort-within-sections` sorts plain `import x` and `from x import y` statements together alphabetically within each section, so `from pathlib import Path` now precedes `import sys`. `split-on-trailing-comma = false` joins wrapped import lists that fit on one line.
+
+- **Two Mypy overrides in the synced `pyproject.toml`** clear 12 errors that core `dev` (`3e98d8595c2`) raised in unchanged code. `voluptuous` is treated as untyped, since core now types schemas as probatio (core #182112) while the integration's `import voluptuous` is aliased to probatio only at runtime. `homeassistant.components.binary_sensor` and `homeassistant.components.button` count their implicit re-exports of the device-class enums as exports, since core moved the enums into `const` modules (core #182211). No integration code changes, and the 2025.2.0 floor is unchanged. Mypy Strict: no issues in 22 source files.
+
+- **`docs/ha_compatibility.md`**: Ledger rows for the probatio-typed schemas and the `const`-module device classes, the 2026.10 milestone, and tested against 2026.9.4.
+- **`docs/ha_compatibility.md`**: Minimum, Enforced-by and Python rows updated to 2025.2.0 and Python 3.13; the planned-floor milestone removed.
+
+- **`tasks.json`**: Added McCabe Complexity Checker Script to Shared `tasks.json`.
+
+### Notes
+
+- **Source**: `ruff_rules_check` run of 2026-09-23, recommendations R1 (`ICN002`) and R2 (`[lint.isort]`); report `shared/SharedNotes/prompts/prompt_run_logs/ruff_rules_check/ruff_rules_review_20260923_1330.md`.
+
+### Shared
+
+- `pyproject.toml`: Two Mypy overrides in the synced `pyproject.toml`** to suppress clear 12 errors related to `probatio` vs  `voluptuous`.
+
+## [2.0.5-dev6] - 2026-09-23 - AGENTS.md: Guard Test Table Trimmed; Rationale Moved to docs/test_guards.md
+
+### Summary
+
+`AGENTS.md` aligned with the updated `agents_md_index.md` specification. The "Tests that will stop you" table is trimmed to one line per row, with each row's rationale moved verbatim to a new `docs/test_guards.md`. Junction paths are no longer written as markdown links, and the Home Assistant compatibility ledger pointer is added. No code or test changes.
+
+### Changed
+
+- **Tests that will stop you**: 13 rows, each `Add or change this | This fails | Do this`; the section shrinks from 719 to 400 words. The heading drops "and why they exist", and the section ends with the instruction to add a new guard's row here and its rationale to `docs/test_guards.md`.
+- **Guard tests added to the table**: 2 tests that fail on an ordinary change (adding, changing or removing an entity, action, translation, repair issue, option or write) and were not listed. Their docstrings are recorded as rationale in `docs/test_guards.md`.
+- **Junction links**: 9 markdown links to `.shared/` and `.notes/` converted to inline code. `AGENTS.md` is committed to the public repository, where those junctions do not exist, so the links were broken for GitHub readers.
+- **Compatibility ledger pointer**: the mandatory block pointing to `docs/ha_compatibility.md` added after the entity inventory pointer.
+
+### Added
+
+- **`docs/test_guards.md`**: rationale for every guard test in the table, in two sections: the former rationale column copied verbatim, and the docstrings of the tests added to the table.
+
+### Notes
+
+- **Source**: `agents_md_align` run of 2026-09-23 (`shared/SharedNotes/prompts/prompt_run_logs/agents_md_align/agents_md_align_20260923_1638.md`).
+
+## [2.0.5-dev5] - 2026-09-23 - Breaking: Minimum Home Assistant Raised to 2025.2.0 for Python 3.13
+
+### Summary
+
+The minimum supported Home Assistant version rises from 2024.8.0 to 2025.2.0. Home Assistant 2025.2.0 is the first release that requires Python 3.13, so this change makes Python 3.13 the minimum runtime. No integration code changes.
+
+### Changed, breaking
+
+- **Minimum Home Assistant version**: `hacs.json` `homeassistant` raised from `2024.8.0` to `2025.2.0`. HACS treats this key as the minimum required Home Assistant version, so installations on earlier releases are not offered this version.
+- **README requirements**: minimum Home Assistant `2025.2`, minimum Python `3.13+`.
+
+### Documentation
+
+- **`docs/ha_compatibility.md`**: Minimum, Enforced-by and Python rows updated to 2025.2.0 and Python 3.13; the planned-floor milestone removed.
+
+### Notes
+
+- **Rationale**: the previous floor implied Python 3.12 (Home Assistant 2024.6 to 2025.1), which was verified by compilation only. Tests run on Python 3.14, Ruff targets `py313`, and `pyproject.toml` declares `requires-python >=3.13`. The new floor makes the declared, linted and packaged Python minimums agree.
+- **Impact**: Home Assistant public analytics (2026-09-23, 687,049 opted-in installations) place 4.6% of installations below 2025.2.0.
+- **Functional floor unchanged**: the features the code depends on predate 2025.2.0, and `_compat.py` is unaffected because its branches detect 2026.8 device-registry features. The cross-project rationale is in `ha_minimum_version_matrix.md` §6 and §7.5.
+
+## [2.0.5-dev4] - 2026-09-08 - Documentation: Project Complexity & Health Scorecard Added
+
+### Added
+
+- **`docs/project_complexity.md` architectural health scorecard**: Added a tracked project scorecard documenting current structural complexity metrics, including PlayFaster Health Index score, unmasked McCabe cyclomatic complexity ($V(G)$), routine statement length distributions, module sizes, entity platform declarative efficiency, test surface, and code suppressions.
+
+---
+
+## [2.0.5-dev3] - 2026-08-27 - CI: GitHub Actions Workflow Re-trigger
+
+### Changed
+
+- **No Changes**: Only changed `changelog_local.md` (this file) to commit and re-do github CI.
+
+## [2.0.5-dev2] - 2026-08-26 - Linting: Issue Registry Alias Normalization and Test Import Exclusions
+
+### Summary
+
+Reconciled test suite import conventions against newly adopted Home Assistant Core Ruff lint rules (`ICN001` and `TID251`).
+
+### Changed
+
+- **Issue Registry Import Alias (`ICN001`)**: Normalized `from homeassistant.helpers import issue_registry as issue_reg` to canonical `as ir` in `tests/test_coordinator.py`.
+- **Test Internal Import Exclusion (`TID251`)**: Added `TID251` to `per-file-ignores` for `tests/**` in synced `pyproject.toml`, allowing test suites to import shared fixtures and helpers (`from .conftest import MockResponse`, `from tests.conftest import MockConfigEntry`) while maintaining the strict ban on production code (`custom_components/`) importing test packages.
+
+## [2.0.5-dev1] - 2026-08-26 - AGENTS.md Alignment
+
+### Changed
+
+- **`AGENTS.md`**: Updated to align with other group `AGENTS.md` files.
 
 ---
 
@@ -146,13 +433,13 @@ Routine maintenance update refining Repair notifications with no changes to dail
 - **`docs/ROADMAP.md`**: Refined band switch explanation, `get_networks` live-data rationale, phase 2 privacy boundaries, and event trigger filtering scope.
 - **`docs/DEVELOPMENT.md`**: Streamlined coverage sufficiency commentary, relevance-triggered staleness checking, and converted `## Which conditions earn a Repair` to declarative `## Repair Issue Conditions`.
 
-## [2.0.4-dev7] - 2026-08-26 - Improve Changelog Readability
+## [2.0.4-dev7] - 2026-08-26 - Documentation: Changelog Readability Improvements
 
 ### Changed
 
 - **Changelog**: Updated main `CHANGELOG.md` to improve readability.
 
-## [2.0.4-dev6] - 2026-08-26 - Repair Set Reduced To One; Contract Sweeps Aligned
+## [2.0.4-dev6] - 2026-08-26 - Repair Set Consolidation; Schema Sweep Alignment
 
 ### Summary
 
@@ -460,7 +747,7 @@ Tooling and one worked test. No source change.
 - `dev_standards` §11 gained the rule as Standard Version 1.32.0; cross-project adoption is chore **C-021**, with `huawei_router_5g` flagged as reduced scope — it reaches the network through a library holding its own `requests.Session`.
 - `testing_deeper_lev1_review.md` gained four categories — **SEQ, LIFE, REACH, PUB** — at v1.1.0. The original six are each scoped to one function, which is why three defects survived 390 tests at 100% branch coverage.
 
-## [2.0.3-dev7] - 2026-08-22 - Health Telemetry: Sequence Fault Drill and Held-Baseline Fixes
+## [2.0.3-dev7] - 2026-08-22 - Health Diagnostics: Sequence Fault Drill and Held-Baseline Fixes
 
 ### Summary
 
@@ -514,7 +801,7 @@ No shipped code changed. Development environment, tests and documentation.
 - Test count 387 → **390**, 100% line and branch, 0 partial branches, assertion audit 0 of 312.
 - `ha_compatibility.md` narrowed to its stated purpose and given a scope note; two sections had drifted into architecture. `DEVELOPMENT.md` gained §3d and §3e.
 
-## [2.0.3-dev5] - 2026-08-21 - Health Telemetry: Standard Severity Enum and Debug Logging Privacy
+## [2.0.3-dev5] - 2026-08-21 - Health Diagnostics: Standard Severity Enum and Debug Logging Privacy
 
 ### Summary
 
@@ -868,7 +1155,7 @@ The harness now checks the mutation **applied** before believing the result, aft
 
 **83% is where this stops paying on this project.** The remainder is noise, genuine equivalents, and one function whose collaborator is mocked by design.
 
-## [2.0.1-dev22] - 2026-08-06 - Health Telemetry: Threshold Validation and Dispatch Loop
+## [2.0.1-dev22] - 2026-08-06 - Health Diagnostics: Threshold Validation and Dispatch Loop
 
 ### Summary
 
@@ -1039,7 +1326,7 @@ Documentation only. No code, tests or configuration changed.
 
   This is the file agents read before touching anything, which is why a wrong line in it costs more than a wrong line elsewhere.
 
-## [2.0.1-dev18] - 2026-08-05 - Bump PHACC; Update AGENTS.md
+## [2.0.1-dev18] - 2026-08-05 - PHACC Tooling Bump; AGENTS.md Update
 
 ### Summary
 
@@ -1506,7 +1793,7 @@ Implements the enforcement half of `dev_standards` §14 as revised at **Standard
 - **This is the change that would have prevented `[2.0.1-dev7]`'s fix from being needed.** `_unrecorded_attributes` had fallen behind `extra_state_attributes` here as the attribute set grew, and nothing failed. `zte_router_5g` had a test for this and caught its own equivalent gap on the first run; this project did not, which is the whole reason §14 1.12.0 now mandates the test rather than leaving it to review.
 - **Worth running early once the container is up.** A brand-new sweep across an integration that has never been checked this way is the most likely of this session's changes to find something — that is precisely what happened in `zte_router_5g`.
 
-## [2.0.1-dev7] - 2026-07-27 - Health Telemetry: Platform Drift Attribute Exposure
+## [2.0.1-dev7] - 2026-07-27 - Health Diagnostics: Platform Schema Change Attribute Exposure
 
 ### Summary
 
@@ -1622,7 +1909,7 @@ Bumped pytest Home Assistant custom component testing package.
 
 ---
 
-## [2.0.0] - 2026-07-25 - Signal as a Percentage; Health Sensor; Breaking Renames
+## [2.0.0] - 2026-07-25 - Major Release: Percentage Signal Metrics; Health Sensor; Breaking Renames
 
 > **This release has breaking changes - see the Breaking section.**
 
@@ -1817,7 +2104,7 @@ A maintenance and refinement update adding BSSID pattern matching across known a
 
 ---
 
-## [2.0.0-dev1] - 2026-07-22 - Telemetry and Actions: Signal Percent, Health Sensor, and Service Names
+## [2.0.0-dev1] - 2026-07-22 - Sensor Additions and Actions: Signal Percent, Health Sensor, and Service Names
 
 ### Summary
 
@@ -1967,7 +2254,7 @@ Aligned Ruff rules with Home Assistant Core standards and refactored API excepti
 
 ---
 
-## [1.6.1] - 2026-07-04 - Reconfigure Settings and Polling Toggle
+## [1.6.1] - 2026-07-04 - Release: Reconfigure Settings and Polling Toggle
 
 ### Summary
 
@@ -2097,7 +2384,7 @@ Migrated validation and sync tasks to dev-workbench architecture.
 - **.gitignore**: Multiple updates to .gitignore
 - **AGENTS.md**: Added AGENTS.md to repo root
 
-## [1.6.0] - 2026-06-12 - Proximity Alert, Persistent History and Denylist
+## [1.6.0] - 2026-06-12 - Release: Proximity Alert, Persistent History, and Denylist
 
 ### Summary
 
@@ -2190,7 +2477,7 @@ Added dedicated Stores for first-seen timestamps and visit counts, and registere
 
 ---
 
-## [1.6.0-dev1] - 2026-06-11 - Security Telemetry: Persistent Last-Seen, Band Filter, and Denylist
+## [1.6.0-dev1] - 2026-06-11 - Security Sensor Additions: Persistent Last-Seen, Band Filter, and Denylist
 
 ### Summary
 
@@ -2368,7 +2655,7 @@ Adopted centralized icons.json schema and resolved all static type checking issu
 - **icons.json**: Implemented icons.json standard, where all icons are defined in an icons.json file, not individual .py files.
 - **mypy --strict**: Addressed all mypy type issues.
 
-## [1.4.3] - 2026-05-10 - Documentation Overhaul and Architecture Alignment
+## [1.4.3] - 2026-05-10 - Release: Documentation Overhaul and Architecture Alignment
 
 ### Summary
 
@@ -2481,7 +2768,7 @@ Added target links to README repository badges.
 
 - **Badge Links**: Added links to readme badges.
 
-## [1.4.2] - 2026-05-02 - Scan Interval Minimum Aligned to 60 Seconds
+## [1.4.2] - 2026-05-02 - Release: Scan Interval Minimum Aligned to 60 Seconds
 
 ### Summary
 
@@ -2548,7 +2835,7 @@ Refactored exception handling, aligned scan interval limits, and added binary se
 
 - **VS Code Tasks**: Updated "Pytest: Run All Tests" and "Pytest: Check Test Coverage" tasks to strip ANSI escape codes from `.reports/pytest_results.txt` and `.reports/pytest_coverage.txt` while preserving color in the terminal. Uses bash process substitution: `tee >(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' > file.txt)`. Same fix applied to `ha-tplink-router-5g-monitor` and `ha-zte-router-5g-monitor`.
 
-## [1.4.1] - 2026-04-18 - Last Updated Sensor, Custom Naming, and Guard Bands
+## [1.4.1] - 2026-04-18 - Release: Last Updated Sensor, Custom Naming, and Guard Bands
 
 ### Summary
 
@@ -2674,7 +2961,7 @@ Expanded test suite coverage to 99% and added module documentation.
 - **Code Quality**: Fixed file formatting and line length issues to comply with Ruff standards.
 - **Documentation**: Added missing docstrings across modules and tests.
 
-## [1.0.0] - 2026-04-01 - Initial Release
+## [1.0.0] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring
 
 ### Summary
 

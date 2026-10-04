@@ -3,10 +3,10 @@
 from unittest.mock import patch
 
 import pytest
-from homeassistant.core import HomeAssistant
 
 from custom_components.wifi_ssid_monitor.const import DOMAIN
 from custom_components.wifi_ssid_monitor.sensor import SENSOR_TYPES, WifiScanSensor
+from homeassistant.core import HomeAssistant
 
 
 @pytest.fixture

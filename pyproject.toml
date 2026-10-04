@@ -3,7 +3,8 @@
 
 [project]
 name = "custom-component"
-version = "0.1.0"
+# Version is dummy and required for UV. Do NOT Edit
+version = "1.0.0"
 requires-python = ">=3.13"
 
 [tool.ruff]
@@ -14,17 +15,17 @@ extend = ".validate/pyproject_common.toml"
 "tests/**" = [
     "F821", "F841", "S101", "S105", "S106", "S107",
     "PT003", "PT006", "PT018", "PT022", "PT023", "PT024", "PT025", "PT026",
-    "RUF012", "SLF001", "RET504"
+    "RUF012", "SLF001", "RET504", "TID251"
 ]
 "tests/*" = [
     "F821", "F841", "S101", "S105", "S106", "S107",
     "PT003", "PT006", "PT018", "PT022", "PT023", "PT024", "PT025", "PT026",
-    "RUF012", "SLF001", "RET504"
+    "RUF012", "SLF001", "RET504", "TID251"
 ]
 "tests/**/*.py" = [
     "F821", "F841", "S101", "S105", "S106", "S107",
     "PT003", "PT006", "PT018", "PT022", "PT023", "PT024", "PT025", "PT026",
-    "RUF012", "SLF001", "RET504"
+    "RUF012", "SLF001", "RET504", "TID251"
 ]
 
 
@@ -78,6 +79,23 @@ module = ["homeassistant.*"]
 ignore_errors = true
 follow_imports = "silent"
 no_implicit_reexport = true
+
+# Core `dev` (2026.10 cycle) moved the device-class enums into each platform's
+# `const` module (core #182211) and re-exports them from the package only
+# implicitly. The integrations import them from the package, which works at
+# runtime on every supported version. Remove once the floor passes the move.
+[[tool.mypy.overrides]]
+module = ["homeassistant.components.binary_sensor", "homeassistant.components.button"]
+implicit_reexport = true
+
+# Core `dev` types flow and service schemas as probatio (core #182112). The
+# integrations import voluptuous, which HA aliases to probatio at runtime from
+# 2026.9 and which is real voluptuous below it; the floor is 2025.2. Treated as
+# untyped until the integrations import probatio directly (a 2026.9 floor, or
+# core retiring `install_as_voluptuous()`).
+[[tool.mypy.overrides]]
+module = ["voluptuous", "voluptuous.*"]
+follow_imports = "skip"
 
 [tool.coverage.run]
 source = ["custom_components"]

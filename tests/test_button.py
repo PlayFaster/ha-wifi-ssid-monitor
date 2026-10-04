@@ -4,15 +4,15 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.util import dt as dt_util
 
 from custom_components.wifi_ssid_monitor.button import (
     SCAN_NOW_DESCRIPTION,
     WifiScanButton,
 )
 from custom_components.wifi_ssid_monitor.const import DOMAIN
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util import dt as dt_util
 
 
 @pytest.mark.asyncio

@@ -463,3 +463,259 @@ async def test_the_ap_sample_log_carries_keys_and_never_values(
     assert "ssid" in caplog.text, "the key set is the point of the line"
     assert "TheNeighbours" not in caplog.text
     assert "AA:BB:CC:DD:EE:FF" not in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Rejected-response record (`last_rejection`), published by the diagnostics
+# download. Structure only, never access-point data.
+# ---------------------------------------------------------------------------
+
+
+def _api(mock_aiohttp_client, response):
+    mock_aiohttp_client.get.return_value = response
+    return WifiScanAPI(mock_aiohttp_client, "wlan0")
+
+
+@pytest.mark.asyncio
+async def test_a_non_200_response_is_retained_with_its_status_and_text(
+    mock_aiohttp_client,
+):
+    """A non-200 keeps status, class, content type, length and the body text."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(
+            mock_aiohttp_client,
+            MockResponse(
+                status=500,
+                text_data="Internal Server Error",
+                headers={"Content-Type": "text/plain"},
+            ),
+        )
+        with pytest.raises(WifiScanError):
+            await api.get_access_points()
+
+    record = api.last_rejection
+    assert record is not None
+    assert record["http_status"] == 500
+    assert record["failure_class"] == "http_error"
+    assert record["content_type"] == "text/plain"
+    assert record["text_length"] == len("Internal Server Error")
+    assert record["text"] == "Internal Server Error"
+    assert record["recorded_at"].endswith("+00:00")
+    assert "key_names" not in record
+
+
+@pytest.mark.asyncio
+async def test_a_mac_in_an_error_body_is_scrubbed_in_every_form(mock_aiohttp_client):
+    """Colon, dash and dotted MACs in an error body never reach the record."""
+    body = "bad aa:bb:cc:dd:ee:ff then AA-BB-CC-DD-EE-FF then aabb.ccdd.eeff end"
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(mock_aiohttp_client, MockResponse(status=500, text_data=body))
+        with pytest.raises(WifiScanError):
+            await api.get_access_points()
+
+    assert api.last_rejection is not None
+    assert (
+        api.last_rejection["text"]
+        == "bad [REDACTED_MAC] then [REDACTED_MAC] then [REDACTED_MAC] end"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_uuid_hash_or_timestamp_in_an_error_body_is_not_altered(
+    mock_aiohttp_client,
+):
+    """Only MAC-shaped text is replaced; other hex-looking text is kept."""
+    body = (
+        "id 123e4567-e89b-12d3-a456-426614174000 "
+        "sha 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 "
+        "at 2026-10-02T12:34:56+00:00 ip 10.0.0.1"
+    )
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(mock_aiohttp_client, MockResponse(status=500, text_data=body))
+        with pytest.raises(WifiScanError):
+            await api.get_access_points()
+
+    assert api.last_rejection is not None
+    assert api.last_rejection["text"] == body
+
+
+@pytest.mark.asyncio
+async def test_error_text_is_scrubbed_before_it_is_capped(mock_aiohttp_client):
+    """A MAC straddling the cap is replaced whole, not cut into a fragment."""
+    body = "x" * 495 + "aa:bb:cc:dd:ee:ff" + "y" * 50
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(mock_aiohttp_client, MockResponse(status=500, text_data=body))
+        with pytest.raises(WifiScanError):
+            await api.get_access_points()
+
+    assert api.last_rejection is not None
+    text = api.last_rejection["text"]
+    assert len(text) == 500
+    assert "aa:bb" not in text
+    assert text.endswith("[REDA")
+    assert api.last_rejection["text_length"] == len(body)
+
+
+@pytest.mark.asyncio
+async def test_a_200_that_fails_json_parsing_keeps_no_body(mock_aiohttp_client):
+    """An unparsable 200 records status and class, with no text and no keys."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(
+            mock_aiohttp_client,
+            MockResponse(
+                json_error=True,
+                text_data="<html>aa:bb:cc:dd:ee:ff</html>",
+                headers={"Content-Type": "text/html"},
+            ),
+        )
+        with pytest.raises(WifiScanError, match="Invalid API response"):
+            await api.get_access_points()
+
+    record = api.last_rejection
+    assert record is not None
+    assert record["http_status"] == 200
+    assert record["failure_class"] == "invalid_json"
+    assert record["content_type"] == "text/html"
+    assert "text" not in record
+    assert "text_length" not in record
+    assert "key_names" not in record
+
+
+@pytest.mark.asyncio
+async def test_a_200_with_no_access_point_list_keeps_the_record(mock_aiohttp_client):
+    """A 200 with no `accesspoints` list is a rejection and keeps its record."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(
+            mock_aiohttp_client,
+            MockResponse(json_data={"result": "ok", "data": {"interfaces": []}}),
+        )
+        assert await api.get_access_points() == []
+
+    record = api.last_rejection
+    assert record is not None
+    assert record["http_status"] == 200
+    assert record["failure_class"] == "missing_ap_key"
+    assert record["content_type"] == "application/json"
+    assert record["key_names"] == ["interfaces"]
+    assert record["other_key_count"] == 0
+    assert "text" not in record
+
+
+@pytest.mark.asyncio
+async def test_only_a_later_successful_scan_clears_the_record(mock_aiohttp_client):
+    """The record survives another rejection and a connection error, not a success."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(mock_aiohttp_client, MockResponse(json_data={"data": {}}))
+        await api.get_access_points()
+        assert api.last_rejection is not None
+
+        mock_aiohttp_client.get.side_effect = aiohttp.ClientError("down")
+        with pytest.raises(WifiScanError):
+            await api.get_access_points()
+        assert api.last_rejection is not None
+        assert api.last_rejection["failure_class"] == "missing_ap_key"
+
+        mock_aiohttp_client.get.side_effect = None
+        mock_aiohttp_client.get.return_value = MockResponse(
+            json_data={"data": {"accesspoints": []}}
+        )
+        await api.get_access_points()
+        assert api.last_rejection is None
+
+
+@pytest.mark.asyncio
+async def test_key_names_are_listed_only_where_they_look_like_field_names(
+    mock_aiohttp_client,
+):
+    """Under payload drift an SSID-shaped key is counted, never named."""
+    data = {
+        "interfaces": [],
+        "scan_state": 1,
+        "HomeNet": 2,
+        "Cafe Guest": 3,
+        "a" * 33: 4,
+    }
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(mock_aiohttp_client, MockResponse(json_data={"data": data}))
+        await api.get_access_points()
+
+    assert api.last_rejection is not None
+    assert api.last_rejection["key_names"] == ["interfaces", "scan_state"]
+    assert api.last_rejection["other_key_count"] == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"data": ["x"]},
+        {"data": "text"},
+        {"data": 5},
+        {"data": None},
+        {"data": {}},
+        {"result": "ok"},
+        ["not", "an", "object"],
+        "scalar",
+    ],
+)
+async def test_a_payload_with_no_object_data_records_no_key_names(
+    mock_aiohttp_client, payload
+):
+    """Non-object or empty `data` is a missing list, with no key names recorded."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(mock_aiohttp_client, MockResponse(json_data=payload))
+        assert await api.get_access_points() == []
+
+    assert api.last_response_had_ap_key is False
+    assert api.last_rejection is not None
+    assert api.last_rejection["failure_class"] == "missing_ap_key"
+    assert "key_names" not in api.last_rejection
+
+
+@pytest.mark.asyncio
+async def test_a_non_string_content_type_is_not_retained(mock_aiohttp_client):
+    """A header value that is not text is recorded as None."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(
+            mock_aiohttp_client,
+            MockResponse(json_data={"data": {}}, headers={"Content-Type": 5}),
+        )
+        await api.get_access_points()
+
+    assert api.last_rejection is not None
+    assert api.last_rejection["content_type"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_response_with_no_headers_mapping_records_no_content_type(
+    mock_aiohttp_client,
+):
+    """A response object without a headers mapping does not break the capture."""
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        response = MockResponse(json_data={"data": {}})
+        response.headers = None
+        api = _api(mock_aiohttp_client, response)
+        await api.get_access_points()
+
+    assert api.last_rejection is not None
+    assert api.last_rejection["content_type"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_hex_run_that_only_contains_a_mac_shape_is_not_altered(
+    mock_aiohttp_client,
+):
+    """The MAC scrub is bounded on both sides by non-hex characters.
+
+    ``0aa:bb:cc:dd:ee:ff`` and ``aa:bb:cc:dd:ee:fff`` are longer hex runs, not
+    MACs, so neither is altered, which is what keeps a hash or an identifier
+    in an error body from being cut up.
+    """
+    body = "run 0aa:bb:cc:dd:ee:ff and aa:bb:cc:dd:ee:fff end"
+    with patch.dict(os.environ, {"SUPERVISOR_TOKEN": "test_token"}):
+        api = _api(mock_aiohttp_client, MockResponse(status=500, text_data=body))
+        with pytest.raises(WifiScanError):
+            await api.get_access_points()
+
+    assert api.last_rejection is not None
+    assert api.last_rejection["text"] == body

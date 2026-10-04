@@ -14,10 +14,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import (
-    CONF_PROXIMITY_SIGNAL_THRESHOLD,
-    DEFAULT_PROXIMITY_SIGNAL_THRESHOLD,
-)
+from .const import CONF_PROXIMITY_SIGNAL_THRESHOLD, DEFAULT_PROXIMITY_SIGNAL_THRESHOLD
 from .coordinator import WifiScanCoordinator
 from .entity import WifiScanEntity
 from .health import SEVERITY_UNKNOWN

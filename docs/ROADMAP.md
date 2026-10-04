@@ -49,6 +49,8 @@ The cache originally avoided Supervisor round trips from rapid automation calls.
 
 **The rate concern is already handled** — resolved 2026-08-03, before this item is started. `async_force_refresh` used to call `async_refresh()`, bypassing HA's request debouncer, so a script calling this action in a loop would have hit the Supervisor every time. It now calls `async_request_refresh()`, matching §13, `zte_router_5g` and `unifi_network_monitor`: the first call fetches immediately and the rest inside the 10-second cooldown coalesce into one. That coalescing is what makes routing this action through the same path safe, and it removes the objection that produced the cache in the first place.
 
+Measurements of how long a real scan takes and how much its result changes from one call to the next are in `docs/supervisor_scan_behavior.md`.
+
 ---
 
 ### Per-network entities
@@ -146,6 +148,8 @@ A control rather than a Configure option because it is a value the user will wan
 
 The `visit_counts` history that drives it is already persisted, so this is a filter over existing state rather than new state, which is what keeps the effort low.
 
+Measurements of how often networks of each signal strength are absent from a scan are in `docs/supervisor_scan_behavior.md`.
+
 ### History browser action
 
 #### **Value ⭐⭐⭐ · Effort Low**
@@ -180,6 +184,8 @@ The first-ever-seen case ships as `wifi_ssid_monitor_new_network`. What remains 
 
 **Sequencing.** The two guards are shared with other items — the visit-count history with the threshold control, the miss debounce with the per-network entities. Whichever is built first should build them to be reused.
 
+Measurements of how often networks of each signal strength are absent from a single scan are in `docs/supervisor_scan_behavior.md`.
+
 ---
 
 ## Maybe
@@ -191,6 +197,8 @@ The first-ever-seen case ships as `wifi_ssid_monitor_new_network`. What remains 
 A device sitting at the threshold — 79/81% against an 80% threshold — makes the proximity sensor flap on every scan. A configurable hysteresis band ("must drop 5 percentage points below the threshold to turn off") stops it. Requires tracking the previous `is_on` state and applying the upper and lower bounds separately.
 
 **Would be justified by:** observing the flap. It is a predicted failure rather than a reported one, and a user whose threshold is nowhere near a real network's signal will never see it. The **Appearance / disappearance events** item builds debounce machinery that may cover this case more generally, so it is worth checking whether this is still a separate problem afterwards.
+
+Measurements of how far a network's signal moves between consecutive scans are in `docs/supervisor_scan_behavior.md`.
 
 ### Case-insensitive known-SSID matching
 
@@ -262,7 +270,7 @@ Items that were on this roadmap and have since been built. Detail is in `CHANGEL
 | :-- | :-- | :-- |
 | **BSSID (MAC address) support** | Original item | Unblocked and delivered in v2.0.0. The Supervisor `/accesspoints` payload does return `mac`, verified on Intel and Raspberry Pi hardware. BSSID is captured in the normalized shape, exposed as `bssid` on the per-network detail, the `get_networks` response and the `new_network` event, and used as the identity for cloaked networks (`Hidden-<last 4 of BSSID>`). `known_wifi_ids` and `denylist_ssids` match against both the network key and the BSSID, so exact MACs and MAC wildcards (`AA:BB:CC:*`) are valid in either list. |
 | **"First seen" events** | Original item | `wifi_ssid_monitor_new_network` in v2.0.0. Fires once per genuinely-new network, keyed on the persisted history so it survives restarts, with the existing set recorded silently as a baseline on first scan and a per-cycle rate limit. Payload carries `entry_id`, `key`, `ssid`, `bssid`, `band`, `channel`, `signal`, `hidden`, `ssid_anomaly`, `mode` and `first_seen`. Supersedes the separate "first detected events" item, whose sketched `hass.bus.async_fire`-on-missing-`first_seen` approach would not have been restart-safe. |
-| **Hardware health monitoring** | Original item | Delivered in v2.0.0 as the Integration Health self-diagnosis sensor, not as raw adapter telemetry — the Supervisor API does not expose that. A `problem` binary sensor that stays available when everything else has gone `unavailable`, backed by a check catalog and three repair issues: `interface_missing` (the "adapter stalled" case the item described), `signal_format_changed` and `supervisor_unavailable`. It also catches the silent failure the item did not anticipate: a scan that succeeds while the payload shape or units have drifted. |
+| **Hardware health monitoring** | Original item | Delivered in v2.0.0 as the Integration Health self-diagnosis sensor, not as raw adapter hardware metrics — the Supervisor API does not expose that. A `problem` binary sensor that stays available when everything else has gone `unavailable`, backed by a check catalog and three repair issues: `interface_missing` (the "adapter stalled" case the item described), `signal_format_changed` and `supervisor_unavailable`. It also catches the silent failure the item did not anticipate: a scan that succeeds while the payload shape or units have drifted. |
 | **Signal strength (RSSI) tracking** | Original item | `signal_strengths` dict attribute on the `count` and `unknown_count` sensors, per SSID, sourced from the Supervisor API. |
 | **Dedicated strongest-unknown RSSI sensor** | Original item | `sensor.strongest_unknown_rssi`, `SensorDeviceClass.SIGNAL_STRENGTH` in dBm, so history graphing and numeric automation conditions work without attribute extraction. |
 | **Strongest unknown SSID name sensor** | Original item | `sensor.strongest_unknown_ssid`; `unknown` when no unknown networks are visible. Companion to the `proximity_alert` binary sensor. |
@@ -304,6 +312,7 @@ Items that were on this roadmap and have since been built. Detail is in `CHANGEL
 
 ## Version Control
 
+- **v2.6.1** (2026-10-02) — One pointer line added to each of four entries: `get_networks` should scan, Visit-count threshold, Appearance / disappearance events and Proximity alert hysteresis, pointing to `docs/supervisor_scan_behavior.md`. No group, score, status or other wording changed.
 - **v2.6.0** (2026-08-03) — The `get_networks` item's open question is closed before the work starts. It carried a "watch the debounce" caveat: routing the action through `async_force_refresh` risked a script hitting the Supervisor on every call, which was the original reason for reading the cache. That risk existed only because `async_force_refresh` called `async_refresh()` and bypassed HA's debouncer — the one project of four doing so. Corrected the same day to `async_request_refresh()`, so the first call fetches immediately and the rest coalesce. The item is now a straightforward change with no open question.
 - **v2.5.0** (2026-08-03) — Two items added at the **top** of To Be Done, both intended for the next working session.
 

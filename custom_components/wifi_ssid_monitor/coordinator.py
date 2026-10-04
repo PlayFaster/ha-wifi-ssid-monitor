@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta
 import fnmatch
 import logging
-from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -58,11 +58,7 @@ from .health import (
     run_checks,
     worst_severity,
 )
-from .parse import (
-    history_key,
-    normalize_access_point,
-    resolve_hidden_collisions,
-)
+from .parse import history_key, normalize_access_point, resolve_hidden_collisions
 
 _LOGGER = logging.getLogger(__name__)
 

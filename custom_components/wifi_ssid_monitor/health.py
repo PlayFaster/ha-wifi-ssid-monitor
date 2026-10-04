@@ -12,9 +12,9 @@ future contract check is a one-line addition to ``CHECKS``.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+import logging
 from typing import Any
 
 _LOGGER = logging.getLogger(__name__)

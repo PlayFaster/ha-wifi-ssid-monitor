@@ -22,9 +22,9 @@ entity description, and no static check can see through that.
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.core import HomeAssistant
 
 from custom_components.wifi_ssid_monitor.const import DOMAIN
+from homeassistant.core import HomeAssistant
 
 # Attributes deliberately left recorded, with the justification Section 14
 # requires. Empty by design — adding an entry here is a visible, reviewable
@@ -115,9 +115,7 @@ def test_health_detail_is_unrecorded() -> None:
     absent from `_unrecorded_attributes`, which had fallen behind
     `extra_state_attributes` as the attribute set grew.
     """
-    from custom_components.wifi_ssid_monitor.binary_sensor import (
-        WifiHealthBinarySensor,
-    )
+    from custom_components.wifi_ssid_monitor.binary_sensor import WifiHealthBinarySensor
 
     unrecorded = WifiHealthBinarySensor._unrecorded_attributes
     for name in (
@@ -574,4 +572,60 @@ def test_no_orphan_issue_translations() -> None:
     assert not orphans, (
         "translation entries matching no repair this integration can raise:\n"
         + "\n".join(orphans)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Every entity belongs to a device (`every_entity_must_have_a_device.md`).
+#
+# Home Assistant does not reject an entity registered without `device_info`: it
+# joins the entry's entity list and the integration's total and appears on no
+# device card. The code half is `entity.py:build_device_info`, declared once in
+# `WifiScanEntity` and inherited; this is the sweep that would notice a class
+# written without that base.
+# ---------------------------------------------------------------------------
+
+# Measured against the manifest on 2026-10-02: the integration has 18 entities,
+# every one of which has a device. A floor at the real figure, not a token one.
+MIN_ENTITIES_WITH_A_DEVICE = 18
+
+
+@pytest.mark.asyncio
+async def test_every_live_entity_belongs_to_a_device(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """Every live entity reports a device with non-empty identifiers."""
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        # Disabled-by-default entities are instantiated too, or the sweep would
+        # inspect a subset and pass on the rest.
+        patch(
+            "homeassistant.helpers.entity.Entity.entity_registry_enabled_default",
+            property(lambda self: True),
+        ),
+        patch(
+            "custom_components.wifi_ssid_monitor.api.WifiScanAPI.get_access_points",
+            new=AsyncMock(return_value=list(_ACCESS_POINTS)),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        checked = 0
+        offenders: list[str] = []
+        for component in hass.data["entity_components"].values():
+            for entity in component.entities:
+                platform = getattr(entity, "platform", None)
+                if platform is None or platform.platform_name != DOMAIN:
+                    continue
+                checked += 1
+                info = entity.device_info
+                if not info or not info.get("identifiers"):
+                    offenders.append(entity.entity_id)
+
+    assert not offenders, "entities with no device:\n" + "\n".join(offenders)
+    assert checked >= MIN_ENTITIES_WITH_A_DEVICE, (
+        f"device sweep inspected only {checked} entities — the fixture has gone "
+        f"stale and this test is passing vacuously"
     )

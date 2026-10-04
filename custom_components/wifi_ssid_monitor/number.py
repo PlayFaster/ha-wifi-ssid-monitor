@@ -8,8 +8,8 @@ moment the option is changed from anywhere else.
 from __future__ import annotations
 
 import asyncio
-import logging
 from dataclasses import dataclass
+import logging
 from typing import Final
 
 from homeassistant.components.number import (
