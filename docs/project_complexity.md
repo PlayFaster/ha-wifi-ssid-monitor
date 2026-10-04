@@ -1,6 +1,6 @@
 # Project Complexity & Health: ha-wifi-ssid-monitor
 
-**Last Measured:** 2026-10-03T00:03:50.818452+00:00 · **Release:** `2.0.5` · **Dev Version:** `2.0.5-dev10`
+**Last Measured:** 2026-10-04T17:47:56.485680+00:00 · **Release:** `2.0.5` · **Dev Version:** `2.0.5`
 
 ## 1. Executive Summary
 
@@ -27,7 +27,7 @@
 | **Platform SLOC / Entity** | **37.3 lines/entity** | Target 20 – 45 lines/entity declarative efficiency |
 | **Test-to-Source Ratio** | **2.43×** | 6,294 test lines ($\ge 1.5×$ recommended) |
 | **Pytest Coverage** | **100%** | 486 tests executed |
-| **Pytest Duration** | **75.10s** | Full test suite wall-clock execution time |
+| **Pytest Duration** | **113.75s** | Full test suite wall-clock execution time |
 
 ## 2. High Complexity Routines ($\ge 10$)
 

@@ -5,6 +5,8 @@ All changes to this project will be documented in this file. This is the detaile
 ---
 
 - [Internal Detailed Changelog: WiFi SSID Monitor](#internal-detailed-changelog-wifi-ssid-monitor)
+  - [\[2.0.5\] - 2026-10-04 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in Diagnostics; Malformed Reply Fix](#205---2026-10-04---release-minimum-home-assistant-202520-rejected-scan-responses-in-diagnostics-malformed-reply-fix)
+  - [\[2.0.5\] - 2026-10-03 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in the Diagnostics Download; Malformed Reply Fix](#205---2026-10-03---release-minimum-home-assistant-202520-rejected-scan-responses-in-the-diagnostics-download-malformed-reply-fix)
   - [\[2.0.5-dev10\] - 2026-10-03 - Mock Supervisor Scan Latency, Jitter and Intermittent Networks; Scan Behavior Reference; Queue Records](#205-dev10---2026-10-03---mock-supervisor-scan-latency-jitter-and-intermittent-networks-scan-behavior-reference-queue-records)
   - [\[2.0.5-dev9\] - 2026-10-02 - Diagnostics Download Carries Rejected-Response Record; Payload Keys Classified; Device Sweep](#205-dev9---2026-10-02---diagnostics-download-carries-rejected-response-record-payload-keys-classified-device-sweep)
   - [\[2.0.5-dev8\] - 2026-10-02 - get\_networks Filter Tests; Handler and Filter Predicate at Module Level](#205-dev8---2026-10-02---get_networks-filter-tests-handler-and-filter-predicate-at-module-level)
@@ -124,11 +126,70 @@ All changes to this project will be documented in this file. This is the detaile
   - [\[1.0.1\] - 2026-04-02 - Test Suite: Test Coverage to 99%](#101---2026-04-02---test-suite-test-coverage-to-99)
   - [\[1.0.0\] - 2026-04-01 - Initial Release: Custom Component for WiFi SSID Monitoring](#100---2026-04-01---initial-release-custom-component-for-wifi-ssid-monitoring)
 
+---
+
+## [2.0.5] - 2026-10-04 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in Diagnostics; Malformed Reply Fix
+
+This is a maintenance release that improves diagnostics and fixes an edge case error, but does not otherwise change the functionality of the integration.
+
+### Summary
+
+- **Minimum Home Assistant raised to 2025.2.0**: Requires Python 3.13 runtime; older Home Assistant versions will remain on 2.0.4 until updated.
+- **Diagnostics download includes rejected scan details**: Diagnostics exports now capture the last rejected Supervisor response to aid troubleshooting, with personal network names and hardware addresses stripped.
+- **Resilience against unexpected replies**: Scans no longer fail with an unhandled error when the Supervisor returns non-standard data.
+
+### Breaking
+
+- **Minimum Home Assistant version is now 2025.2.0:** Home Assistant 2025.2.0 is the first release requiring Python 3.13, making Python 3.13 the minimum runtime.
+  - HACS withholds this update from installations running older Home Assistant releases, which will remain on 2.0.4.
+  - Update Home Assistant first, then update this integration. No entity, configuration, or service action changes are required.
+
+### Added
+
+- **Rejected scan details in diagnostics download**: When the Supervisor rejects a scan, the diagnostics export now records a `last_rejection` entry under `coordinator`. It includes the HTTP status code, failure category (`http_error`, `invalid_json`, or `missing_ap_key`), timestamp, content type, and up to 500 characters of error response text with any hardware MAC addresses replaced by `[REDACTED_MAC]`.
+  - The record contains no SSIDs, BSSIDs, or network credentials.
+  - It clears automatically as soon as a subsequent scan succeeds.
+  - Attach the download to an issue as before.
+
+### Fixed
+
+- **Malformed Supervisor reply handling**: An issue where a Supervisor reply returning non-object data caused an unhandled error during scans is resolved. It is now handled gracefully as a missing access-point list and surfaced as payload drift on the **Integration Health** sensor.
+
+### Under the hood
+
+- Reorganized `get_networks` filtering into a dedicated helper and expanded the test suite from 414 to 486 tests at 100% line and branch coverage.
+- Introduced strict classification sets in diagnostics to ensure all published and sanitized fields are guarded against identifier leaks.
+- Documented empirical multi-host scan behavior and signal jitter measurements in `docs/supervisor_scan_behavior.md`.
+
+## [2.0.5] - 2026-10-03 - Release: Minimum Home Assistant 2025.2.0; Rejected Scan Responses in the Diagnostics Download; Malformed Reply Fix
+
+### Summary
+
+Release of 2.0.5, built over dev1 to dev10. The public entry in `CHANGELOG.md` states the breaking Home Assistant floor of 2025.2.0, the `last_rejection` record in the diagnostics download and the fix for a non-object `data` reply, and it leaves the other dev entries out because a user never saw their intermediate states. This entry also corrects one sentence of the dev5 entry. `manifest.json` already read `2.0.5` and is unchanged.
+
+### Changed
+
+- **`CHANGELOG.md`** (I10): the `[2.0.5]` entry. The Home Assistant floor change is under a Breaking section, as the 2.0.3 attribute change was, because HACS withholds the version from installations below 2025.2.0, which Home Assistant public analytics of 2026-09-23 place at 4.6% of 687,049 opted-in installations (dev5 entry). Shipping a floor change in a patch release was the owner's decision on 2026-10-01 (plan evidence E27, decision D28).
+- **What the public entry omits**: dev1 to dev4 and dev6 changed `AGENTS.md`, lint settings, a scorecard document and CI triggers only, and dev7 bumped shared CI and tooling, so none of them has a visible effect. The mock, the reference document and the queue records of dev10 are maintainer material.
+
+### Notes
+
+- **Correction to the 2.0.5-dev5 entry, naming a file that does not exist**: the dev5 entry says `_compat.py` is unaffected because its branches detect 2026.8 device-registry features. The project has no `_compat.py`. The component directory holds no such file, checked by a directory listing of `custom_components/wifi_ssid_monitor` on 2026-10-01, so the sentence refers to nothing in this project. The dev5 entry is unchanged, as the changelog standard requires, and this entry corrects only that sentence: the rest of the dev5 entry was not re-checked here.
+- **Release tag**: the release workflow passes the tag of the published release to the shared workflow, whose `Verify Manifest Version Matches Tag` step removes a leading `v` and fails the release unless the result equals the manifest version. The tag of this release is therefore `2.0.5` or `v2.0.5`.
+
+### Verified
+
+- **Version**: `manifest.json` reads `2.0.5` and is unchanged by every dev build.
+
 ## [2.0.5-dev10] - 2026-10-03 - Mock Supervisor Scan Latency, Jitter and Intermittent Networks; Scan Behavior Reference; Queue Records
 
 ### Summary
 
 The devcontainer mock Supervisor now behaves like the real one measured on 2026-10-01: a scan takes about 5 s, signals jitter between scans, and two unknown networks come and go. The two-host measurement is published as `docs/supervisor_scan_behavior.md`, with a README line, four roadmap pointers and corrections to `docs/DEVELOPMENT.md`. The queue records for the outcomes decided in `v205_plan.md` are written. No integration code changed. This is build 3 of 3 in `v205_plan.md` (items I6, I7, I8 and I9).
+
+### Bumps
+
+- **Validate Bump**: Update `mypy` from 2.3.1 to 2.4.0
 
 ### Added
 
